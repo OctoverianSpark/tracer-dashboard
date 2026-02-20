@@ -1,10 +1,11 @@
 'use client'
 import Image from 'next/image'
-import { getMachines } from './computers/actions'
 import { useEffect, useState } from 'react'
 import { Machine } from '@/types/Machine'
+import { getMachines } from '../actions'
+import MachineList from '@/components/ComputerManager/MachineList'
 
-export default function Home () {
+export default function page () {
   const [machines, setMachines] = useState<Machine[]>([])
   useEffect(() => {
     const findMachines = async () => {
@@ -17,7 +18,7 @@ export default function Home () {
 
   return (
     <div className='flex min-h-screen items-center justify-center font-sans dark:bg-black'>
-      <h1>A</h1>
+      <MachineList machines={machines} />
     </div>
   )
 }
