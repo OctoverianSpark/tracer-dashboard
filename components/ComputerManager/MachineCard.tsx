@@ -16,13 +16,19 @@ interface CardMachineProps {
 }
 export default function MachineCard ({ machine }: CardMachineProps) {
   return (
-    <Card className='w-50 h-50 grid place-items-center'>
-      <CardHeader className='w-full text-center flex'>
-        <CardTitle className='text-2xl'>{machine.machineName}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <MachineDialog machine={machine} />
-      </CardContent>
-    </Card>
+    <Card className={`w-50 h-50 flex flex-col items-center border-2 transition-all duration-200
+  hover:shadow-lg hover:scale-105 cursor-pointer
+  ${machine.isAlive ? 'border-green-500' : 'border-red-500'}`}>
+  <CardHeader className='w-full text-center pb-2'>
+    <CardTitle className='text-2xl truncate'>{machine.machineName}</CardTitle>
+    <p className='text-sm text-muted-foreground'>{machine.ip ?? 'Sin IP'}</p>
+  </CardHeader>
+  <CardContent className='flex flex-col items-center gap-3 w-full'>
+    <Badge variant={machine.isAlive ? "default" : "destructive"}>
+      {machine.isAlive ? '🟢 Online' : '🔴 Offline'}
+    </Badge>
+    <MachineDialog machine={machine} />
+  </CardContent>
+</Card>
   )
 }

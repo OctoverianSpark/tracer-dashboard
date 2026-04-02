@@ -24,8 +24,8 @@ import {
   InputGroupInput
 } from '@/app/_components/_ui/input-group'
 import { Search, X } from 'lucide-react'
-import { DocType, Employee } from '@/types/Personal'
-import { getDocumentTypes } from '@/app/personal/actions'
+import { DocType, Employee, Mode } from '@/types/Personal'
+import { getDocumentTypes, getModes } from '@/app/personal/actions'
 import EmployeeForm from './EmployeeForm'
 
 interface EmployeeListProps {
@@ -51,12 +51,14 @@ export default function EmployeeList ({
   const [filterColumn, setFilterColumn] = useState<FilterColumn>('all')
   const [filterValue, setFilterValue] = useState('')
   const [docTypes, setTypes] = useState<DocType[]>([])
+  const [modes, setModes] = useState<Mode[]>([])
 
   useEffect(() => {
     const getTypes = async () => {
       const types = await getDocumentTypes()
-
+      const mod = await getModes()
       setTypes(types)
+      setModes(mod.modes)
     }
 
     getTypes()
@@ -112,6 +114,14 @@ export default function EmployeeList ({
     const type = docTypes.find(type => type.id === doc_id)
 
     return type
+  }
+  const getMode = (mode_id: number): Mode | undefined => {
+   
+    console.log(mode_id)
+
+    const mode = modes.find(mode => mode.id === mode_id)
+
+    return mode
   }
 
   const clearFilter = () => {

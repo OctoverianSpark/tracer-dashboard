@@ -32,6 +32,7 @@ import {
   SendHorizonal
 } from 'lucide-react'
 import React, { ChangeEventHandler, useEffect, useRef, useState } from 'react'
+import MachineActions from './MachineActions'
 
 interface MachineDialogProps {
   machine: Machine
@@ -58,8 +59,7 @@ export default function MachineDialog ({ machine }: MachineDialogProps) {
     fileInputRef.current?.click()
   }
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const handleFileSelect = async (file:File) => {
     if (!file) return
 
     console.log('Archivo seleccionado:', file.name)
@@ -69,15 +69,6 @@ export default function MachineDialog ({ machine }: MachineDialogProps) {
     formData.append('file', file)
 
     sendFileToMachine(machine.machineSerial, formData)
-  }
-  const handleNotice = () => {
-    sendNotice(machine.machineSerial, notification)
-    setOpen(prev => {
-      return {
-        ...prev,
-        notice: false
-      }
-    })
   }
 
   const handleLock = () => {
@@ -99,14 +90,19 @@ export default function MachineDialog ({ machine }: MachineDialogProps) {
     getGeo()
   }, [open.pc, machine.ip]) // Agregadas las dependencias necesarias
 
-  const handleNotification: React.ChangeEventHandler<
-    HTMLInputElement | HTMLTextAreaElement
-  > = event => {
-    setNotification(prev => {
-      return { ...prev, [event.target.id]: event.target.value }
+  
+  const handleNotification = (title:string,message:string) =>{
+    sendNotice(machine.machineSerial, {
+      title,
+      message
     })
+    
   }
 
+  const handleShutdowns = () => {
+    console.log("LOGIN OUT");
+    
+  }
   return (
     <Dialog
       onOpenChange={val =>
@@ -126,87 +122,10 @@ export default function MachineDialog ({ machine }: MachineDialogProps) {
           <div className='flex gap-1'>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  onClick={handleLock}
-                  className='cursor-pointer'
-                  size={'icon-sm'}
-                  variant={'ghost'}
-                >
-                  <Lock />
-                </Button>
+                <MachineActions onLock={handleLock} onSendFile={handleFileSelect} onSendNotice={handleNotification}  onLogoff={handleShutdowns} onRestart={handleShutdowns} onShutdown={handleShutdowns}/>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Bloquear</p>
-              </TooltipContent>
-            </Tooltip>
-            <Dialog
-              onOpenChange={val =>
-                setOpen(prev => {
-                  return { ...prev, notice: val }
-                })
-              }
-              open={open.notice}
-            >
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DialogTrigger asChild>
-                    <Button
-                      className='cursor-pointer'
-                      size={'icon-sm'}
-                      variant={'ghost'}
-                    >
-                      <Bell />
-                    </Button>
-                  </DialogTrigger>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Enviar Notificacion</p>
-                </TooltipContent>
-              </Tooltip>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Enviar Notificacion</DialogTitle>
-                </DialogHeader>
-                <div className='grid'>
-                  <Label htmlFor='title'>Titulo</Label>
-                  <Input
-                    id='title'
-                    value={notification?.title}
-                    onChange={handleNotification}
-                  />
-                </div>
-                <div className='grid'>
-                  <Label htmlFor='message'>Mensaje</Label>
-                  <Textarea
-                    id='message'
-                    value={notification?.message}
-                    onChange={handleNotification}
-                  />
-                </div>
-                <Button className='cursor-pointer' onClick={handleNotice}>
-                  Enviar <SendHorizonal />
-                </Button>
-              </DialogContent>
-            </Dialog>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  onClick={openNativeFileDialog}
-                  className='cursor-pointer'
-                  size={'icon-sm'}
-                  variant={'ghost'}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type='file'
-                    onChange={handleFileSelect}
-                    style={{ display: 'none' }}
-                  />
-                  <FileUp />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Enviar Archivo</p>
+                <p>Acciones</p>
               </TooltipContent>
             </Tooltip>
           </div>

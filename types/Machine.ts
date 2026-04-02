@@ -1,12 +1,14 @@
 
 export type Machine = {
-  machineId: string;
-  machineName: string;
-  machineSerial: string;
-  isAlive:boolean;
+  id: string;
+  hostname: string;
+  serial_number: string;
+  alive: boolean;
   userName: string;
   displayName: string;
-  ip: string;
-  
+  ip_address: string;
+  last_seen: string;
+  personal_id: string;
+
 }
 

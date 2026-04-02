@@ -11,22 +11,23 @@ import Image from 'next/image'
 import React, { useEffect } from 'react'
 
 interface ScreenshotsViewerProps {
-  fileName: string
+  fileName: string,
 }
 
 interface ScreenshotsListProps {
-  screenshots: string[]
+  screenshots: string[],
+  machineName: string
 }
 
 export default function ReportScreenshotsList ({
-  screenshots
+  screenshots,
+  machineName
 }: ScreenshotsListProps) {
-  console.log(screenshots)
 
   return (
     <div className='grid grid-cols-4 gap-4'>
       {screenshots.map(file => (
-        <ScreenshotsViewer fileName={file} key={crypto.randomUUID()} />
+        <ScreenshotsViewer fileName={`${machineName}/${file}`} key={file} />
       ))}
     </div>
   )
@@ -37,37 +38,26 @@ export function ScreenshotsViewer ({ fileName }: ScreenshotsViewerProps) {
   const [date, setDate] = React.useState('')
   const [monitor, setMonitor] = React.useState<number>(0)
 
-  useEffect(() => {
-    const data = fileName.split('-')
-    // ["20260220_181209", "AV", "DTI", "03", "0.jpg"]
-    setMonitor(Number(data[4].split('.')[0])) // "0"
+ useEffect(() => {
+  const data = fileName.split("/")[1].split('_')
+  console.log(data);
+  
+  // ["2026-02-20T18-12-09", "Monitor0.jpg"]
+  
+  const monitor = data[1].replace('Monitor', '')
+  setMonitor(parseInt(monitor))
 
-    const raw = data[0] // "20260220_181209"
-    const [datePart, timePart] = raw.split('_')
-    // datePart: "20260220", timePart: "181209"
-
-    const year = datePart.slice(0, 4)
-    const month = datePart.slice(4, 6)
-    const day = datePart.slice(6, 8)
-
-    const hours = timePart.slice(0, 2)
-    const minutes = timePart.slice(2, 4)
-    const seconds = timePart.slice(4, 6)
-
-    const parsed = new Date(
-      `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
-    )
-    const formatted = parsed.toLocaleString() // "20/2/2026, 18:12:09"
-
-    setDate(formatted)
-    console.log(formatted) // ✅ valor correcto, no el estado
-  }, [])
+  const raw = data[0] // "2026-02-20T18-12-09"
+  
+  const parsed = new Date(raw.replace(/-(\d{2})-(\d{2})-(\d{3})Z$/, ':$1:$2.$3'))
+  setDate(parsed.toLocaleString())
+}, [])
 
   return (
     <Card>
       <CardHeader>
         <h2>{date}</h2>
-        <span>Monitor {monitor + 1}</span>
+        <span>Monitor {monitor}</span>
       </CardHeader>
       <CardContent>
         <div className='flex flex-col items-center gap-4'>

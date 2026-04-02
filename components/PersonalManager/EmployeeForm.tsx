@@ -25,9 +25,9 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/app/_components/_ui/select'
-import { getDocumentTypes, savePersonal } from '@/app/personal/actions'
+import { getDocumentTypes, getModes, savePersonal } from '@/app/personal/actions'
 import { FormActions } from '@/types/Global'
-import { DocType, Employee } from '@/types/Personal'
+import { DocType, Employee, Mode } from '@/types/Personal'
 import { Pencil } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import React, {
@@ -77,6 +77,7 @@ export default function EmployeeForm ({
   const [open, setOpen] = useState<boolean>()
 
   const [DocTypes, setDocTypes] = useState<DocType[]>([])
+  const [Modes, setModes] = useState<Mode[]>([])
 
   const onInputChange: ChangeEventHandler<HTMLInputElement> = e => {
     setValues(prev => {
@@ -104,7 +105,12 @@ export default function EmployeeForm ({
 
       setDocTypes(types)
     }
+    const getM = async () => {
+      const m = await getModes()
+      setModes(m.modes)
+    }
     getTypes()
+    getM()
   }, [])
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -152,7 +158,7 @@ export default function EmployeeForm ({
           </div>
           <div className='flex gap-2'>
             <div className='grid gap-3 flex-1 w-fit'>
-              <Label htmlFor='doc_type'>Tipo de Documento</Label>
+              <Label htmlFor='document_type'>Tipo de Documento</Label>
               <Select
                 value={String(values.doc_type)}
                 onValueChange={val => {
@@ -197,6 +203,36 @@ export default function EmployeeForm ({
               value={values.job_title}
             />
           </div>
+          
+            <div className='grid gap-3 flex-1 w-fit'>
+              <Label htmlFor='mode_type'>Modalidad</Label>
+              <Select
+                value={String(values.mode_type)}
+                onValueChange={val => {
+                  setValues(prev => {
+                    return {
+                      ...prev,
+                      mode_type: Number(val)
+                    }
+                  })
+                }}
+              >
+                <SelectTrigger className='min-w-40 cursor-pointer'>
+                  <SelectValue placeholder='Modalidad' />
+                </SelectTrigger>
+                <SelectContent className=''>
+                  {Modes.map(mode => (
+                    <SelectItem
+                      key={crypto.randomUUID()}
+                      className='w-full cursor-pointer'
+                      value={String(mode.id)}
+                    >
+                      {mode.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
         </div>
         <DialogFooter>
           <Button onClick={handleSubmit} className='cursor-pointer'>
