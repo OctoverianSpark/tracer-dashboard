@@ -1,19 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig = {
-
   images: {
     remotePatterns: [
       {
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '3000',
-      },
-    ],
-    dangerouslyAllowSVG: false,
-  },
-  experimental: {
-    allowedDevOrigins: ['localhost'],
-  },
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com', // dominio de fotos de Google
+      }
+    ]
+  }
 }
 export default nextConfig;

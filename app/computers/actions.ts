@@ -5,19 +5,27 @@ import { Notification } from "@/types/Notification"
 const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL
 
 
-export const getMachines = async (): Promise<Machine[]> => {
+export const getMachines = async () => {
   const computers = await (await fetch(`${NEXT_PUBLIC_API_URL}/machines/list`)).json()
 
-  console.log(computers);
+  console.log(computers.machines);
 
-  return computers.machines as Machine[]
+  return computers.machines
 
 
 
 }
 
+export const findAsignedMachines = async (appuser_id: number): Promise<Array<Machine>> => {
+  const computers = await (await fetch(`${NEXT_PUBLIC_API_URL}/machines?appuser_id=${appuser_id}`)).json()
+  console.log(computers);
+
+  return computers
+}
+
 export const getMachineReport = async (computerName: string, date: string) => {
   const screenshots = await (await fetch(`${NEXT_PUBLIC_API_URL}/machines/get-report?computername=${computerName}&date=${date}`)).json()
+
 
   return screenshots
 

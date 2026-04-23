@@ -68,11 +68,11 @@ export default function MachineDialog ({ machine }: MachineDialogProps) {
     const formData = new FormData()
     formData.append('file', file)
 
-    sendFileToMachine(machine.machineSerial, formData)
+    sendFileToMachine(machine.serial_number, formData)
   }
 
   const handleLock = () => {
-    lockMachine(machine.machineSerial)
+    lockMachine(machine.serial_number)
   }
 
   useEffect(() => {
@@ -80,7 +80,7 @@ export default function MachineDialog ({ machine }: MachineDialogProps) {
 
     const getGeo = async () => {
       try {
-        const info = await getIPInfo(machine.ip)
+        const info = await getIPInfo(machine.ip_address)
         setIp(info)
       } catch (error) {
         console.error('Error obteniendo información de IP:', error)
@@ -88,11 +88,11 @@ export default function MachineDialog ({ machine }: MachineDialogProps) {
     }
 
     getGeo()
-  }, [open.pc, machine.ip]) // Agregadas las dependencias necesarias
+  }, [open.pc, machine.ip_address]) // Agregadas las dependencias necesarias
 
   
   const handleNotification = (title:string,message:string) =>{
-    sendNotice(machine.machineSerial, {
+    sendNotice(machine.serial_number, {
       title,
       message
     })
@@ -130,7 +130,7 @@ export default function MachineDialog ({ machine }: MachineDialogProps) {
             </Tooltip>
           </div>
           <DialogTitle>
-            {machine.machineName} ({machine.machineSerial})
+            {machine.hostname} ({machine.serial_number})
           </DialogTitle>
         </DialogHeader>
 

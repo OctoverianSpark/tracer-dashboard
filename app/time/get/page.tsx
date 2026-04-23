@@ -1,28 +1,42 @@
 'use client'
 import { Input } from '@/app/_components/_ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
-import { getPersonal } from '@/app/personal/actions'
+import { findAsignedMachines } from '@/app/computers/actions'
+import { getappuser } from '@/app/app/actions'
 import { getStateLog } from "@/app/time/actions"
 import { Timeline } from '@/components/TimeReporting/Timeline'
-import { Employee } from '@/types/Personal'
+import { Machine } from '@/types/Machine'
+import { AppUser } from '@/types/AppUser'
 import { StateLog } from '@/types/StateLog'
 import React, { useEffect, useState } from 'react'
 
 export default function Page() {
-  const [personal, setPersonal] = useState<Employee[]>([])
+  const [appuser, setappuser] = useState<AppUser[]>([])
+  const [computers, setComputers] = useState<Machine[]>([])
   const [date, setDate] = useState<string>('')
   const [logs, setLogs] = useState<StateLog[]>([])
   const [filteredLogs, setFilteredLogs] = useState<StateLog[]>([])
-  const [selectedEmployee, setSelected] = useState<Employee | undefined>()
+  const [selectedAppUser, setSelected] = useState<AppUser | undefined>()
+  const [selectedComputer, setComputer] = useState<Machine|undefined>()
 
   useEffect(() => {
-    getPersonal().then(setPersonal)
+    getappuser().then(setappuser)
+    
+
   }, [])
 
+  useEffect(()=>{
+    if(!selectedAppUser) return
+    console.log(selectedAppUser);
+    
+
+    findAsignedMachines(selectedAppUser.id!).then(setComputers)
+  },[selectedAppUser])
+
   useEffect(() => {
-    if (!selectedEmployee) return
-    getStateLog(selectedEmployee.id!).then(setLogs)
-  }, [selectedEmployee])
+    if (!selectedAppUser || !selectedComputer) return
+    getStateLog(selectedAppUser.id!,selectedComputer.id!).then(setLogs)
+  }, [selectedAppUser,selectedComputer])
 
   // Filtro sin loop — usa estado separado
   useEffect(() => {
@@ -33,21 +47,40 @@ export default function Page() {
   return (
     <div>
       <div className="flex justify-between">
+        <div className="grid">
+          
         <Select
-          onValueChange={val => setSelected(personal.find(e => e.id === Number(val)))}
-          value={selectedEmployee?.id?.toString()}
+          onValueChange={val => setSelected(appuser.find(e => e.id === Number(val)))}
+          value={selectedAppUser?.id?.toString()}
         >
           <SelectTrigger>
             <SelectValue placeholder='Seleccione' />
           </SelectTrigger>
           <SelectContent>
-            {personal.map(employee => (
+            {appuser.map(employee => (
               <SelectItem key={employee.id} value={`${employee.id}`}>
-                {employee.first_name} {employee.middle_name} {employee.last_name}
+                {employee.full_name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        <Select
+          onValueChange={val => setComputer(computers.find(e => e.id === Number(val)))}
+          value={selectedComputer?.id?.toString()}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder='Seleccione' />
+          </SelectTrigger>
+          <SelectContent>
+            {computers.map((computer,i) => (
+              <SelectItem key={computer.id} value={`${computer.id}`}>
+                Computador {i + 1}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        </div>
+        
 
         <div className="w-40">
           <Input type='date' value={date} onChange={e => setDate(e.target.value)} />

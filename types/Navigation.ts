@@ -5,6 +5,7 @@ type BaseNavItem = {
   title: string
   desc: string
   icon: LucideIcon
+  perm: string
 }
 
 type LinkNavItem = BaseNavItem & {

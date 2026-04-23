@@ -2,10 +2,14 @@ import { NavItem, NavSection, NavTypes } from '@/types/Navigation'
 import {
   Cog,
   Computer,
+  Cpu,
+  Database,
   FileImageIcon,
   FileUser,
   FileWarning,
   FrameIcon,
+  GroupIcon,
+  Icon,
   LayoutDashboard,
   LucideIcon,
   PlusIcon,
@@ -13,10 +17,15 @@ import {
   Table,
   Table2,
   Table2Icon,
-  TimerIcon
+  TimerIcon,
+  User2Icon,
+  UserCog2,
+  UserPlus,
+  UserPlus2,
+  Users2
 } from 'lucide-react'
 import { join } from 'path'
-import EmployeeForm from '../PersonalManager/EmployeeForm'
+import UserForm from '../UserManager/UserForm'
 import { FormActions } from '@/types/Global'
 import {
   SidebarMenu,
@@ -24,6 +33,7 @@ import {
   SidebarMenuItem
 } from '@/app/_components/_ui/sidebar'
 import { JSX } from 'react'
+import GroupForm from '../GroupsManager/GroupForm'
 
 enum Actions {
   INDEX,
@@ -61,11 +71,9 @@ const UriGenerator = (prefix: string, action: Actions) => {
 
   const url: string = '/' + prefix + '/' + result
 
-  console.log(url)
 
   return url
 }
-
 const TIME_MESH: NavSection = {
   title: 'Malla horaria',
   icon: TimerIcon,
@@ -74,32 +82,56 @@ const TIME_MESH: NavSection = {
       title: 'Ver mallas',
       icon: Table2Icon,
       url: UriGenerator('time', Actions.GET),
-
       type: NavTypes.LINK,
-      desc: 'Mallas horarias registradas'
+      desc: 'Mallas horarias registradas',
+      perm: 'view_schedules'
+    },
+    {
+      title: 'Administrar Horarios',
+      icon: Cog,
+      url: UriGenerator('time', Actions.CONTROL),
+      type: NavTypes.LINK,
+      desc: 'Administrar horarios de entrada y salida',
+      perm: 'manage_schedules'
     }
   ]
 }
 
-const PERSONAL: NavSection = {
-  title: 'Personal',
-  icon: FileUser,
+const APPLICATION: NavSection = {
+  title: 'Aplicacion',
+  icon: Cpu,
   items: [
     {
-      title: 'Registrar Personal',
-      component: () => <EmployeeForm action={FormActions.SAVE} />,
+      title: 'Registrar Usuario',
+      component: () => <UserForm action={FormActions.SAVE} />,
       type: NavTypes.BUTTON,
-
-      desc: 'Registrar PEersonal',
-      icon: PlusIcon
+      desc: 'Configurar usuarios',
+      icon: UserPlus2,
+      perm: 'manage_users'
     },
     {
-      title: 'Ver Personal',
+      title: 'Ver usuarios',
       type: NavTypes.LINK,
-
-      icon: Table2Icon,
-      url: UriGenerator('personal', Actions.GET),
-      desc: 'Ver Empleados'
+      icon: User2Icon,
+      url: UriGenerator('app/users', Actions.GET),
+      desc: 'Ver Usuarios',
+      perm: 'manage_users'
+    },
+    {
+      title: 'Grupos',
+      type: NavTypes.LINK,
+      icon: Users2,
+      url: UriGenerator('app/groups', Actions.GET),
+      desc: 'Control de grupos',
+      perm: 'manage_groups'
+    },
+    {
+      title: 'Roles',
+      type: NavTypes.LINK,
+      icon: UserCog2,
+      url: UriGenerator('app/roles', Actions.GET),
+      desc: 'Control de roles',
+      perm: 'manage_roles'
     }
   ]
 }
@@ -111,21 +143,22 @@ const COMPUTERS: NavSection = {
     {
       title: 'Panel',
       type: NavTypes.LINK,
-
       icon: FrameIcon,
       url: UriGenerator('computers', Actions.DASHBOARD),
-      desc: 'Panel de computadoras'
+      desc: 'Panel de computadoras',
+      perm: 'manage_computers'
     },
     {
       title: 'Ver equipos',
       type: NavTypes.LINK,
-
       icon: Table,
       url: UriGenerator('computers', Actions.CONTROL),
-      desc: 'Control de computadoras'
+      desc: 'Control de computadoras',
+      perm: 'manage_computers'
     }
   ]
 }
+
 
 const REPORTS: NavSection = {
   title: 'Reportes',
@@ -136,10 +169,12 @@ const REPORTS: NavSection = {
       type: NavTypes.LINK,
       icon: FileImageIcon,
       url: UriGenerator('screenshots', Actions.INDEX),
-      desc: 'Ver reportes de capturas de pantalla'
+      desc: 'Ver reportes de capturas de pantalla',
+      perm: 'view_screenshots'
     }
   ]
 }
+
 
 export const renderNavItem = (item: NavItem): JSX.Element => {
   switch (item.type) {
@@ -170,4 +205,4 @@ export const renderNavItem = (item: NavItem): JSX.Element => {
       break
   }
 }
-export const SECTIONS = [TIME_MESH, PERSONAL, COMPUTERS, REPORTS]
+export const SECTIONS = [TIME_MESH, APPLICATION, COMPUTERS, REPORTS]

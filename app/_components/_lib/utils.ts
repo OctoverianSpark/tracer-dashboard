@@ -5,6 +5,42 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function generateId(prefix:string) {
+export function generateId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).substr(2, 9)}`
 }
+
+export const PERMISSION_GROUPS = [
+  {
+    id: 'users_group',
+    label: 'Gestión de usuarios',
+    permissions: [
+      { id: 'manage_users', label: 'Puede gestionar usuarios', default: false },
+      { id: 'manage_groups', label: 'Puede gestionar grupos', default: false },
+      { id: 'manage_roles', label: 'Puede gestionar roles', default: false },
+    ]
+  },
+  {
+    id: 'computers_group',
+    label: 'Gestión de equipos',
+    permissions: [
+      { id: 'manage_computers', label: 'Puede gestionar equipos', default: false },
+      { id: 'assign_computers', label: 'Puede asignar equipos', default: false },
+    ]
+  },
+  {
+    id: 'schedules_group',
+    label: 'Gestión de horarios',
+    permissions: [
+      { id: 'manage_schedules', label: 'Puede gestionar horarios', default: false },
+      { id: 'view_schedules', label: 'Puede ver horarios', default: false },
+      { id: 'view_screenshots', label: 'Puede ver capturas', default: false }
+    ]
+  },
+  {
+    id: 'application_group',
+    label: 'Aplicacion',
+    permissions: [
+      { id: 'use_app', label: 'Puede usar la aplicación', default: true }
+    ]
+  }
+]

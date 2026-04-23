@@ -12,7 +12,7 @@ export default function DataTab () {
           <TabsTrigger value='emails' className='rounded-full p-4 cursor-pointer'>
 
             <UserIcon />
-            Personal
+            appuser
           </TabsTrigger>
           <TabsTrigger value='data' className='rounded-full p-4 cursor-pointer'>
             <Database />

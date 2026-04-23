@@ -2,10 +2,14 @@
 import { useEffect, useState } from 'react'
 import { SidebarTrigger } from './_ui/sidebar'
 import { Button } from './_ui/button'
+import { signOut, useSession } from 'next-auth/react'
+import { ArrowBigRightIcon, Outdent, SquareArrowDownRight, SquareArrowRight } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from './_ui/tooltip'
+import Image from 'next/image'
 
 export function AppHeader () {
   const [scrolled, setScrolled] = useState(false)
-
+  const {data: session} = useSession()
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 10)
     window.addEventListener('scroll', handler)
@@ -18,7 +22,7 @@ export function AppHeader () {
         <SidebarTrigger />
       </Button>
       <div className='h-6 w-px bg-border' />
-      <h1 className='text-3xl font-semibold'>Tracer</h1>
+      <h1 className='text-3xl font-semibold'>ActiMetrics </h1>
     </header>
   )
 }

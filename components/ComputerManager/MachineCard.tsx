@@ -20,8 +20,8 @@ export default function MachineCard ({ machine }: CardMachineProps) {
   hover:shadow-lg hover:scale-105 cursor-pointer
   ${machine.isAlive ? 'border-green-500' : 'border-red-500'}`}>
   <CardHeader className='w-full text-center pb-2'>
-    <CardTitle className='text-2xl truncate'>{machine.machineName}</CardTitle>
-    <p className='text-sm text-muted-foreground'>{machine.ip ?? 'Sin IP'}</p>
+    <CardTitle className='text-2xl truncate'>{machine.hostname}</CardTitle>
+    <p className='text-sm text-muted-foreground'>{machine.ip_address ?? 'Sin IP'}</p>
   </CardHeader>
   <CardContent className='flex flex-col items-center gap-3 w-full'>
     <Badge variant={machine.isAlive ? "default" : "destructive"}>

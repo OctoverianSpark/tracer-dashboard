@@ -23,78 +23,56 @@ import {
   InputGroupAddon,
   InputGroupInput
 } from '@/app/_components/_ui/input-group'
-import { Search, X } from 'lucide-react'
-import { DocType, Employee, Mode } from '@/types/Personal'
-import { getDocumentTypes, getModes } from '@/app/personal/actions'
-import EmployeeForm from './EmployeeForm'
+import { Search, Trash2, X } from 'lucide-react'
+import { AppUser, Group, Role } from '@/types/AppUser'
+import { saveappuser } from '@/app/app/actions'
+import AppUserForm from './UserForm'
+import { getGroups } from '@/app/app/groups/actions'
+import { getRoles } from '@/app/app/roles/actions'
 
-interface EmployeeListProps {
-  employees: Employee[]
-  onUpdate: (employee: Employee) => void
+interface AppUserListProps {
+  appusers: AppUser[]
   onDelete: (selected: number[]) => void
 }
 
 type FilterColumn =
-  | 'first_name'
-  | 'middle_name'
-  | 'last_name'
-  | 'document'
-  | 'job_title'
+  | 'full_name'
   | 'all'
 
-export default function EmployeeList ({
-  employees,
-  onUpdate,
+
+
+export default function AppUserList ({
+  appusers,
   onDelete
-}: EmployeeListProps) {
+}: AppUserListProps) {
   const [selected, setSelected] = useState<number[]>([])
   const [filterColumn, setFilterColumn] = useState<FilterColumn>('all')
   const [filterValue, setFilterValue] = useState('')
-  const [docTypes, setTypes] = useState<DocType[]>([])
-  const [modes, setModes] = useState<Mode[]>([])
+  const [groups, setGroups] = useState<Group[]>([])
+  const [roles, setRoles] = useState<Role[]>([])
+  const handleUpdate = async (appuser: AppUser) => {
+    await saveappuser(appuser)
+  }
 
-  useEffect(() => {
-    const getTypes = async () => {
-      const types = await getDocumentTypes()
-      const mod = await getModes()
-      setTypes(types)
-      setModes(mod.modes)
-    }
-
-    getTypes()
-  }, [])
-
-  const filteredEmployees = employees.filter(emp => {
+  const filteredAppUsers = appusers.filter(emp => {
     if (!filterValue) return true
 
     const searchLower = filterValue.toLowerCase()
 
     switch (filterColumn) {
-      case 'first_name':
-        return emp.first_name.toLowerCase().includes(searchLower)
-      case 'middle_name':
-        return (emp.middle_name || '').toLowerCase().includes(searchLower)
-      case 'last_name':
-        return emp.last_name.toLowerCase().includes(searchLower)
-      case 'document':
-        return (emp.document || '').toLowerCase().includes(searchLower)
-      case 'job_title':
-        return (emp.job_title || '').toLowerCase().includes(searchLower)
+      case 'full_name':
+        return emp.full_name.toLowerCase().includes(searchLower)
       case 'all':
       default:
         return (
-          emp.first_name.toLowerCase().includes(searchLower) ||
-          (emp.middle_name || '').toLowerCase().includes(searchLower) ||
-          emp.last_name.toLowerCase().includes(searchLower) ||
-          (emp.document || '').toLowerCase().includes(searchLower) ||
-          (emp.job_title || '').toLowerCase().includes(searchLower)
+          emp.full_name.toLowerCase().includes(searchLower)
         )
     }
   })
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelected(filteredEmployees.map(emp => emp.id!))
+      setSelected(filteredAppUsers.map(emp => emp.id!))
     } else {
       setSelected([])
     }
@@ -108,49 +86,36 @@ export default function EmployeeList ({
     }
   }
 
-  const getDocType = (doc_id: number): DocType | undefined => {
-    console.log(doc_id)
-
-    const type = docTypes.find(type => type.id === doc_id)
-
-    return type
-  }
-  const getMode = (mode_id: number): Mode | undefined => {
-   
-    console.log(mode_id)
-
-    const mode = modes.find(mode => mode.id === mode_id)
-
-    return mode
-  }
-
   const clearFilter = () => {
     setFilterValue('')
     setFilterColumn('all')
   }
 
+  useEffect(()=>{
+    const getData = async () => {
+      getGroups().then(setGroups)
+      getRoles().then(setRoles)
+    }
+    getData()
+  },[])
+
   const isAllSelected =
-    filteredEmployees.length > 0 && selected.length === filteredEmployees.length
+    filteredAppUsers.length > 0 && selected.length === filteredAppUsers.length
 
   return (
     <div className='space-y-4 max-w-7xl'>
-      {/* Barra de búsqueda y acciones */}
       <div className='flex items-center justify-between gap-4'>
         <div className='flex items-center gap-2 flex-1 max-w-2xl'>
           <Select
             value={filterColumn}
             onValueChange={value => setFilterColumn(value as FilterColumn)}
           >
-            <SelectTrigger className='w-[180px]'>
+            <SelectTrigger className='w-45'>
               <SelectValue placeholder='Seleccionar columna' />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value='all'>Todas las columnas</SelectItem>
-              <SelectItem value='first_name'>Nombre</SelectItem>
-              <SelectItem value='middle_name'>Segundo Nombre</SelectItem>
-              <SelectItem value='last_name'>Apellido</SelectItem>
-              <SelectItem value='document'>Documento</SelectItem>
-              <SelectItem value='job_title'>Cargo</SelectItem>
+              <SelectItem value='full_name'>Nombre</SelectItem>
             </SelectContent>
           </Select>
 
@@ -190,7 +155,6 @@ export default function EmployeeList ({
         )}
       </div>
 
-      {/* Tabla */}
       <div className='rounded-md border'>
         <Table>
           <TableHeader>
@@ -202,47 +166,44 @@ export default function EmployeeList ({
                   aria-label='Seleccionar todos'
                 />
               </TableHead>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Segundo Nombre</TableHead>
-              <TableHead>Apellido</TableHead>
-              <TableHead>Documento</TableHead>
-              <TableHead>Cargo</TableHead>
+              <TableHead>Nombre completo</TableHead>
+              <TableHead>Grupo</TableHead>
+              <TableHead>Rol</TableHead>
+              <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredEmployees.length === 0 ? (
+            {filteredAppUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className='text-center h-24'>
+                <TableCell colSpan={5} className='text-center h-24'>
                   No se encontraron empleados
                 </TableCell>
               </TableRow>
             ) : (
-              filteredEmployees.map(employee => (
-                <TableRow key={employee.id}>
+              filteredAppUsers.map(appuser => (
+                <TableRow key={appuser.id}>
                   <TableCell>
                     <Checkbox
-                      checked={selected.includes(employee.id!)}
+                      checked={selected.includes(appuser.id!)}
                       onCheckedChange={checked =>
-                        handleSelectOne(employee.id!, checked as boolean)
+                        handleSelectOne(appuser.id!, checked as boolean)
                       }
-                      aria-label={`Seleccionar ${employee.first_name}`}
+                      aria-label={`Seleccionar ${appuser.full_name}`}
                     />
                   </TableCell>
                   <TableCell className='font-medium'>
-                    {employee.first_name}
+                    {appuser.full_name}
                   </TableCell>
-                  <TableCell>{employee.middle_name || '-'}</TableCell>
-                  <TableCell>{employee.last_name}</TableCell>
-                  <TableCell>
-                    {getDocType(Number(employee.doc_type))?.short_name}{' '}
-                    {employee.document || '-'}
+                  <TableCell className='font-medium'>
+                    {groups.find(g => g.id === appuser.group_id)?.name || 'Sin grupo'}
                   </TableCell>
-                  <TableCell>{employee.job_title || '-'}</TableCell>
+                  <TableCell className='font-medium'>
+                    {roles.find(r => r.id === appuser.role_id)?.name || 'Sin rol'}
+                  </TableCell>
                   <TableCell>
-                    <EmployeeForm
+                    <AppUserForm
                       action={1}
-                      employee={employee}
-                      onUpdate={onUpdate}
+                      appUser={appuser}
                     />
                   </TableCell>
                 </TableRow>
@@ -252,9 +213,8 @@ export default function EmployeeList ({
         </Table>
       </div>
 
-      {/* Info de resultados */}
       <div className='text-sm text-muted-foreground'>
-        Mostrando {filteredEmployees.length} de {employees.length} empleado(s)
+        Mostrando {filteredAppUsers.length} de {appusers.length} empleado(s)
       </div>
     </div>
   )
