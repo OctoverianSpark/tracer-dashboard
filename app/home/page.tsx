@@ -9,10 +9,10 @@ import { useEffect, useState } from 'react'
 
 
 const STAT_CONFIG = [
-  { key: 'active_users',    label: 'Usuarios activos',       icon: Users       },
-  { key: 'computers',       label: 'Equipos monitoreados',   icon: Monitor     },
-  { key: 'hours_today',     label: 'Horas registradas hoy',  icon: Clock       },
-  { key: 'productivity',    label: 'Productividad promedio', icon: TrendingUp  },
+  { key: 'active_users'  as const, label: 'Usuarios activos',       icon: Users       },
+  { key: 'computers'     as const, label: 'Equipos monitoreados',   icon: Monitor     },
+  { key: 'hours_today'   as const, label: 'Horas registradas hoy',  icon: Clock       },
+  { key: 'productivity'  as const, label: 'Productividad promedio', icon: TrendingUp  },
 ]
 
 export default function Page() {
