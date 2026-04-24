@@ -11,12 +11,17 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user }) {
+      console.log('[signIn] user:', user)
+      console.log('[signIn] API_URL:', process.env.API_URL)
       if (!user.email) return false
       try {
         const res = await fetch(`${process.env.API_URL}/appuser/findbyemail?email=${user.email}`)
+        const data = await res.json()
+        console.log('[signIn] status:', res.status, '| response:', data)
         if (!res.ok) return false
-        return !!await res.json()
-      } catch {
+        return !!data
+      } catch (e) {
+        console.error('[signIn] error:', e)
         return false
       }
     },
