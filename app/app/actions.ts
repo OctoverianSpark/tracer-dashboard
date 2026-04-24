@@ -3,14 +3,14 @@ import { AppUser } from '@/types/AppUser'
 import { revalidatePath } from 'next/cache'
 
 export const getappuser = async (): Promise<AppUser[]> => {
-  const appuser = await (await fetch('https://tracerapi.asistentevirtualsas.com/appuser')).json()
+  const appuser = await (await fetch('https://actimetrics.asistentevirtualsas.com/appuser')).json()
   console.log(appuser);
 
   return appuser
 }
 
 export const saveappuser = async (body: AppUser) => {
-  await fetch(`https://tracerapi.asistentevirtualsas.com/appuser${body.id ? `/update/${body.id}` : '/save'}`, {
+  await fetch(`https://actimetrics.asistentevirtualsas.com/appuser${body.id ? `/update/${body.id}` : '/save'}`, {
     method: body.id ? 'PUT' : 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
@@ -19,7 +19,7 @@ export const saveappuser = async (body: AppUser) => {
 }
 
 export const deleteappuser = async (selected: number[]) => {
-  await fetch('https://tracerapi.asistentevirtualsas.com/appuser/delete', {
+  await fetch('https://actimetrics.asistentevirtualsas.com/appuser/delete', {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(selected)

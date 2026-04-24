@@ -6,7 +6,7 @@ export async function GET(
 ) {
   const { filename, machine } = await params
 
-  const response = await fetch(`https://tracerapi.asistentevirtualsas.com/machines/screenshot/${machine}/${filename}`)
+  const response = await fetch(`https://actimetrics.asistentevirtualsas.com/machines/screenshot/${machine}/${filename}`)
   console.log(response, machine, filename);
 
   const buffer = await response.arrayBuffer()
