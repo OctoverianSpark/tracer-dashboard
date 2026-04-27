@@ -1,3 +1,4 @@
+'use server'
 import { Machine } from "@/types/Machine"
 import { Notification } from "@/types/Notification"
 
@@ -10,7 +11,7 @@ export const getMachines = async (): Promise<Machine[]> => {
 
 export const findAsignedMachines = async (appuser_id: number): Promise<Machine[]> => {
   const data = await (await fetch(`${API_URL}/machines?appuser_id=${appuser_id}`)).json()
-  return data
+  return Array.isArray(data) ? data : (data.machines ?? data.data ?? [])
 }
 
 export const getMachineReport = async (computerName: string, date: string) => {
