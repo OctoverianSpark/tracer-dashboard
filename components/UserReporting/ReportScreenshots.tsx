@@ -20,9 +20,15 @@ const PAGE_SIZE = 24
 
 function parseFileName(fileName: string) {
   const file = fileName.split('/')[1]
-  const [rawDate, rawMonitor] = file.split('_')
-  const monitor = parseInt(rawMonitor.replace('Monitor', ''))
-  const isoDate = rawDate.replace(/T(\d{2})-(\d{2})-(\d{2})/, 'T$1:$2:$3')
+
+  const monitorMatch = file.match(/_Monitor(\d+)\.jpg$/i)
+  const monitor = monitorMatch ? parseInt(monitorMatch[1]) : 0
+
+  const dateMatch = file.match(/(\d{8})-(\d{6})/)
+  if (!dateMatch) return { date: file, monitor }
+
+  const [, d, t] = dateMatch
+  const isoDate = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}`
   return { date: new Date(isoDate).toLocaleString(), monitor }
 }
 
