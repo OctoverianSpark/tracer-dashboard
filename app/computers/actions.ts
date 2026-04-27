@@ -11,7 +11,8 @@ export const getMachines = async (): Promise<Machine[]> => {
 
 export const findAsignedMachines = async (appuser_id: number): Promise<Machine[]> => {
   const data = await (await fetch(`${API_URL}/machines?appuser_id=${appuser_id}`)).json()
-  return Array.isArray(data) ? data : (data.machines ?? data.data ?? [])
+  const all: Machine[] = Array.isArray(data) ? data : (data.machines ?? data.data ?? [])
+  return all.filter(m => Number(m.appuser_id) === appuser_id)
 }
 
 export const getMachineReport = async (computerName: string, date: string) => {
