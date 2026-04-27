@@ -1,23 +1,35 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { getMachineReport, getMachines } from '../computers/actions'
+import { getMachineReport, findAsignedMachines } from '../computers/actions'
+import { getappuser } from '../app/actions'
 import ReportScreenshotsList from '@/components/UserReporting/ReportScreenshots'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../_components/_ui/select'
 import { Machine } from '@/types/Machine'
+import { AppUser } from '@/types/AppUser'
 import { Input } from '../_components/_ui/input'
 import { Label } from '../_components/_ui/label'
 
 export default function Page() {
-  const [screenshots, setScreenshots] = useState<string[]>([])
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0])
-  const [machine, setMachine] = useState<Machine>()
-  const [machines, setMachines] = useState<Machine[]>([])
+  const [appusers, setAppusers]           = useState<AppUser[]>([])
+  const [machines, setMachines]           = useState<Machine[]>([])
+  const [selectedUser, setSelectedUser]   = useState<AppUser | undefined>()
+  const [machine, setMachine]             = useState<Machine | undefined>()
+  const [date, setDate]                   = useState(() => new Date().toISOString().split('T')[0])
+  const [screenshots, setScreenshots]     = useState<string[]>([])
   const [actualMonitor, setActualMonitor] = useState<number | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading]             = useState(false)
 
   useEffect(() => {
-    getMachines().then(setMachines)
+    getappuser().then(setAppusers)
   }, [])
+
+  useEffect(() => {
+    if (!selectedUser) return
+    setMachine(undefined)
+    setScreenshots([])
+    setActualMonitor(null)
+    findAsignedMachines(selectedUser.id!).then(setMachines)
+  }, [selectedUser])
 
   useEffect(() => {
     if (!machine) return
@@ -41,10 +53,33 @@ export default function Page() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-3 justify-between">
-        <div className="grid gap-1">
+      <div className="flex gap-3 flex-wrap">
+        <div className="grid gap-1 min-w-48">
+          <Label>Usuario</Label>
+          <Select
+            value={selectedUser?.id?.toString()}
+            onValueChange={val => {
+              setSelectedUser(appusers.find(u => u.id === Number(val)))
+              setActualMonitor(null)
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona un usuario" />
+            </SelectTrigger>
+            <SelectContent>
+              {appusers.map(u => (
+                <SelectItem key={u.id} value={`${u.id}`}>
+                  {u.full_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid gap-1 min-w-48">
           <Label>Equipo</Label>
           <Select
+            disabled={!selectedUser}
             value={machine?.serial_number}
             onValueChange={val => {
               setMachine(machines.find(m => m.serial_number === val))
@@ -52,7 +87,7 @@ export default function Page() {
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Selecciona un equipo" />
+              <SelectValue placeholder={selectedUser ? 'Selecciona un equipo' : 'Primero selecciona un usuario'} />
             </SelectTrigger>
             <SelectContent>
               {machines.map(m => (
@@ -76,7 +111,7 @@ export default function Page() {
             value={actualMonitor === null ? 'all' : `${actualMonitor}`}
             onValueChange={val => setActualMonitor(val === 'all' ? null : parseInt(val))}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-48">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -95,6 +130,12 @@ export default function Page() {
             <ReportScreenshotsList machineName={machine.hostname} screenshots={filteredScreenshots} />
           )}
         </div>
+      )}
+
+      {!machine && (
+        <p className="text-center text-sm text-muted-foreground py-12">
+          Selecciona un usuario y equipo para ver las capturas.
+        </p>
       )}
     </div>
   )

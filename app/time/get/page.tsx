@@ -12,48 +12,40 @@ import { AppUser } from '@/types/AppUser'
 import { StateLog } from '@/types/StateLog'
 import { Programation } from '@/types/Schedules'
 
-// Mapea getDay() → clave de día (L M X J V S D)
 const DAY_KEYS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'] as const
 
 export default function Page() {
-  const [appuser, setAppuser]               = useState<AppUser[]>([])
-  const [computers, setComputers]           = useState<Machine[]>([])
-  const [date, setDate]                     = useState<string>('')
-  const [logs, setLogs]                     = useState<StateLog[]>([])
-  const [selectedAppUser, setSelected]      = useState<AppUser | undefined>()
-  const [selectedComputer, setComputer]     = useState<Machine | undefined>()
-  const [programation, setProgramation]     = useState<Programation | null>(null)
+  const [appuser, setAppuser]           = useState<AppUser[]>([])
+  const [computers, setComputers]       = useState<Machine[]>([])
+  const [date, setDate]                 = useState<string>('')
+  const [logs, setLogs]                 = useState<StateLog[]>([])
+  const [selectedAppUser, setSelected]  = useState<AppUser | undefined>()
+  const [selectedComputer, setComputer] = useState<Machine | undefined>()
+  const [programation, setProgramation] = useState<Programation | null>(null)
 
   const filteredLogs = useMemo(
     () => date ? logs.filter(log => log.timestamp.startsWith(date)) : [],
     [logs, date]
   )
 
-  // Carga inicial de usuarios
   useEffect(() => {
     getappuser().then(setAppuser)
   }, [])
 
-  // Al cambiar usuario: resetea computador y carga sus máquinas
   useEffect(() => {
     if (!selectedAppUser) return
     setComputer(undefined)
     findAsignedMachines(selectedAppUser.id!).then(setComputers)
   }, [selectedAppUser])
 
-  // Al cambiar usuario+computador: carga logs
   useEffect(() => {
     if (!selectedAppUser || !selectedComputer) return
     getStateLog(selectedAppUser.id!, selectedComputer.id!).then(setLogs)
   }, [selectedAppUser, selectedComputer])
 
-  // Al cambiar usuario+fecha: busca la malla del día para marcar en la línea de tiempo
   useEffect(() => {
     if (!selectedAppUser || !date) { setProgramation(null); return }
-
-    // Agrega T12:00:00 para evitar desfase de zona horaria al parsear la fecha
     const dayKey = DAY_KEYS[new Date(`${date}T12:00:00`).getDay()]
-
     getScheduleByappuserId(selectedAppUser.id!).then(schedules => {
       const schedule = schedules.find(s => s.day_of_week === dayKey)
       if (!schedule) { setProgramation(null); return }
