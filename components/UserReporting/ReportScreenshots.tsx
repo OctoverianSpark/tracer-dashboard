@@ -1,88 +1,93 @@
+'use client'
+
 import { Button } from '@/app/_components/_ui/button'
 import { Card, CardContent, CardHeader } from '@/app/_components/_ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger
-} from '@/app/_components/_ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/app/_components/_ui/dialog'
 import { ZoomIn } from 'lucide-react'
 import Image from 'next/image'
-import React, { useEffect } from 'react'
-
-interface ScreenshotsViewerProps {
-  fileName: string,
-}
+import { useEffect, useMemo, useState } from 'react'
 
 interface ScreenshotsListProps {
-  screenshots: string[],
+  screenshots: string[]
   machineName: string
 }
 
-export default function ReportScreenshotsList ({
-  screenshots,
-  machineName
-}: ScreenshotsListProps) {
+interface ScreenshotsViewerProps {
+  fileName: string
+}
+
+const PAGE_SIZE = 24
+
+function parseFileName(fileName: string) {
+  const file = fileName.split('/')[1]
+  const [rawDate, rawMonitor] = file.split('_')
+  const monitor = parseInt(rawMonitor.replace('Monitor', ''))
+  const isoDate = rawDate.replace(/T(\d{2})-(\d{2})-(\d{2})/, 'T$1:$2:$3')
+  return { date: new Date(isoDate).toLocaleString(), monitor }
+}
+
+export default function ReportScreenshotsList({ screenshots, machineName }: ScreenshotsListProps) {
+  const [page, setPage] = useState(1)
+
+  useEffect(() => { setPage(1) }, [screenshots])
+
+  const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screenshots, page])
+  const remaining = screenshots.length - visible.length
 
   return (
-    <div className='grid grid-cols-4 gap-4'>
-      {screenshots.map(file => (
-        <ScreenshotsViewer fileName={`${machineName}/${file}`} key={file} />
-      ))}
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">{screenshots.length} capturas</p>
+      <div className="grid grid-cols-4 gap-4">
+        {visible.map(file => (
+          <ScreenshotsViewer fileName={`${machineName}/${file}`} key={file} />
+        ))}
+      </div>
+      {remaining > 0 && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={() => setPage(p => p + 1)}>
+            Cargar más ({remaining} restantes)
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
 
-export function ScreenshotsViewer ({ fileName }: ScreenshotsViewerProps) {
-  const [isOpen, setIsOpen] = React.useState(false)
-  const [date, setDate] = React.useState('')
-  const [monitor, setMonitor] = React.useState<number>(0)
-
- useEffect(() => {
-  const data = fileName.split("/")[1].split('_')
-  console.log(data);
-  
-  // ["2026-02-20T18-12-09", "Monitor0.jpg"]
-  
-  const monitor = data[1].replace('Monitor', '')
-  setMonitor(parseInt(monitor))
-
-  const raw = data[0] // "2026-02-20T18-12-09"
-  
-  const parsed = new Date(raw.replace(/-(\d{2})-(\d{2})-(\d{3})Z$/, ':$1:$2.$3'))
-  setDate(parsed.toLocaleString())
-}, [])
+function ScreenshotsViewer({ fileName }: ScreenshotsViewerProps) {
+  const { date, monitor } = parseFileName(fileName)
+  const src = `/api/screenshot/${fileName}`
 
   return (
     <Card>
       <CardHeader>
-        <h2>{date}</h2>
-        <span>Monitor {monitor}</span>
+        <p className="text-sm font-medium">{date}</p>
+        <p className="text-xs text-muted-foreground">Monitor {monitor}</p>
       </CardHeader>
       <CardContent>
-        <div className='flex flex-col items-center gap-4'>
+        <div className="flex flex-col items-center gap-4">
           <Image
-            src={`/api/screenshot/${fileName}`}
-            loading='lazy'
+            src={src}
+            loading="lazy"
             alt={fileName}
             width={800}
             height={450}
-            className='rounded-md w-full object-contain'
+            className="rounded-md w-full object-contain"
           />
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant='outline' size='icon'>
+              <Button variant="outline" size="icon">
                 <ZoomIn />
               </Button>
             </DialogTrigger>
-            <DialogContent className='bg-transparent border-none h-full w-full shadow-none'>
-              <div className='relative w-full h-full scale-200'>
+            <DialogContent className="bg-transparent border-none h-full w-full shadow-none">
+              <DialogTitle className="sr-only">{date} · Monitor {monitor}</DialogTitle>
+              <div className="relative w-full h-full">
                 <Image
-                  src={`/api/screenshot/${fileName}`}
-                  loading='eager'
+                  src={src}
+                  loading="eager"
                   alt={fileName}
                   fill
-                  className='object-contain'
+                  className="object-contain"
                 />
               </div>
             </DialogContent>

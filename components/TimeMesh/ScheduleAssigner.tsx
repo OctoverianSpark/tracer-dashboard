@@ -9,16 +9,7 @@ import { Button } from '@/app/_components/_ui/button'
 import { Label } from '@/app/_components/_ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
 import { WeekPicker } from './Weekpicker'
-
-const DIAS = [
-  { key: 'L', label: 'Lunes' },
-  { key: 'M', label: 'Martes' },
-  { key: 'X', label: 'Miércoles' },
-  { key: 'J', label: 'Jueves' },
-  { key: 'V', label: 'Viernes' },
-  { key: 'S', label: 'Sábado' },
-  { key: 'D', label: 'Domingo' },
-]
+import { DIAS } from './shared'
 
 interface Props {
   appuser: AppUser[]
@@ -70,8 +61,8 @@ export default function ScheduleAssigner({ appuser, programations, schedules }: 
 
   function validate(): boolean {
     const newErrors: AssignerErrors = {}
-    if (!selectedappuser)         newErrors.appuser     = 'Selecciona un empleado'
-    if (!selectedProgramation)     newErrors.programation = 'Selecciona un horario'
+    if (!selectedappuser)         newErrors.appuser      = 'Selecciona un empleado'
+    if (!selectedProgramation)    newErrors.programation = 'Selecciona un horario'
     if (selectedDays.length === 0) newErrors.days         = 'Selecciona al menos un día'
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -95,11 +86,11 @@ export default function ScheduleAssigner({ appuser, programations, schedules }: 
         <Button>Asignar Horarios</Button>
       </DialogTrigger>
       <DialogContent className="max-w-lg">
-        <DialogTitle>Asignar Horarios al appuser</DialogTitle>
+        <DialogTitle>Asignar Horarios al empleado</DialogTitle>
 
         <div className="flex gap-2">
           <div className="grid gap-1 flex-1">
-            <Label>Seleccionar appuser</Label>
+            <Label>Empleado</Label>
             <Select
               onValueChange={val => {
                 setSelectedappuser(Number(val))
@@ -107,7 +98,7 @@ export default function ScheduleAssigner({ appuser, programations, schedules }: 
               }}
               value={selectedappuser?.toString() ?? ''}
             >
-              <SelectTrigger className={errors.appuser ? 'border-red-500' : ''}>
+              <SelectTrigger className={errors.appuser ? 'border-destructive' : ''}>
                 <SelectValue placeholder='Seleccionar empleado' />
               </SelectTrigger>
               <SelectContent>
@@ -118,7 +109,7 @@ export default function ScheduleAssigner({ appuser, programations, schedules }: 
                 ))}
               </SelectContent>
             </Select>
-            {errors.appuser && <span className='text-xs text-red-500'>{errors.appuser}</span>}
+            {errors.appuser && <span className="text-xs text-destructive">{errors.appuser}</span>}
           </div>
 
           <div className="grid gap-1 flex-1">
@@ -130,7 +121,7 @@ export default function ScheduleAssigner({ appuser, programations, schedules }: 
               }}
               value={selectedProgramation?.toString() ?? ''}
             >
-              <SelectTrigger className={errors.programation ? 'border-red-500' : ''}>
+              <SelectTrigger className={errors.programation ? 'border-destructive' : ''}>
                 <SelectValue placeholder='Selecciona un horario' />
               </SelectTrigger>
               <SelectContent>
@@ -139,7 +130,7 @@ export default function ScheduleAssigner({ appuser, programations, schedules }: 
                 ))}
               </SelectContent>
             </Select>
-            {errors.programation && <span className='text-xs text-red-500'>{errors.programation}</span>}
+            {errors.programation && <span className="text-xs text-destructive">{errors.programation}</span>}
           </div>
         </div>
 
@@ -153,7 +144,7 @@ export default function ScheduleAssigner({ appuser, programations, schedules }: 
             }}
             values={DIAS}
           />
-          {errors.days && <span className='text-xs text-red-500'>{errors.days}</span>}
+          {errors.days && <span className="text-xs text-destructive">{errors.days}</span>}
         </div>
 
         <Button onClick={asignSchedule}>Asignar</Button>

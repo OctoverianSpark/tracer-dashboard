@@ -17,7 +17,7 @@ export function AppHeader () {
   }, [])
 
   return (
-    <header className={`border-b w-full py-4 flex items-center gap-2 px-4 sticky top-0 bg-white transition-opacity duration-300 ${scrolled ? 'opacity-40' : 'opacity-100'}`}>
+    <header className={`border-b w-full py-4 flex items-center gap-2 px-4 sticky top-0 bg-background transition-opacity duration-300 ${scrolled ? 'opacity-40' : 'opacity-100'}`}>
       <Button asChild variant='ghost' className='cursor-pointer'>
         <SidebarTrigger />
       </Button>

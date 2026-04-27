@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig = {
-  allowedDevOrigins: ['actimetricstracker.asistentevirtualsas.com'],
+  allowedDevOrigins: ['actimetricstracker.asistentevirtualsas.com', 'tester.asistentevirtualsas.com'],
   images: {
     remotePatterns: [
       {

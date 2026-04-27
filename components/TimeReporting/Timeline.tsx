@@ -2,23 +2,28 @@
 
 import { cn } from "@/app/_components/_lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/_components/_ui/tooltip"
-
+import { AlertTriangle, Clock } from "lucide-react"
 
 export interface Log {
   category: string
-  timestamp: string 
+  timestamp: string
   state: string
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const WORKDAY_START = 8   // 08:00
-const WORKDAY_END   = 20  // 20:00
+const WORKDAY_START = 6
+const WORKDAY_END   = 22
 const WORKDAY_MINS  = (WORKDAY_END - WORKDAY_START) * 60
 
 function toMinutes(ts: string) {
   const d = new Date(ts)
   return d.getHours() * 60 + d.getMinutes()
+}
+
+function timeStringToMins(time: string): number {
+  const [h, m] = time.split(":").map(Number)
+  return h * 60 + m
 }
 
 function pct(mins: number) {
@@ -42,7 +47,7 @@ function formatHour(hour: number) {
 
 interface Block {
   category: string
-  state:string,
+  state: string
   startMins: number
   endMins: number
   durationMins: number
@@ -52,22 +57,12 @@ interface Block {
   endLabel: string
 }
 
-const states = (state:string) =>{
-
-  switch(state){
-    case 'working':
-      return 'Trabajando'
-      break
-    case 'WC':
-      return 'Baño'
-      break;
-    case 'Lunch':
-      return 'Almuerzo'
-      break
-
-    default :
-      return state.charAt(0).toUpperCase() + state.slice(1)
-
+function stateLabel(state: string): string {
+  switch (state) {
+    case "working": return "Trabajando"
+    case "WC":      return "Baño"
+    case "Lunch":   return "Almuerzo"
+    default:        return state.charAt(0).toUpperCase() + state.slice(1)
   }
 }
 
@@ -91,19 +86,16 @@ function buildBlocks(logs: Log[]): Block[] {
     const widthPct = endPct - leftPct
     if (widthPct <= 0) continue
 
-    const startDate = new Date(cur.timestamp)
-    const endDate   = new Date(next.timestamp)
-
     blocks.push({
       category: cur.category,
-      state: cur.state,
+      state:    cur.state,
       startMins,
       endMins,
       durationMins: endMins - startMins,
       leftPct,
       widthPct,
-      startLabel: startDate.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }),
-      endLabel:   endDate.toLocaleTimeString("es-ES",   { hour: "2-digit", minute: "2-digit" }),
+      startLabel: new Date(cur.timestamp).toLocaleTimeString("es-ES",  { hour: "2-digit", minute: "2-digit" }),
+      endLabel:   new Date(next.timestamp).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }),
     })
   }
 
@@ -113,31 +105,21 @@ function buildBlocks(logs: Log[]): Block[] {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const blockStyles: Record<string, { bar: string; tooltip: string; label: string }> = {
-  ["active"]: {
-    bar:     "bg-emerald-500 hover:bg-emerald-400",
-    tooltip: "bg-emerald-600 text-white",
-    label:   "Productivo",
-  },
-  ["neutral"]: {
-    bar:     "bg-amber-400 hover:bg-amber-300",
-    tooltip: "bg-amber-500 text-white",
-    label:   "Neutral",
-  },
-  ["inactive"]: {
-    bar:     "bg-slate-300 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600",
-    tooltip: "bg-slate-600 text-white",
-    label:   "Inactivo",
-  },
+  active:   { bar: "bg-emerald-500 hover:bg-emerald-400", tooltip: "bg-emerald-600 text-white",  label: "Productivo" },
+  neutral:  { bar: "bg-amber-400 hover:bg-amber-300",     tooltip: "bg-amber-500 text-white",    label: "Neutral"    },
+  inactive: { bar: "bg-slate-600 hover:bg-slate-500",     tooltip: "bg-slate-600 text-white",    label: "Inactivo"   },
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 interface ProductiveTimelineProps {
   logs: Log[]
+  scheduleStart?: string  // "HH:MM" — hora de entrada según malla
+  scheduleEnd?: string    // "HH:MM" — hora de fin según malla
   className?: string
 }
 
-export function Timeline({ logs, className }: ProductiveTimelineProps) {
+export function Timeline({ logs, scheduleStart, scheduleEnd, className }: ProductiveTimelineProps) {
   const blocks = buildBlocks(logs)
 
   const productiveMins = blocks
@@ -149,11 +131,29 @@ export function Timeline({ logs, className }: ProductiveTimelineProps) {
     (_, i) => WORKDAY_START + i
   )
 
+  // ── Cálculo de alertas ──────────────────────────────────────────────────────
+
+  const scheduleStartMins = scheduleStart ? timeStringToMins(scheduleStart) : null
+  const scheduleEndMins   = scheduleEnd   ? timeStringToMins(scheduleEnd)   : null
+
+  const firstBlock = blocks[0]
+  const lateMins =
+    scheduleStartMins !== null && firstBlock
+      ? Math.max(0, firstBlock.startMins - scheduleStartMins)
+      : 0
+  const isLate = lateMins > 0
+
+  // Hay bloque activo que supera la hora de fin de turno
+  const overtimeBlock = scheduleEndMins !== null
+    ? blocks.find(b => b.category === "active" && b.endMins > scheduleEndMins)
+    : null
+  const isOvertime = overtimeBlock !== null && overtimeBlock !== undefined
+
   return (
     <div className={cn("w-full space-y-4 font-mono", className)}>
 
       {/* Header */}
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
           <p className="text-xs uppercase tracking-widest text-muted-foreground">Jornada</p>
           <p className="text-2xl font-bold tabular-nums">
@@ -162,64 +162,95 @@ export function Timeline({ logs, className }: ProductiveTimelineProps) {
           </p>
         </div>
 
-        {/* Leyenda */}
-        <div className="flex gap-3 text-xs text-muted-foreground">
-          {["active","neutral","inactive"].map(s => (
-            <span key={s} className="flex items-center gap-1.5">
-              <span className={cn("inline-block h-2.5 w-2.5 rounded-sm", blockStyles[s].bar.split(" ")[0])} />
-              {blockStyles[s].label}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Alertas */}
+          {isLate && (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border bg-orange-500/10 text-orange-400 border-orange-500/25">
+              <AlertTriangle className="size-3" />
+              Tardanza · {formatDuration(lateMins)}
             </span>
-          ))}
+          )}
+          {isOvertime && (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border bg-red-500/10 text-red-400 border-red-500/25">
+              <Clock className="size-3" />
+              Sigue en turno tras fin
+            </span>
+          )}
+
+          {/* Leyenda */}
+          <div className="flex gap-3 text-xs text-muted-foreground">
+            {["active", "neutral", "inactive"].map(s => (
+              <span key={s} className="flex items-center gap-1.5">
+                <span className={cn("inline-block h-2.5 w-2.5 rounded-sm", blockStyles[s].bar.split(" ")[0])} />
+                {blockStyles[s].label}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Timeline bar */}
       <div className="relative">
-        {/* Track */}
-        <div className="relative h-10 w-full rounded-lg bg-slate-100 dark:bg-slate-800 overflow-hidden">
+        {/* Track con bloques */}
+        <div className="relative h-10 w-full rounded-lg bg-secondary overflow-hidden">
           {blocks.map((block, i) => (
-            <Tooltip>
-              <TooltipTrigger>
-                
-            <div
-              key={i}
-              className={cn(
-                "group absolute top-0 h-full rounded-sm transition-colors cursor-default",
-                blockStyles[block.category].bar
-              )}
-              style={{
-                left:  `${block.leftPct}%`,
-                width: `${block.widthPct}%`,
-              }}
-            >
-              {/* Tooltip */}
-              <div className={cn(
-                "pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-10",
-                "hidden group-hover:flex flex-col items-center gap-0.5",
-              )}>
-                <div className={cn(
-                  "rounded px-2 py-1 text-[11px] whitespace-nowrap shadow-lg",
-                  blockStyles[block.category].tooltip
-                )}>
-                  <span className="font-semibold">{blockStyles[block.category].label}</span>
-                  {" · "}{block.startLabel} → {block.endLabel}
-                  {" · "}{formatDuration(block.durationMins)}
-                </div>
-                <div className={cn(
-                  "h-1.5 w-1.5 rotate-45",
-                  blockStyles[block.category].tooltip
-                )} />
-              </div>
-            </div>
+            <Tooltip key={i}>
+              <TooltipTrigger asChild>
+                <div
+                  className={cn(
+                    "group absolute top-0 h-full rounded-sm transition-colors cursor-default",
+                    blockStyles[block.category]?.bar ?? blockStyles.inactive.bar
+                  )}
+                  style={{ left: `${block.leftPct}%`, width: `${block.widthPct}%` }}
+                />
               </TooltipTrigger>
-              <TooltipContent>
-                {
-                  states(block.state)
-                }
+              <TooltipContent side="top" className="font-sans">
+                <p className="font-semibold">{stateLabel(block.state)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {block.startLabel} → {block.endLabel} · {formatDuration(block.durationMins)}
+                </p>
               </TooltipContent>
             </Tooltip>
           ))}
         </div>
+
+        {/* Marca de entrada según malla */}
+        {scheduleStartMins !== null && (
+          <div
+            className={cn(
+              "absolute top-0 h-10 z-20 pointer-events-none",
+              "border-l-2 border-dashed",
+              isLate ? "border-orange-400" : "border-emerald-500"
+            )}
+            style={{ left: `${pct(scheduleStartMins)}%` }}
+          >
+            <span className={cn(
+              "absolute -top-5 -translate-x-1/2 text-[10px] font-sans font-medium whitespace-nowrap px-1 rounded",
+              isLate ? "text-orange-400" : "text-emerald-500"
+            )}>
+              Entrada
+            </span>
+          </div>
+        )}
+
+        {/* Marca de fin de turno según malla */}
+        {scheduleEndMins !== null && (
+          <div
+            className={cn(
+              "absolute top-0 h-10 z-20 pointer-events-none",
+              "border-l-2 border-dashed",
+              isOvertime ? "border-red-400" : "border-muted-foreground/50"
+            )}
+            style={{ left: `${pct(scheduleEndMins)}%` }}
+          >
+            <span className={cn(
+              "absolute -top-5 -translate-x-1/2 text-[10px] font-sans font-medium whitespace-nowrap px-1 rounded",
+              isOvertime ? "text-red-400" : "text-muted-foreground"
+            )}>
+              Fin turno
+            </span>
+          </div>
+        )}
 
         {/* Hour ticks */}
         <div className="relative mt-1 h-4">
@@ -238,20 +269,20 @@ export function Timeline({ logs, className }: ProductiveTimelineProps) {
         </div>
       </div>
 
-      {/* Block list */}
+      {/* Lista de bloques */}
       {blocks.length > 0 && (
         <ul className="space-y-1.5 pt-2">
           {blocks.map((block, i) => (
-            <li key={i} className="flex items-center gap-3 text-xs">
+            <li key={i} className="flex items-center gap-3 text-xs font-sans">
               <span className={cn(
                 "h-2 w-2 rounded-sm flex-shrink-0",
-                blockStyles[block.category].bar.split(" ")[0]
+                blockStyles[block.category]?.bar.split(" ")[0] ?? "bg-slate-600"
               )} />
               <span className="text-muted-foreground tabular-nums w-28">
                 {block.startLabel} → {block.endLabel}
               </span>
-              <span className="font-medium">{states(block.state)}</span>
-              <span className="text-muted-foreground ml-auto">
+              <span className="font-medium">{stateLabel(block.state)}</span>
+              <span className="text-muted-foreground ml-auto tabular-nums">
                 {formatDuration(block.durationMins)}
               </span>
             </li>
@@ -260,7 +291,7 @@ export function Timeline({ logs, className }: ProductiveTimelineProps) {
       )}
 
       {blocks.length === 0 && (
-        <p className="text-center text-sm text-muted-foreground py-8">
+        <p className="text-center text-sm text-muted-foreground py-8 font-sans">
           Sin registros para mostrar.
         </p>
       )}

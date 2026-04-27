@@ -31,7 +31,7 @@ const MachineCard = ({ machine }: { machine: Machine }) => {
     : '—'
 
   return (
-    <Card className={`transition-all border ${online ? 'border-green-200 dark:border-green-900' : ''}`}>
+    <Card className={`transition-all border ${online ? 'border-green-500/50' : ''}`}>
       <CardHeader className='pb-2 flex flex-row items-center justify-between'>
         <div className='flex items-center gap-2'>
           <Monitor className='size-4 text-muted-foreground' />

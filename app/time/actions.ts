@@ -32,7 +32,7 @@ export const saveProgramation = async (body: Programation) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   })
-  revalidatePath('/schedules') // <- ajusta a tu ruta real
+  revalidatePath('/time/control')
 }
 
 export const getSchedules = async (): Promise<Schedule[]> => {
@@ -51,5 +51,5 @@ export const saveSchedule = async (body: Schedule[]) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   })
-  revalidatePath('/schedules') // <- ajusta a tu ruta real
+  revalidatePath('/time/control')
 }

@@ -67,7 +67,7 @@ export function MallaHoraria({
 
   if (!e || !f) {
     return (
-      <div className={`w-full bg-gray-100 rounded-md border border-dashed border-gray-300 flex items-center justify-center text-gray-400 ${size === 'table' ? 'h-6 text-[10px]' : 'h-10 text-xs'}`}>
+      <div className={`w-full bg-secondary rounded-md border border-dashed border-border flex items-center justify-center text-muted-foreground ${size === 'table' ? 'h-6 text-[10px]' : 'h-10 text-xs'}`}>
         {size === 'table' ? 'Sin datos' : 'Ingresa Entrada y Fin para ver la malla'}
       </div>
     )
@@ -89,7 +89,7 @@ export function MallaHoraria({
 
   return (
     <div className="space-y-1">
-      <div className={`relative w-full ${barHeight} bg-gray-100 rounded-md overflow-hidden`}>
+      <div className={`relative w-full ${barHeight} bg-secondary rounded-md overflow-hidden`}>
         {segmentos.filter(s => s.width > 0).map((seg, i) => (
           <div
             key={i}
@@ -116,14 +116,14 @@ export function MallaHoraria({
             {horas.filter((_, i) => i % 2 === 0).map(h => (
               <span
                 key={h}
-                className="absolute text-[10px] text-gray-400 -translate-x-1/2"
+                className="absolute text-[10px] text-muted-foreground -translate-x-1/2"
                 style={{ left: `${toPercent(h)}%` }}
               >
                 {h}h
               </span>
             ))}
           </div>
-          <div className="flex gap-3 text-xs text-gray-500">
+          <div className="flex gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <span className="w-3 h-3 rounded-sm bg-green-500 inline-block" />Trabajo
             </span>

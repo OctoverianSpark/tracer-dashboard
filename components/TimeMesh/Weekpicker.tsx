@@ -34,7 +34,7 @@ export function WeekPicker({
                   flex-1 h-10 rounded-md text-sm font-medium border transition-colors cursor-pointer
                   ${active
                     ? 'bg-green-500 text-white border-green-500'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-green-400 hover:text-green-500'}
+                    : 'bg-secondary text-muted-foreground border-border hover:border-green-400 hover:text-green-400'}
                 `}
               >
                 {key}

@@ -1,17 +1,7 @@
-import { Schedule } from '@/types/Schedules'
-import { Programation } from '@/types/Schedules'
+import { Schedule, Programation } from '@/types/Schedules'
 import { AppUser } from '@/types/AppUser'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
-
-const DIAS = [
-  { key: 'L', label: 'Lunes' },
-  { key: 'M', label: 'Martes' },
-  { key: 'X', label: 'Miércoles' },
-  { key: 'J', label: 'Jueves' },
-  { key: 'V', label: 'Viernes' },
-  { key: 'S', label: 'Sábado' },
-  { key: 'D', label: 'Domingo' },
-]
+import { DIAS } from './shared'
 
 interface Props {
   schedules: Schedule[]

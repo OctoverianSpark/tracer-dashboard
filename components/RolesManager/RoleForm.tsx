@@ -123,7 +123,7 @@ export default function RoleForm({ role = EMPTY_ROLE }: RoleFormProps) {
             onChange={onInputChange}
             className={errors.name ? 'border-destructive' : ''}
           />
-          {errors.name && <span className="text-xs text-red-500">{errors.name}</span>}
+          {errors.name && <span className="text-xs text-destructive">{errors.name}</span>}
         </div>
 
         <div className="grid gap-3">

@@ -11,18 +11,21 @@ const ROUTE_PERMISSIONS: Record<string, string> = {
   '/settings': 'manage_roles',
 }
 
+const OPERATIONAL_PERMISSIONS = Object.values(ROUTE_PERMISSIONS)
+
 export async function middleware(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
-  console.log(token);
 
   if (!token) return NextResponse.redirect(new URL('/', req.url))
 
   const path = req.nextUrl.pathname
 
-  // si no tiene rol aun deja pasar (evita loop)
-  if (!token.role?.access_level) return NextResponse.next()
+  if (!token.role?.access_level) return NextResponse.redirect(new URL('/', req.url))
 
   const perms = JSON.parse(token.role.access_level)
+
+  const hasOperationalAccess = OPERATIONAL_PERMISSIONS.some(perm => perms[perm])
+  if (!hasOperationalAccess) return NextResponse.redirect(new URL('/', req.url))
 
   const requiredPerm = Object.entries(ROUTE_PERMISSIONS)
     .find(([route]) => path.startsWith(route))?.[1]

@@ -2,27 +2,27 @@
 import { AppUser } from '@/types/AppUser'
 import { revalidatePath } from 'next/cache'
 
-export const getappuser = async (): Promise<AppUser[]> => {
-  const appuser = await (await fetch('https://actimetrics.asistentevirtualsas.com/appuser')).json()
-  console.log(appuser);
+const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+export const getappuser = async (): Promise<AppUser[]> => {
+  const appuser = await (await fetch(`${API_URL}/appuser`)).json()
   return appuser
 }
 
 export const saveappuser = async (body: AppUser) => {
-  await fetch(`https://actimetrics.asistentevirtualsas.com/appuser${body.id ? `/update/${body.id}` : '/save'}`, {
+  await fetch(`${API_URL}/appuser${body.id ? `/update/${body.id}` : '/save'}`, {
     method: body.id ? 'PUT' : 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   })
-  revalidatePath('/appuser')
+  revalidatePath('/app/users')
 }
 
 export const deleteappuser = async (selected: number[]) => {
-  await fetch('https://actimetrics.asistentevirtualsas.com/appuser/delete', {
+  await fetch(`${API_URL}/appuser/delete`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(selected)
+    body: JSON.stringify(selected),
   })
-  revalidatePath('/appuser')
+  revalidatePath('/app/users')
 }

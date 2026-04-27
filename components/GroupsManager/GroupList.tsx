@@ -37,7 +37,7 @@ function DraggableUser({ user }: { user: AppUser }) {
       {...listeners}
       {...attributes}
       variant='ghost'
-      className={`bg-gray-100 cursor-move ${isDragging ? 'opacity-30' : ''}`}
+      className={`bg-secondary cursor-move ${isDragging ? 'opacity-30' : ''}`}
     >
       {user.full_name}
     </Badge>
@@ -50,7 +50,7 @@ function DroppableGroup({ group, users }: { group: Group; users: AppUser[] }) {
   return (
     <Card
       ref={setNodeRef}
-      className={`w-75 transition-colors ${isOver ? 'border-blue-400 bg-blue-50' : ''}`}
+      className={`w-75 transition-colors ${isOver ? 'border-blue-400 bg-blue-500/15' : ''}`}
     >
       
           <CardHeader className='flex justify-between'>
@@ -117,7 +117,7 @@ export default function GroupList({ groups, users }: GroupTableProps) {
 
       <DragOverlay>
         {activeUser && (
-          <Badge variant='ghost' className='bg-gray-100 shadow-md cursor-move'>
+          <Badge variant='ghost' className='bg-secondary shadow-md cursor-move'>
             {activeUser.full_name}
           </Badge>
         )}

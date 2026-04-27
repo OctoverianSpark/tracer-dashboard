@@ -42,49 +42,25 @@ export default function MachineActions({
       icon: <LockIcon size={26} />,
       label: 'Bloquear',
       onClick: onLock,
-      bg: 'bg-blue-50 hover:bg-blue-100',
-      iconColor: 'text-blue-500',
-      shadow: 'shadow-blue-100',
-    },
-    {
-      icon: <Power size={26} />,
-      label: 'Apagar',
-      onClick: onShutdown,
-      bg: 'bg-red-50 hover:bg-red-100',
-      iconColor: 'text-red-500',
-      shadow: 'shadow-red-100',
-    },
-    {
-      icon: <RefreshCw size={26} />,
-      label: 'Reiniciar',
-      onClick: onRestart,
-      bg: 'bg-orange-50 hover:bg-orange-100',
-      iconColor: 'text-orange-500',
-      shadow: 'shadow-orange-100',
-    },
-    {
-      icon: <LogOut size={26} />,
-      label: 'Cerrar sesión',
-      onClick: onLogoff,
-      bg: 'bg-amber-50 hover:bg-amber-100',
-      iconColor: 'text-amber-500',
-      shadow: 'shadow-amber-100',
+      bg: 'bg-blue-500/15 hover:bg-blue-500/25',
+      iconColor: 'text-blue-400',
+      shadow: 'shadow-black/20',
     },
     {
       icon: <Send size={26} />,
       label: 'Enviar archivo',
       onClick: () => fileRef.current?.click(),
-      bg: 'bg-emerald-50 hover:bg-emerald-100',
-      iconColor: 'text-emerald-500',
-      shadow: 'shadow-emerald-100',
+      bg: 'bg-emerald-500/15 hover:bg-emerald-500/25',
+      iconColor: 'text-emerald-400',
+      shadow: 'shadow-black/20',
     },
     {
       icon: <Bell size={26} />,
       label: 'Notificación',
       onClick: () => setNotifOpen(true),
-      bg: 'bg-sky-50 hover:bg-sky-100',
-      iconColor: 'text-sky-500',
-      shadow: 'shadow-sky-100',
+      bg: 'bg-sky-500/15 hover:bg-sky-500/25',
+      iconColor: 'text-sky-400',
+      shadow: 'shadow-black/20',
     },
   ]
 
@@ -107,8 +83,8 @@ export default function MachineActions({
           </Button>
         </DialogTrigger>
 
-        <DialogContent className="max-w-xs bg-white border border-neutral-200 rounded-3xl">
-          <DialogTitle className="text-neutral-400 text-xs font-semibold tracking-widest uppercase mb-5">
+        <DialogContent className="max-w-xs bg-card border border-border rounded-3xl">
+          <DialogTitle className="text-muted-foreground text-xs font-semibold tracking-widest uppercase mb-5">
             Acciones del equipo
           </DialogTitle>
 
@@ -125,7 +101,7 @@ export default function MachineActions({
                 `}
               >
                 <span className={action.iconColor}>{action.icon}</span>
-                <span className={`text-[11px] font-semibold text-neutral-500 text-center leading-tight`}>
+                <span className={`text-[11px] font-semibold text-muted-foreground text-center leading-tight`}>
                   {action.label}
                 </span>
               </button>
@@ -136,8 +112,8 @@ export default function MachineActions({
 
       {/* Notification sub-dialog */}
       <Dialog open={notifOpen} onOpenChange={setNotifOpen}>
-        <DialogContent className="max-w-xs bg-white border border-neutral-200 rounded-3xl p-6 shadow-xl">
-          <DialogTitle className="text-neutral-400 text-xs font-semibold tracking-widest uppercase mb-4">
+        <DialogContent className="max-w-xs bg-card border border-border rounded-3xl p-6 shadow-xl">
+          <DialogTitle className="text-muted-foreground text-xs font-semibold tracking-widest uppercase mb-4">
             Enviar notificación
           </DialogTitle>
 
@@ -147,14 +123,14 @@ export default function MachineActions({
               placeholder="Título"
               value={title}
               onChange={e => setTitle(e.target.value)}
-              className="bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-300 outline-none focus:border-sky-400 transition-colors"
+              className="bg-secondary border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-ring transition-colors"
             />
             <textarea
               placeholder="Mensaje"
               value={message}
               onChange={e => setMessage(e.target.value)}
               rows={3}
-              className="bg-neutral-50 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-300 outline-none focus:border-sky-400 transition-colors resize-none"
+              className="bg-secondary border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-ring transition-colors resize-none"
             />
             <button
               onClick={() => {
@@ -165,7 +141,7 @@ export default function MachineActions({
                   setNotifOpen(false)
                 }
               }}
-              className="bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold rounded-xl py-2.5 transition-all active:scale-95 shadow-md shadow-sky-100"
+              className="bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold rounded-xl py-2.5 transition-all active:scale-95 shadow-md shadow-black/20"
             >
               Enviar
             </button>
