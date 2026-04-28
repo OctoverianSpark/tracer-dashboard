@@ -46,14 +46,6 @@ export function AppSidebar() {
                 <span className='text-base font-semibold truncate flex-1'>
                   Actimetrics
                 </span>
-                <Button
-                  variant='ghost'
-                  size='icon'
-                  className='cursor-pointer size-6 shrink-0 ml-auto'
-                  onClick={e => { e.preventDefault(); signOut({ callbackUrl: '/' }) }}
-                >
-                  <LogOut className='size-4' />
-                </Button>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
