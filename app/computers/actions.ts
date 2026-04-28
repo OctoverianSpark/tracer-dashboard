@@ -15,6 +15,10 @@ export const findAsignedMachines = async (appuser_id: number): Promise<Machine[]
   return all.filter(m => Number(m.appuser_id) === appuser_id)
 }
 
+export const deleteComputer = async (serial_number: string) => {
+  await fetch(`${API_URL}/machines/delete/${serial_number}`, { method: 'DELETE' })
+}
+
 export const getMachineReport = async (computerName: string, date: string) => {
   const data = await (await fetch(`${API_URL}/machines/get-report?computername=${computerName}&date=${date}`)).json()
   return data

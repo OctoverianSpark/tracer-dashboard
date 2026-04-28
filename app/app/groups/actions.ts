@@ -26,8 +26,17 @@ export const saveGroup = async (group: Group) => {
   revalidatePath('/app/groups/get')
 }
 
+export const deleteGroup = async (id: number) => {
+  const res = await fetch(`${API}/groups/delete/${id}`, {
+    method: 'DELETE'
+  })
+  if (!res.ok) throw new Error(`Error al eliminar el grupo: ${res.status}`)
 
-export const updateUserGroup = async (userId: number, groupId: number) => {
+  revalidatePath('/app/groups/get')
+}
+
+
+export const updateUserGroup = async (userId: number, groupId: number | null) => {
   const res = await fetch(`${API}/appuser/update/${userId}`, {
     method: 'PUT',
     headers: {

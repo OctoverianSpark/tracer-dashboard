@@ -34,6 +34,7 @@ import {
 } from '@/app/_components/_ui/sidebar'
 import { JSX } from 'react'
 import GroupForm from '../GroupsManager/GroupForm'
+import { usePathname } from 'next/navigation'
 
 enum Actions {
   INDEX,
@@ -177,11 +178,13 @@ const REPORTS: NavSection = {
 
 
 export const renderNavItem = (item: NavItem): JSX.Element => {
+  const pathname = usePathname()
+
   switch (item.type) {
     case NavTypes.LINK:
       return (
         <SidebarMenuItem key={item.title}>
-          <SidebarMenuButton asChild className='cursor-pointer'>
+          <SidebarMenuButton asChild className={`cursor-pointer ${pathname === item.url ? 'bg-secondary' : ''}`}>
             <a href={item.url}>
               <item.icon />
               <span>{item.title}</span>

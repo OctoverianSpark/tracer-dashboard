@@ -41,7 +41,7 @@ export default function NavGroups ({
             <TooltipTrigger asChild>
               <CollapsibleTrigger asChild>
                 <SidebarMenuButton
-                  className='cursor-pointer px-2.5 md:px-2'
+                  className={`cursor-pointer px-2.5 md:px-2`}
                   onClick={onClick}
                 >
                   <section.icon />

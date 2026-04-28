@@ -4,13 +4,20 @@ import { signIn, useSession } from 'next-auth/react'
 import { Card, CardContent } from './_components/_ui/card'
 import { Button } from './_components/_ui/button'
 import { Users, Monitor, Clock, TrendingUp } from 'lucide-react'
-import { Router } from 'next/router'
-import { useRouter } from 'next/navigation'
+import { redirect, useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 export default function Home() {
   const { data: session } = useSession()
   const router = useRouter()
-  if (session) router.push('/home')
+
+  useEffect(() => {
+    if (!session) return
+    
+    const perms = JSON.parse(session.role?.access_level ?? '{}')
+    const hasAccess = Object.values(perms).some(Boolean)
+    if (hasAccess) redirect('/home')
+  }, [session, router])
     
   return (
     <div className='grid place-items-center min-h-screen bg-background'>
@@ -35,7 +42,7 @@ export default function Home() {
             <Button
               className='w-full cursor-pointer gap-2'
               variant='outline'
-              onClick={() => signIn('google')}
+              onClick={() => signIn('google',{ callbackUrl: '/home' })}
             >
               <svg className='size-4' viewBox='0 0 24 24'>
                 <path d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z' fill='#4285F4'/>

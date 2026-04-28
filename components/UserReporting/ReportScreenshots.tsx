@@ -2,104 +2,130 @@
 
 import { Button } from '@/app/_components/_ui/button'
 import { Card, CardContent, CardHeader } from '@/app/_components/_ui/card'
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/app/_components/_ui/dialog'
-import { ZoomIn } from 'lucide-react'
+import { Dialog, DialogContent, DialogTitle } from '@/app/_components/_ui/dialog'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 interface ScreenshotsListProps {
   screenshots: string[]
   machineName: string
 }
 
-interface ScreenshotsViewerProps {
-  fileName: string
-}
-
 const PAGE_SIZE = 24
 
-function parseFileName(fileName: string) {
-  const file = fileName.split('/')[1]
+function parseDate(fileName: string): string {
+  const match = fileName.match(/(\d{8})-(\d{6})/)
+  if (!match) return fileName
 
-  const monitorMatch = file.match(/_Monitor(\d+)\.jpg$/i)
-  const monitor = monitorMatch ? parseInt(monitorMatch[1]) : 0
-
-  const dateMatch = file.match(/(\d{8})-(\d{6})/)
-  if (!dateMatch) return { date: file, monitor }
-
-  const [, d, t] = dateMatch
-  const isoDate = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}`
-  return { date: new Date(isoDate).toLocaleString(), monitor }
+  const [, d, t] = match
+  const iso = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}`
+  return new Date(iso).toLocaleString()
 }
 
 export default function ReportScreenshotsList({ screenshots, machineName }: ScreenshotsListProps) {
   const [page, setPage] = useState(1)
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
 
   useEffect(() => { setPage(1) }, [screenshots])
 
   const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screenshots, page])
   const remaining = screenshots.length - visible.length
 
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">{screenshots.length} capturas</p>
-      <div className="grid grid-cols-4 gap-4">
-        {visible.map(file => (
-          <ScreenshotsViewer fileName={`${machineName}/${file}`} key={file} />
-        ))}
-      </div>
-      {remaining > 0 && (
-        <div className="flex justify-center">
-          <Button variant="outline" onClick={() => setPage(p => p + 1)}>
-            Cargar más ({remaining} restantes)
-          </Button>
-        </div>
-      )}
-    </div>
-  )
-}
+  const goTo = useCallback((index: number) => {
+    if (index < 0 || index >= screenshots.length) return
+    setOpenIndex(index)
+  }, [screenshots.length])
 
-function ScreenshotsViewer({ fileName }: ScreenshotsViewerProps) {
-  const { date, monitor } = parseFileName(fileName)
-  const src = `/api/screenshot/${fileName}`
+  useEffect(() => {
+    if (openIndex === null) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') goTo(openIndex + 1)
+      else if (e.key === 'ArrowLeft') goTo(openIndex - 1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [openIndex, goTo])
+
+  const currentFile = openIndex !== null ? screenshots[openIndex] : null
+  const currentSrc = currentFile ? `/api/screenshot/${machineName}/${currentFile}` : ''
+  const currentDate = currentFile ? parseDate(currentFile) : ''
 
   return (
-    <Card>
-      <CardHeader>
-        <p className="text-sm font-medium">{date}</p>
-        <p className="text-xs text-muted-foreground">Monitor {monitor}</p>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col items-center gap-4">
-          <Image
-            src={src}
-            loading="lazy"
-            alt={fileName}
-            width={800}
-            height={450}
-            className="rounded-md w-full object-contain"
-          />
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="icon">
-                <ZoomIn />
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-transparent border-none h-full w-full shadow-none">
-              <DialogTitle className="sr-only">{date} · Monitor {monitor}</DialogTitle>
-              <div className="relative w-full h-full">
+    <>
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">{screenshots.length} capturas</p>
+        <div className="grid grid-cols-4 gap-4">
+          {visible.map((file, i) => (
+            <Card
+              key={file}
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => setOpenIndex(i)}
+            >
+              <CardHeader className="pb-2">
+                <p className="text-sm font-medium">{parseDate(file)}</p>
+              </CardHeader>
+              <CardContent>
                 <Image
-                  src={src}
-                  loading="eager"
-                  alt={fileName}
-                  fill
-                  className="object-contain"
+                  src={`/api/screenshot/${machineName}/${file}`}
+                  loading="lazy"
+                  alt={file}
+                  width={800}
+                  height={450}
+                  className="rounded-md w-full object-contain"
                 />
-              </div>
-            </DialogContent>
-          </Dialog>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </CardContent>
-    </Card>
+        {remaining > 0 && (
+          <div className="flex justify-center">
+            <Button variant="outline" onClick={() => setPage(p => p + 1)}>
+              Cargar más ({remaining} restantes)
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <Dialog open={openIndex !== null} onOpenChange={open => !open && setOpenIndex(null)}>
+        <DialogContent className="max-w-[90vw] w-[90vw] h-[90vh] flex flex-col gap-4 p-6">
+          <DialogTitle className="text-center shrink-0">{currentDate}</DialogTitle>
+
+          <div className="relative flex-1 min-h-0">
+            {currentSrc && (
+              <Image
+                src={currentSrc}
+                loading="eager"
+                alt={currentFile ?? ''}
+                fill
+                className="object-contain"
+              />
+            )}
+          </div>
+
+          <div className="flex justify-between items-center shrink-0">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => goTo(openIndex! - 1)}
+              disabled={openIndex === 0}
+            >
+              <ChevronLeft />
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {(openIndex ?? 0) + 1} / {screenshots.length}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => goTo(openIndex! + 1)}
+              disabled={openIndex === screenshots.length - 1}
+            >
+              <ChevronRight />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

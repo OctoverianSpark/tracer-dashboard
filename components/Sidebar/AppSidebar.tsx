@@ -11,7 +11,6 @@ import {
   SidebarMenuItem,
   useSidebar
 } from '@/app/_components/_ui/sidebar'
-import { Avatar, AvatarFallback, AvatarImage } from '@/app/_components/_ui/avatar'
 import { Button } from '@/app/_components/_ui/button'
 import { generateId } from '@/app/_components/_lib/utils'
 import { LogOut } from 'lucide-react'
@@ -25,15 +24,13 @@ export function AppSidebar() {
   const { data: session } = useSession()
 
   const perms = JSON.parse(session?.role?.access_level ?? '{}')
-  
 
-// filtra sections e items según permisos
-    const allowedSections = SECTIONS
-      .map(section => ({
-        ...section,
-        items: section.items.filter(item => perms[item.perm])
-      }))
-      .filter(section => section.items.length > 0)
+  const allowedSections = SECTIONS
+    .map(section => ({
+      ...section,
+      items: section.items.filter(item => perms[item.perm])
+    }))
+    .filter(section => section.items.length > 0)
 
   return (
     <Sidebar collapsible='icon'>
@@ -45,18 +42,15 @@ export function AppSidebar() {
               className='data-[slot=sidebar-menu-button]:!p-1.5'
             >
               <a href='/home'>
-                <Avatar className='size-6'>
-                  <AvatarImage src={session?.picture ?? ''} />
-                  <AvatarFallback>{session?.user?.name?.[0]}</AvatarFallback>
-                </Avatar>
+                <Image width={28} height={28} alt='Tracer logo' src='/logo.png' />
                 <span className='text-base font-semibold truncate flex-1'>
-                  {session?.user?.name}
+                  Actimetrics
                 </span>
                 <Button
                   variant='ghost'
                   size='icon'
-                  className='cursor-pointer size-6 shrink-0ml-auto'
-                  onClick={e => { e.preventDefault(); signOut({callbackUrl: '/'}) }}
+                  className='cursor-pointer size-6 shrink-0 ml-auto'
+                  onClick={e => { e.preventDefault(); signOut({ callbackUrl: '/' }) }}
                 >
                   <LogOut className='size-4' />
                 </Button>
@@ -64,7 +58,6 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-
       </SidebarHeader>
 
       <SidebarContent>

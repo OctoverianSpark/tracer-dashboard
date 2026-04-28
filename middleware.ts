@@ -30,6 +30,7 @@ export async function middleware(req: NextRequest) {
   const requiredPerm = Object.entries(ROUTE_PERMISSIONS)
     .find(([route]) => path.startsWith(route))?.[1]
 
+
   if (requiredPerm && !perms[requiredPerm]) {
     return NextResponse.redirect(new URL('/', req.url))
   }
