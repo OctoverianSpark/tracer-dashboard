@@ -20,7 +20,14 @@ function parseDate(fileName: string): string {
 
   const [, d, t] = match
   const iso = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}`
-  return new Date(iso).toLocaleString()
+  return new Date(iso).toLocaleString('es-CO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
 }
 
 export default function ReportScreenshotsList({ screenshots, machineName }: ScreenshotsListProps) {
@@ -55,7 +62,7 @@ export default function ReportScreenshotsList({ screenshots, machineName }: Scre
     <>
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">{screenshots.length} capturas</p>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {visible.map((file, i) => (
             <Card
               key={file}
@@ -69,10 +76,10 @@ export default function ReportScreenshotsList({ screenshots, machineName }: Scre
                 <Image
                   src={`/api/screenshot/${machineName}/${file}`}
                   loading="lazy"
-                  alt={file}
+                  alt={parseDate(file)}
                   width={800}
                   height={450}
-                  className="rounded-md w-full object-contain"
+                  className="rounded-md w-full object-contain h-56"
                 />
               </CardContent>
             </Card>
