@@ -47,7 +47,7 @@ const MachineCard = ({ machine }: { machine: Machine }) => {
       <CardContent className='space-y-2 text-xs text-muted-foreground'>
         <div className='flex items-center gap-2'>
           <User className='size-3' />
-          <span>{machine.userName || '—'}</span>
+          <span>{machine.username || '—'}</span>
         </div>
         <div className='flex items-center gap-2'>
           <span className='font-mono bg-muted px-1.5 py-0.5 rounded text-[11px]'>
