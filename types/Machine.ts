@@ -6,7 +6,7 @@ export type Machine = {
   displayName: string;
   isAlive: boolean;
   alive: boolean;
-  userName: string;
+  username: string;
   ip_address: string;
   last_seen: string;
   appuser_id: string;

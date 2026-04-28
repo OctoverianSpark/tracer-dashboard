@@ -34,6 +34,8 @@ export default function MachineDialog({ machine }: MachineDialogProps) {
     sendFileToMachine(machine.serial_number, formData)
   }
 
+  console.log(machine);
+  
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -62,12 +64,12 @@ export default function MachineDialog({ machine }: MachineDialogProps) {
         <div className="grid gap-4">
           <div className="grid gap-0.5">
             <p className="text-xs text-muted-foreground uppercase tracking-wide">Usuario</p>
-            <p className="font-medium">{machine.displayName || machine.userName || '—'}</p>
+            <p className="font-medium">{machine.displayName || machine.username || '—'}</p>
           </div>
 
           <div className="grid gap-0.5">
             <p className="text-xs text-muted-foreground uppercase tracking-wide">Nombre de usuario</p>
-            <p className="font-medium font-mono">{machine.userName || '—'}</p>
+            <p className="font-medium font-mono">{machine.username || '—'}</p>
           </div>
 
           <div className="grid gap-0.5">
