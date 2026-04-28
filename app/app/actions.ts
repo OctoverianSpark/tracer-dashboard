@@ -19,10 +19,15 @@ export const saveappuser = async (body: AppUser) => {
 }
 
 export const deleteappuser = async (selected: number[]) => {
-  await fetch(`${API_URL}/appuser/delete`, {
+  if (selected.length === 0) return
+
+  const res = await fetch(`${API_URL}/appuser/delete`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(selected),
+    body: JSON.stringify({ ids: selected }),
   })
-  revalidatePath('/app/users')
+
+  if (!res.ok) throw new Error(`Error al eliminar usuarios: ${res.status}`)
+
+  revalidatePath('/users/get')
 }

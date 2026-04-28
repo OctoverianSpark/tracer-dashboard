@@ -1,21 +1,18 @@
-'use server'
 import AppUserList from '@/components/UserManager/UserList'
 import React from 'react'
-import { deleteappuser, getappuser, saveappuser } from '../../actions'
-import { AppUser } from '@/types/AppUser'
+import { deleteappuser, getappuser } from '../../actions'
 import { revalidatePath } from 'next/cache'
 import BulkUploadForm from '@/components/UserManager/BulkUploadForm'
 
-export default async function page () {
+async function handleDelete(selected: number[]) {
+  'use server'
+  console.log(selected);
+  
+  await deleteappuser(selected)
+  revalidatePath('/users/get')
+}
 
-
-  const handleDelete = async (selected: number[]) => {
-    'use server'
-    deleteappuser(selected)
-    revalidatePath('/appuser')
-
-  }
-
+export default async function page() {
   const appusers = await getappuser()
 
   return (
