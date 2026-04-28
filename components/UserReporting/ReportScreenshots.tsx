@@ -95,7 +95,7 @@ export default function ReportScreenshotsList({ screenshots, machineName }: Scre
       </div>
 
       <Dialog open={openIndex !== null} onOpenChange={open => !open && setOpenIndex(null)}>
-        <DialogContent className="max-w-[95vw] w-[95vw] h-[95vh] flex flex-col gap-2 p-4">
+        <DialogContent>
         <DialogTitle className="text-center shrink-0 text-sm">{currentDate}</DialogTitle>
 
             <div className="flex-1 min-h-0 w-full flex items-center justify-center overflow-auto">
