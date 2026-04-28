@@ -76,7 +76,7 @@ export default function ComputersDashboard({ machines }: Props) {
       .filter(m => filter === 'all' ? true : filter === 'online' ? (m.alive || m.isAlive) : (!m.alive && !m.isAlive))
       .filter(m =>
         m.hostname.toLowerCase().includes(search.toLowerCase()) ||
-        m.userName?.toLowerCase().includes(search.toLowerCase()) ||
+        m.username?.toLowerCase().includes(search.toLowerCase()) ||
         m.ip_address?.toLowerCase().includes(search.toLowerCase())
       )
   }, [machines, filter, search])
