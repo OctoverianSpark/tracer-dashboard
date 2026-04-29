@@ -95,21 +95,20 @@ export default function ReportScreenshotsList({ screenshots, machineName }: Scre
       </div>
 
       <Dialog open={openIndex !== null} onOpenChange={open => !open && setOpenIndex(null)}>
-        <DialogContent>
-        <DialogTitle className="text-center shrink-0 text-sm">{currentDate}</DialogTitle>
+        <DialogContent className="max-w-[92vw] w-[92vw] h-[92vh] flex flex-col gap-3 p-4">
+          <DialogTitle className="text-center shrink-0 text-sm">{currentDate}</DialogTitle>
 
-            <div className="flex-1 min-h-0 w-full flex items-center justify-center overflow-auto">
-              {currentSrc && (
-                <Image
-                  src={currentSrc}
-                  loading="eager"
-                  alt={currentFile ?? ''}
-                  width={1920}
-                  height={1080}
-                  className="w-full h-auto"
-                />
-              )}
-            </div>
+          <div className="relative flex-1 min-h-0">
+            {currentSrc && (
+              <Image
+                src={currentSrc}
+                loading="eager"
+                alt={currentFile ?? ''}
+                fill
+                className="object-contain"
+              />
+            )}
+          </div>
 
           <div className="flex justify-between items-center shrink-0">
             <Button
