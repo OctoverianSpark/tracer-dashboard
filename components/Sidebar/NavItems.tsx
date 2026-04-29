@@ -1,3 +1,4 @@
+'use client'
 import { NavItem, NavSection, NavTypes } from '@/types/Navigation'
 import {
   Cog,
@@ -32,7 +33,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem
 } from '@/app/_components/_ui/sidebar'
-import { JSX } from 'react'
 import GroupForm from '../GroupsManager/GroupForm'
 import { usePathname } from 'next/navigation'
 
@@ -177,13 +177,13 @@ const REPORTS: NavSection = {
 }
 
 
-export const renderNavItem = (item: NavItem): JSX.Element => {
+export function NavItemRenderer({ item }: { item: NavItem }) {
   const pathname = usePathname()
 
   switch (item.type) {
     case NavTypes.LINK:
       return (
-        <SidebarMenuItem key={item.title}>
+        <SidebarMenuItem>
           <SidebarMenuButton asChild className={`cursor-pointer ${pathname === item.url ? 'bg-secondary' : ''}`}>
             <a href={item.url}>
               <item.icon />
@@ -194,7 +194,7 @@ export const renderNavItem = (item: NavItem): JSX.Element => {
       )
     case NavTypes.BUTTON:
       return (
-        <SidebarMenuItem key={item.title}>
+        <SidebarMenuItem>
           <SidebarMenuButton className='cursor-pointer' asChild>
             <div className='flex'>
               <item.icon />
@@ -204,8 +204,7 @@ export const renderNavItem = (item: NavItem): JSX.Element => {
         </SidebarMenuItem>
       )
     default:
-      return <></>
-      break
+      return null
   }
 }
 export const SECTIONS = [TIME_MESH, APPLICATION, COMPUTERS, REPORTS]

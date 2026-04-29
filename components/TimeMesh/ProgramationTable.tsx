@@ -12,6 +12,7 @@ import {
 import { Button } from '@/app/_components/_ui/button';
 import { Trash2 } from 'lucide-react';
 import { deleteProgramation } from '@/app/time/actions';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/app/_components/_ui/alert-dialog';
 
 interface Props {
   programations: Programation[]
@@ -53,9 +54,25 @@ export default function ProgramationTable({ programations }: Props) {
               />
             </TableCell>
             <TableCell>
-              <Button className='text-destructive hover:text-destructive cursor-pointer' variant={'ghost'} size={'icon-sm'} onClick={()=>handleDelete(p.id!)}>
-                <Trash2 />
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button className='text-destructive hover:text-destructive cursor-pointer' variant={'ghost'} size={'icon-sm'}>
+                    <Trash2 />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Eliminar programación?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Se eliminará <strong>{p.name}</strong> permanentemente. Esta acción no se puede deshacer.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleDelete(p.id!)}>Eliminar</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </TableCell>
           </TableRow>
         ))}

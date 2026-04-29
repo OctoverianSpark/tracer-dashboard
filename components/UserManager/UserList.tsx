@@ -24,6 +24,7 @@ import {
   InputGroupInput
 } from '@/app/_components/_ui/input-group'
 import { Search, Trash2, X } from 'lucide-react'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/app/_components/_ui/alert-dialog'
 import { AppUser, Group, Role } from '@/types/AppUser'
 import { saveappuser } from '@/app/app/actions'
 import AppUserForm from './UserForm'
@@ -144,13 +145,23 @@ export default function AppUserList ({
             <span className='text-sm text-muted-foreground'>
               {selected.length} seleccionado(s)
             </span>
-            <Button
-              variant='destructive'
-              size='sm'
-              onClick={() => onDelete(selected)}
-            >
-              Eliminar
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant='destructive' size='sm'>Eliminar</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Eliminar usuarios?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Se eliminarán <strong>{selected.length} usuario(s)</strong> seleccionado(s). Esta acción no se puede deshacer.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => onDelete(selected)}>Eliminar</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         )}
       </div>

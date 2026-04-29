@@ -11,13 +11,12 @@ import {
   SidebarMenuItem,
   useSidebar
 } from '@/app/_components/_ui/sidebar'
-import { Button } from '@/app/_components/_ui/button'
 import { generateId } from '@/app/_components/_lib/utils'
-import { LogOut } from 'lucide-react'
-import { signOut, useSession } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import Image from 'next/image'
-import { renderNavItem, SECTIONS } from './NavItems'
+import { NavItemRenderer, SECTIONS } from './NavItems'
 import NavGroups from './NavGroups'
+import { LatestRelease } from './LatestRelease'
 
 export function AppSidebar() {
   const { setOpen } = useSidebar()
@@ -39,7 +38,7 @@ export function AppSidebar() {
           <SidebarMenuItem className='flex gap-2'>
             <SidebarMenuButton
               asChild
-              className='data-[slot=sidebar-menu-button]:!p-1.5'
+              className='data-[slot=sidebar-menu-button]:p-1.5!'
             >
               <a href='/home'>
                 <Image width={28} height={28} alt='Tracer logo' src='/logo.png' />
@@ -62,7 +61,7 @@ export function AppSidebar() {
                   key={generateId('nav-group')}
                   onClick={() => setOpen(true)}
                 >
-                  {group.items.map(item => renderNavItem(item))}
+                  {group.items.map(item => <NavItemRenderer key={item.title} item={item} />)}
                 </NavGroups>
               ))}
             </SidebarMenu>
@@ -70,7 +69,9 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter />
+      <SidebarFooter>
+        <LatestRelease />
+      </SidebarFooter>
     </Sidebar>
   )
 }
