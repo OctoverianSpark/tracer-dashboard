@@ -1,6 +1,7 @@
 'use server'
 import { Machine } from "@/types/Machine"
 import { Notification } from "@/types/Notification"
+import { revalidatePath } from "next/cache"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -16,7 +17,9 @@ export const findAsignedMachines = async (appuser_id: number): Promise<Machine[]
 }
 
 export const deleteComputer = async (serial_number: string) => {
-  await fetch(`${API_URL}/machines/delete/${serial_number}`, { method: 'DELETE' })
+  const res = await fetch(`${API_URL}/machines/delete/${serial_number}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(`Error al eliminar computadora: ${res.status}`)
+  revalidatePath('/computers')
 }
 
 export const getMachineReport = async (computerName: string, date: string) => {
