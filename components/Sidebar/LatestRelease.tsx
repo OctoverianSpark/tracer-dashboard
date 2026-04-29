@@ -4,10 +4,16 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Download } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+interface Asset {
+  name: string
+  assetId: number
+  downloadUrl: string
+}
+
 interface Release {
   tag_name: string
   html_url: string
-  assets: { name: string; url: string }[]
+  assets: Asset[]
 }
 
 export function LatestRelease() {
@@ -37,12 +43,12 @@ export function LatestRelease() {
             <DropdownMenuSeparator />
             {release.assets.length > 0 ? (
               release.assets.map(asset => {
-                const ext = asset.name.split('.').pop()?.toUpperCase() ?? ''
+                const ext = asset.name.split('.').pop()?.toLowerCase() ?? ''
                 return (
-                  <DropdownMenuItem key={asset.name} asChild>
-                    <a href={asset.url} download>
+                  <DropdownMenuItem key={asset.assetId} asChild>
+                    <a href={asset.downloadUrl} download={asset.name}>
                       <Download className='size-4' />
-                      Instalar como .{ext.toLowerCase()}
+                      Instalar como .{ext}
                     </a>
                   </DropdownMenuItem>
                 )
