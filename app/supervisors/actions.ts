@@ -1,7 +1,7 @@
 'use server'
 import { getappuser } from '../app/actions'
 import { getMachines } from '../computers/actions'
-import { getSchedules, getProgramations, getStateLog } from '../time/actions'
+import { getSchedules, getProgramations, getStateLog, getAppUsageLogs, AppUsageLog } from '../time/actions'
 import { getCategorizationApps } from './categorization-actions'
 import { AppUser } from '@/types/AppUser'
 import { Machine } from '@/types/Machine'
@@ -64,11 +64,7 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
 
 // ─── Tipos de productividad ───────────────────────────────────────────────────
 
-export interface AppUsageEntry {
-  app: string
-  seconds: number
-  computer_id: number
-}
+export type AppUsageEntry = AppUsageLog
 
 export interface UserAppUsage {
   app: string
@@ -107,13 +103,6 @@ const scheduledWorkMinutes = (prog: Programation): number => {
   return Math.max(0, total)
 }
 
-const fetchUsageLogs = async (date: string): Promise<AppUsageEntry[]> => {
-  const from = `${date}T00:00:00`
-  const to   = `${date}T23:59:59`
-  const res  = await fetch(`${API_URL}/app-usage-logs/by-date?from=${from}&to=${to}`)
-  const data = await res.json()
-  return Array.isArray(data) ? data : []
-}
 
 // ─── Reporte de productividad ─────────────────────────────────────────────────
 
@@ -127,7 +116,7 @@ export const getProductivityReport = async (date: string): Promise<UserProductiv
       getMachines(),
       getSchedules(),
       getProgramations(),
-      fetchUsageLogs(date),
+      getAppUsageLogs(date),
       getCategorizationApps(),
     ])
 

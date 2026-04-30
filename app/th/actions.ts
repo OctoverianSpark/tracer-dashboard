@@ -1,7 +1,7 @@
 'use server'
 import { getappuser } from '../app/actions'
 import { getMachines } from '../computers/actions'
-import { getSchedules, getProgramations, getStateLog } from '../time/actions'
+import { getSchedules, getProgramations, getStateLog, getAppUsageLogs } from '../time/actions'
 import { getCategorizationApps } from '../supervisors/categorization-actions'
 import { AppUser } from '@/types/AppUser'
 import { Programation } from '@/types/Schedules'
@@ -25,11 +25,6 @@ const scheduledWorkMinutes = (prog: Programation): number => {
   return Math.max(0, total)
 }
 
-const fetchUsageLogs = async (date: string) => {
-  const res  = await fetch(`${API_URL}/app-usage-logs/by-date?from=${date}T00:00:00&to=${date}T23:59:59`)
-  const data = await res.json()
-  return Array.isArray(data) ? data as { app: string; seconds: number; computer_id: number }[] : []
-}
 
 // ─── Malla horaria ────────────────────────────────────────────────────────────
 
@@ -155,7 +150,7 @@ export const getTHProductivityReport = async (date: string): Promise<THProductiv
       getMachines(),
       getSchedules(),
       getProgramations(),
-      fetchUsageLogs(date),
+      getAppUsageLogs(date),
       getCategorizationApps(),
     ])
 

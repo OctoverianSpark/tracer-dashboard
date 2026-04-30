@@ -3,10 +3,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
+import { Card, CardContent } from '@/app/_components/_ui/card'
 import { findAsignedMachines } from '@/app/computers/actions'
 import { getappuser } from '@/app/app/actions'
-import { getScheduleByappuserId, getProgramationById, getStateLog } from '@/app/time/actions'
+import { getScheduleByappuserId, getProgramationById, getStateLog, getAppUsageLogs, AppUsageLog } from '@/app/time/actions'
+import { getCategorizationApps, CategorizationApp } from '@/app/supervisors/categorization-actions'
 import { Timeline } from '@/components/TimeReporting/Timeline'
+import AppUsageList from '@/components/TimeReporting/AppUsageList'
 import { Machine } from '@/types/Machine'
 import { AppUser } from '@/types/AppUser'
 import { StateLog } from '@/types/StateLog'
@@ -19,6 +22,8 @@ export default function Page() {
   const [computers, setComputers]       = useState<Machine[]>([])
   const [date, setDate]                 = useState<string>('')
   const [logs, setLogs]                 = useState<StateLog[]>([])
+  const [usageLogs, setUsageLogs]       = useState<AppUsageLog[]>([])
+  const [categorizations, setCats]      = useState<CategorizationApp[]>([])
   const [selectedAppUser, setSelected]  = useState<AppUser | undefined>()
   const [selectedComputer, setComputer] = useState<Machine | undefined>()
   const [programation, setProgramation] = useState<Programation | null>(null)
@@ -30,6 +35,7 @@ export default function Page() {
 
   useEffect(() => {
     getappuser().then(setAppuser)
+    getCategorizationApps().then(setCats)
   }, [])
 
   useEffect(() => {
@@ -44,6 +50,11 @@ export default function Page() {
   }, [selectedAppUser, selectedComputer])
 
   useEffect(() => {
+    if (!date) { setUsageLogs([]); return }
+    getAppUsageLogs(date).then(setUsageLogs)
+  }, [date])
+
+  useEffect(() => {
     if (!selectedAppUser || !date) { setProgramation(null); return }
     const dayKey = DAY_KEYS[new Date(`${date}T12:00:00`).getDay()]
     getScheduleByappuserId(selectedAppUser.id!).then(schedules => {
@@ -52,6 +63,8 @@ export default function Page() {
       getProgramationById(schedule.programation_id).then(setProgramation)
     })
   }, [selectedAppUser, date])
+
+  const showData = selectedComputer && date
 
   return (
     <div className="space-y-6">
@@ -103,7 +116,7 @@ export default function Page() {
         </div>
       </div>
 
-      {selectedComputer && date && (
+      {showData && (
         <Timeline
           logs={filteredLogs.map(log => ({
             state:     log.state.toString(),
@@ -115,7 +128,20 @@ export default function Page() {
         />
       )}
 
-      {!selectedComputer && (
+      {showData && (
+        <Card>
+          <CardContent className="pt-5 space-y-3">
+            <p className="font-semibold text-sm">Uso de aplicaciones</p>
+            <AppUsageList
+              logs={usageLogs}
+              categorizations={categorizations}
+              computerId={selectedComputer!.id!}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {!showData && (
         <p className="text-center text-sm text-muted-foreground py-12">
           Selecciona un usuario, equipo y fecha para ver la actividad.
         </p>

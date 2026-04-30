@@ -53,3 +53,20 @@ export const saveSchedule = async (body: Schedule[]) => {
   })
   revalidatePath('/time/control')
 }
+
+export interface AppUsageLog {
+  app: string
+  seconds: number
+  computer_id: number
+}
+
+export const getAppUsageLogs = async (date: string): Promise<AppUsageLog[]> => {
+  const from = `${date}T00:00:00`
+  const to   = `${date}T23:59:59`
+  const url  = `${NEXT_PUBLIC_API_URL}/app-usage-logs/by-date?from=${from}&to=${to}`
+  console.log(`[app-usage] GET ${url}`)
+  const res  = await fetch(url)
+  const data = await res.json()
+  console.log(`[app-usage] ${Array.isArray(data) ? data.length : 0} registros para ${date}`)
+  return Array.isArray(data) ? data : []
+}
