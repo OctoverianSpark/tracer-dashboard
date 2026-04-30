@@ -42,5 +42,19 @@ export const PERMISSION_GROUPS = [
     permissions: [
       { id: 'use_app', label: 'Puede usar la aplicación', default: true }
     ]
+  },
+  {
+    id: 'supervisors_group',
+    label: 'Panel de Supervisores',
+    permissions: [
+      { id: 'view_supervisors', label: 'Puede acceder al panel de supervisores', default: false }
+    ]
+  },
+  {
+    id: 'th_group',
+    label: 'Talento Humano',
+    permissions: [
+      { id: 'view_th', label: 'Puede acceder al panel de Talento Humano', default: false }
+    ]
   }
 ]

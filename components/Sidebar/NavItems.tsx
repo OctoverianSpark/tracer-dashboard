@@ -23,7 +23,9 @@ import {
   UserCog2,
   UserPlus,
   UserPlus2,
-  Users2
+  Users2,
+  ShieldCheck,
+  UserRoundCog,
 } from 'lucide-react'
 import { join } from 'path'
 import UserForm from '../UserManager/UserForm'
@@ -176,6 +178,35 @@ const REPORTS: NavSection = {
   ]
 }
 
+const SUPERVISORS: NavSection = {
+  title: 'Supervisores',
+  icon: ShieldCheck,
+  items: [
+    {
+      title: 'Panel de supervisores',
+      type: NavTypes.LINK,
+      icon: ShieldCheck,
+      url: '/supervisors',
+      desc: 'Usuarios conectados, productividad y categorización',
+      perm: 'view_supervisors'
+    }
+  ]
+}
+
+const TH: NavSection = {
+  title: 'Talento Humano',
+  icon: UserRoundCog,
+  items: [
+    {
+      title: 'Panel TH',
+      type: NavTypes.LINK,
+      icon: UserRoundCog,
+      url: '/th',
+      desc: 'Malla horaria, productividad y llegadas tarde',
+      perm: 'view_th'
+    }
+  ]
+}
 
 export function NavItemRenderer({ item }: { item: NavItem }) {
   const pathname = usePathname()
@@ -207,4 +238,4 @@ export function NavItemRenderer({ item }: { item: NavItem }) {
       return null
   }
 }
-export const SECTIONS = [TIME_MESH, APPLICATION, COMPUTERS, REPORTS]
+export const SECTIONS = [TIME_MESH, APPLICATION, COMPUTERS, REPORTS, SUPERVISORS, TH]
