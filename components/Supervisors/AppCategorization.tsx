@@ -97,7 +97,7 @@ export default function AppCategorization() {
               )}
 
               <p className="text-xs text-muted-foreground">
-                {usersWithData.length} de {data.length} usuarios con actividad
+                {usersWithData.length} de {data?.length ?? 0} usuarios con actividad
               </p>
             </CardContent>
           </Card>
