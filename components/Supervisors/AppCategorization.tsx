@@ -1,138 +1,250 @@
 'use client'
-import { useState } from 'react'
-import { UserProductivity, getProductivityReport } from '@/app/supervisors/actions'
+import { useEffect, useState } from 'react'
+import {
+  CategorizationApp,
+  getCategorizationApps,
+  createCategorizationApp,
+  updateCategorizationApp,
+  deleteCategorizationApp,
+} from '@/app/supervisors/categorization-actions'
+import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
-import { Card, CardContent } from '@/app/_components/_ui/card'
-import { Loader2 } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/app/_components/_ui/select'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/app/_components/_ui/table'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/app/_components/_ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/app/_components/_ui/alert-dialog'
+import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const EMPTY: CategorizationApp = { name: '', category: 'productive' }
 
-const fmtMin = (m: number) => {
-  const h = Math.floor(m / 60)
-  const min = m % 60
-  return h > 0 ? `${h}h ${min}m` : `${min}m`
-}
+const CategoryBadge = ({ category }: { category: CategorizationApp['category'] }) =>
+  category === 'productive' ? (
+    <Badge className="bg-green-600 text-white">Productiva</Badge>
+  ) : (
+    <Badge variant="destructive">Improductiva</Badge>
+  )
 
-const Bar = ({ value, color, label, detail }: { value: number; color: string; label: string; detail?: string }) => (
-  <div className="space-y-1">
-    <div className="flex justify-between text-xs text-muted-foreground">
-      <span>{label}{detail ? <span className="ml-1 text-muted-foreground/60">{detail}</span> : null}</span>
-      <span>{value}%</span>
-    </div>
-    <div className="h-2 rounded-full bg-secondary overflow-hidden">
-      <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${value}%` }} />
-    </div>
-  </div>
-)
-
-export default function AppCategorization() {
-  const [date, setDate] = useState(today())
-  const [data, setData] = useState<UserProductivity[] | null>(null)
+function AppForm({
+  initial,
+  onSaved,
+}: {
+  initial?: CategorizationApp
+  onSaved: () => void
+}) {
+  const [values, setValues] = useState<CategorizationApp>(initial ?? EMPTY)
+  const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const load = async () => {
+  const handleSave = async () => {
+    if (!values.name.trim()) {
+      toast.error('El nombre de la aplicación es requerido')
+      return
+    }
     setLoading(true)
     try {
-      setData(await getProductivityReport(date))
+      if (initial?.id) {
+        await updateCategorizationApp({ ...values, id: initial.id })
+      } else {
+        await createCategorizationApp({ name: values.name, category: values.category })
+      }
+      toast.success(initial?.id ? 'Aplicación actualizada' : 'Aplicación registrada')
+      setOpen(false)
+      onSaved()
+    } catch {
+      toast.error('Error al guardar')
     } finally {
       setLoading(false)
     }
   }
 
-  const usersWithData = (data ?? []).filter(d => d.totalLoggedMinutes > 0)
+  return (
+    <Dialog open={open} onOpenChange={o => { setOpen(o); if (o) setValues(initial ?? EMPTY) }}>
+      <DialogTrigger asChild>
+        {initial?.id ? (
+          <Button size="icon-sm" variant="ghost"><Pencil className="h-4 w-4" /></Button>
+        ) : (
+          <Button size="sm"><Plus className="h-4 w-4 mr-1" />Nueva aplicación</Button>
+        )}
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{initial?.id ? 'Editar aplicación' : 'Registrar aplicación'}</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <div className="grid gap-1.5">
+            <Label htmlFor="app-name">Nombre de la aplicación</Label>
+            <Input
+              id="app-name"
+              placeholder="ej. chrome.exe"
+              value={values.name}
+              onChange={e => setValues(v => ({ ...v, name: e.target.value }))}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Categoría</Label>
+            <Select
+              value={values.category}
+              onValueChange={val => setValues(v => ({ ...v, category: val as CategorizationApp['category'] }))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="productive">Productiva</SelectItem>
+                <SelectItem value="unproductive">Improductiva</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={handleSave} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            {initial?.id ? 'Actualizar' : 'Registrar'}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
-  const totActive   = usersWithData.reduce((s, d) => s + d.activeMinutes, 0)
-  const totNeutral  = usersWithData.reduce((s, d) => s + d.neutralMinutes, 0)
-  const totInactive = usersWithData.reduce((s, d) => s + d.inactiveMinutes, 0)
-  const totLogged   = totActive + totNeutral + totInactive
-  const totSched    = usersWithData.reduce((s, d) => s + d.scheduledMinutes, 0)
+function DeleteButton({ id, onDeleted }: { id: number; onDeleted: () => void }) {
+  const [loading, setLoading] = useState(false)
 
-  const pct = (v: number, total: number) => (total > 0 ? Math.round((v / total) * 100) : 0)
+  const handleDelete = async () => {
+    setLoading(true)
+    try {
+      await deleteCategorizationApp(id)
+      toast.success('Aplicación eliminada')
+      onDeleted()
+    } catch {
+      toast.error('Error al eliminar')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button size="icon-sm" variant="ghost" className="text-destructive hover:text-destructive">
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Eliminar aplicación?</AlertDialogTitle>
+          <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDelete} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+export default function AppCategorization() {
+  const [apps, setApps] = useState<CategorizationApp[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      setApps(await getCategorizationApps())
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  const productive   = apps.filter(a => a.category === 'productive').length
+  const unproductive = apps.filter(a => a.category === 'unproductive').length
+
+  const filtered = apps.filter(a =>
+    a.name.toLowerCase().includes(search.toLowerCase())
+  )
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-4">
-        <div className="grid gap-1.5">
-          <Label>Fecha</Label>
-          <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-44" />
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Input
+            placeholder="Buscar aplicación…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-60"
+          />
+          <span className="text-sm text-muted-foreground">
+            <span className="text-green-600 font-medium">{productive} productivas</span>
+            {' · '}
+            <span className="text-red-500 font-medium">{unproductive} improductivas</span>
+          </span>
         </div>
-        <Button onClick={load} disabled={loading}>
-          {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Cargando…</> : 'Analizar'}
-        </Button>
+        <AppForm onSaved={load} />
       </div>
 
-      {data === null && !loading && (
-        <p className="text-center text-sm text-muted-foreground py-10">
-          Selecciona una fecha para ver la distribución de categorías.
-        </p>
-      )}
-
-      {data !== null && usersWithData.length === 0 && (
-        <p className="text-center text-sm text-muted-foreground py-10">
-          No se encontró actividad para esta fecha.
-        </p>
-      )}
-
-      {usersWithData.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardContent className="pt-6 space-y-5">
-              <p className="font-semibold text-sm">Distribución global del equipo</p>
-
-              <div className="space-y-3">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sobre tiempo conectado</p>
-                <Bar value={pct(totActive, totLogged)}   color="bg-green-500"  label="Productivo (apps activas)" />
-                <Bar value={pct(totNeutral, totLogged)}  color="bg-yellow-400" label="Neutral" />
-                <Bar value={pct(totInactive, totLogged)} color="bg-red-400"    label="Improductivo / inactivo" />
-              </div>
-
-              {totSched > 0 && (
-                <div className="space-y-3 pt-1 border-t">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sobre jornada programada</p>
-                  <Bar value={pct(totActive, totSched)}  color="bg-green-500"  label="Productivo" detail={`(${fmtMin(totActive)} / ${fmtMin(totSched)})`} />
-                  <Bar value={pct(totLogged, totSched)}  color="bg-blue-400"   label="Cumplimiento horario" detail={`(${fmtMin(totLogged)} / ${fmtMin(totSched)})`} />
-                </div>
-              )}
-
-              <p className="text-xs text-muted-foreground">
-                {usersWithData.length} de {data?.length ?? 0} usuarios con actividad
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6 space-y-2">
-              <p className="font-semibold text-sm mb-3">Por usuario — Productividad global</p>
-              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-                {usersWithData
-                  .sort((a, b) => b.overallProductivityPercent - a.overallProductivityPercent)
-                  .map(d => (
-                    <div key={d.user.id} className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="font-medium truncate">{d.user.full_name}</span>
-                        <span className="text-muted-foreground shrink-0 ml-2">
-                          {d.appProductivityPercent}% apps · {d.workCompliancePercent}% asist.
-                        </span>
-                      </div>
-                      {/* Barra tricolor sobre tiempo conectado */}
-                      <div className="flex h-2 rounded-full overflow-hidden gap-px bg-secondary">
-                        <div className="bg-green-500" style={{ width: `${d.totalLoggedMinutes > 0 ? Math.round(d.activeMinutes / d.totalLoggedMinutes * 100) : 0}%` }} />
-                        <div className="bg-yellow-400" style={{ width: `${d.totalLoggedMinutes > 0 ? Math.round(d.neutralMinutes / d.totalLoggedMinutes * 100) : 0}%` }} />
-                        <div className="bg-red-400"    style={{ width: `${d.totalLoggedMinutes > 0 ? Math.round(d.inactiveMinutes / d.totalLoggedMinutes * 100) : 0}%` }} />
-                      </div>
-                    </div>
-                  ))}
-              </div>
-              <div className="flex gap-3 pt-2 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" />Productivo</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" />Neutral</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400 inline-block" />Improductivo</span>
-              </div>
-            </CardContent>
-          </Card>
+      {loading && (
+        <div className="flex justify-center py-10">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
+      )}
+
+      {!loading && filtered.length === 0 && (
+        <p className="text-center text-sm text-muted-foreground py-10">
+          {apps.length === 0 ? 'No hay aplicaciones registradas.' : 'Sin resultados para la búsqueda.'}
+        </p>
+      )}
+
+      {!loading && filtered.length > 0 && (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Aplicación</TableHead>
+              <TableHead>Categoría</TableHead>
+              <TableHead className="w-20" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map(app => (
+              <TableRow key={app.id}>
+                <TableCell className="font-medium font-mono text-sm">{app.name}</TableCell>
+                <TableCell><CategoryBadge category={app.category} /></TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <AppForm initial={app} onSaved={load} />
+                    <DeleteButton id={app.id!} onDeleted={load} />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </div>
   )

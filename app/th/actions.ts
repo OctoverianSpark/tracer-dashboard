@@ -2,10 +2,34 @@
 import { getappuser } from '../app/actions'
 import { getMachines } from '../computers/actions'
 import { getSchedules, getProgramations, getStateLog } from '../time/actions'
+import { getCategorizationApps } from '../supervisors/categorization-actions'
 import { AppUser } from '@/types/AppUser'
 import { Programation } from '@/types/Schedules'
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL
 const DAY_KEYS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'] as const
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const timeToMinutes = (hhmm: string) => {
+  const [h, m] = hhmm.split(':').map(Number)
+  return h * 60 + m
+}
+
+const scheduledWorkMinutes = (prog: Programation): number => {
+  if (!prog.start_day || !prog.end_day) return 0
+  let total = timeToMinutes(prog.end_day) - timeToMinutes(prog.start_day)
+  if (prog.start_lunch && prog.end_lunch) {
+    total -= timeToMinutes(prog.end_lunch) - timeToMinutes(prog.start_lunch)
+  }
+  return Math.max(0, total)
+}
+
+const fetchUsageLogs = async (date: string) => {
+  const res  = await fetch(`${API_URL}/app-usage-logs/by-date?from=${date}T00:00:00&to=${date}T23:59:59`)
+  const data = await res.json()
+  return Array.isArray(data) ? data as { app: string; seconds: number; computer_id: number }[] : []
+}
 
 // ─── Malla horaria ────────────────────────────────────────────────────────────
 
@@ -49,7 +73,7 @@ export interface LateArrival {
 
 export const getLateArrivals = async (date: string): Promise<LateArrival[]> => {
   const dateObj = new Date(`${date}T12:00:00`)
-  const dayKey = DAY_KEYS[dateObj.getDay()]
+  const dayKey  = DAY_KEYS[dateObj.getDay()]
 
   const [users, machines, schedules, programations] = await Promise.all([
     getappuser(),
@@ -69,7 +93,7 @@ export const getLateArrivals = async (date: string): Promise<LateArrival[]> => {
       const scheduledStart = programation?.start_day ?? '08:00'
 
       const machine = machines.find(m => Number(m.appuser_id) === user.id)
-      const absent = { user, scheduledStart, firstActivity: null, minutesLate: 0, status: 'absent' as const }
+      const absent  = { user, scheduledStart, firstActivity: null, minutesLate: 0, status: 'absent' as const }
 
       if (!machine?.id) return absent
 
@@ -80,10 +104,7 @@ export const getLateArrivals = async (date: string): Promise<LateArrival[]> => {
         return absent
       }
 
-      const dateLogs: any[] = Array.isArray(logs)
-        ? logs.filter(l => l.timestamp?.startsWith(date))
-        : []
-
+      const dateLogs   = Array.isArray(logs) ? logs.filter(l => l.timestamp?.startsWith(date)) : []
       const activeLogs = dateLogs.filter(l => {
         const s = l.state?.toString().toUpperCase()
         return s !== 'OFFLINE' && s !== '5'
@@ -102,8 +123,8 @@ export const getLateArrivals = async (date: string): Promise<LateArrival[]> => {
         user,
         scheduledStart,
         firstActivity: firstTime.toTimeString().slice(0, 5),
-        minutesLate: Math.max(0, minutesLate),
-        status: minutesLate > 5 ? ('late' as const) : ('on_time' as const),
+        minutesLate:   Math.max(0, minutesLate),
+        status:        minutesLate > 5 ? ('late' as const) : ('on_time' as const),
       }
     })
   )
@@ -115,114 +136,70 @@ export interface THProductivity {
   user: AppUser
   programation?: Programation
   scheduledMinutes: number
-  activeMinutes: number
-  neutralMinutes: number
-  inactiveMinutes: number
-  offlineMinutes: number
-  totalLoggedMinutes: number
+  productiveSeconds: number
+  unproductiveSeconds: number
+  uncategorizedSeconds: number
+  totalSeconds: number
   appProductivityPercent: number
   workCompliancePercent: number
   overallProductivityPercent: number
 }
 
-const resolveCategory = (cat: string | number): 'active' | 'neutral' | 'inactive' => {
-  const s = cat?.toString().toUpperCase()
-  if (s === 'ACTIVE' || s === '0') return 'active'
-  if (s === 'NEUTRAL' || s === '1') return 'neutral'
-  return 'inactive'
-}
-
-const isOffline = (state: string | number) => {
-  const s = state?.toString().toUpperCase()
-  return s === 'OFFLINE' || s === '5'
-}
-
-const timeToMinutes = (hhmm: string) => {
-  const [h, m] = hhmm.split(':').map(Number)
-  return h * 60 + m
-}
-
-const scheduledWorkMinutes = (prog: Programation): number => {
-  if (!prog.start_day || !prog.end_day) return 0
-  let total = timeToMinutes(prog.end_day) - timeToMinutes(prog.start_day)
-  if (prog.start_lunch && prog.end_lunch) {
-    total -= timeToMinutes(prog.end_lunch) - timeToMinutes(prog.start_lunch)
-  }
-  return Math.max(0, total)
-}
-
 export const getTHProductivityReport = async (date: string): Promise<THProductivity[]> => {
   const dateObj = new Date(`${date}T12:00:00`)
-  const dayKey = DAY_KEYS[dateObj.getDay()]
+  const dayKey  = DAY_KEYS[dateObj.getDay()]
 
-  const [users, machines, schedules, programations] = await Promise.all([
-    getappuser(),
-    getMachines(),
-    getSchedules(),
-    getProgramations(),
-  ])
+  const [users, machines, schedules, programations, usageLogs, categorizationApps] =
+    await Promise.all([
+      getappuser(),
+      getMachines(),
+      getSchedules(),
+      getProgramations(),
+      fetchUsageLogs(date),
+      getCategorizationApps(),
+    ])
 
-  return Promise.all(
-    users.map(async user => {
-      const machine = machines.find(m => Number(m.appuser_id) === user.id)
-      const userSchedule = schedules.find(s => s.appuser_id === user.id && s.day_of_week === dayKey)
-      const programation = userSchedule ? programations.find(p => p.id === userSchedule.programation_id) : undefined
-      const scheduledMinutes = programation ? scheduledWorkMinutes(programation) : 0
+  const categoryMap = new Map(categorizationApps.map(a => [a.name.toLowerCase(), a.category]))
 
-      const empty: THProductivity = {
-        user, programation, scheduledMinutes,
-        activeMinutes: 0, neutralMinutes: 0, inactiveMinutes: 0, offlineMinutes: 0,
-        totalLoggedMinutes: 0, appProductivityPercent: 0, workCompliancePercent: 0, overallProductivityPercent: 0,
-      }
+  return users.map(user => {
+    const machine      = machines.find(m => Number(m.appuser_id) === user.id)
+    const userSchedule = schedules.find(s => s.appuser_id === user.id && s.day_of_week === dayKey)
+    const programation = userSchedule ? programations.find(p => p.id === userSchedule.programation_id) : undefined
+    const scheduledMinutes = programation ? scheduledWorkMinutes(programation) : 0
 
-      if (!machine?.id) return empty
+    const empty: THProductivity = {
+      user, programation, scheduledMinutes,
+      productiveSeconds: 0, unproductiveSeconds: 0, uncategorizedSeconds: 0, totalSeconds: 0,
+      appProductivityPercent: 0, workCompliancePercent: 0, overallProductivityPercent: 0,
+    }
 
-      let logs: any[] = []
-      try {
-        logs = await getStateLog(user.id!, machine.id)
-      } catch {
-        return empty
-      }
+    if (!machine?.id) return empty
 
-      const dateLogs: any[] = Array.isArray(logs)
-        ? logs.filter(l => l.timestamp?.startsWith(date))
-        : []
+    const userLogs = usageLogs.filter(l => Number(l.computer_id) === machine.id)
+    if (userLogs.length === 0) return empty
 
-      let active = 0, neutral = 0, inactive = 0, offline = 0
+    let productive = 0, unproductive = 0, uncategorized = 0
 
-      for (let i = 0; i < dateLogs.length - 1; i++) {
-        const dur =
-          (new Date(dateLogs[i + 1].timestamp).getTime() - new Date(dateLogs[i].timestamp).getTime()) / 60000
-        if (dur <= 0 || dur > 600) continue
+    for (const l of userLogs) {
+      const cat = categoryMap.get(l.app.toLowerCase())
+      if (cat === 'productive')     productive    += l.seconds
+      else if (cat === 'unproductive') unproductive += l.seconds
+      else                          uncategorized += l.seconds
+    }
 
-        if (isOffline(dateLogs[i].state)) {
-          offline += dur
-        } else {
-          const cat = resolveCategory(dateLogs[i].category)
-          if (cat === 'active') active += dur
-          else if (cat === 'neutral') neutral += dur
-          else inactive += dur
-        }
-      }
+    const total         = productive + unproductive + uncategorized
+    const categorized   = productive + unproductive
+    const scheduledSecs = scheduledMinutes * 60
 
-      const totalLogged = active + neutral + inactive
-      const appProd = totalLogged > 0 ? Math.round((active / totalLogged) * 100) : 0
-      const workCompliance = scheduledMinutes > 0 ? Math.min(100, Math.round((totalLogged / scheduledMinutes) * 100)) : 0
-      const overall = scheduledMinutes > 0
-        ? Math.min(100, Math.round((active / scheduledMinutes) * 100))
-        : appProd
-
-      return {
-        user, programation, scheduledMinutes,
-        activeMinutes: Math.round(active),
-        neutralMinutes: Math.round(neutral),
-        inactiveMinutes: Math.round(inactive),
-        offlineMinutes: Math.round(offline),
-        totalLoggedMinutes: Math.round(totalLogged),
-        appProductivityPercent: appProd,
-        workCompliancePercent: workCompliance,
-        overallProductivityPercent: overall,
-      }
-    })
-  )
+    return {
+      user, programation, scheduledMinutes,
+      productiveSeconds:    Math.round(productive),
+      unproductiveSeconds:  Math.round(unproductive),
+      uncategorizedSeconds: Math.round(uncategorized),
+      totalSeconds:         Math.round(total),
+      appProductivityPercent:     categorized > 0 ? Math.round((productive / categorized) * 100) : 0,
+      workCompliancePercent:      scheduledSecs > 0 ? Math.min(100, Math.round((total / scheduledSecs) * 100)) : 0,
+      overallProductivityPercent: scheduledSecs > 0 ? Math.min(100, Math.round((productive / scheduledSecs) * 100)) : 0,
+    }
+  })
 }
