@@ -1,9 +1,9 @@
 'use server'
 import { getappuser } from '../app/actions'
-import { getMachines } from '../computers/actions'
+import { getMachines, findAsignedMachines } from '../computers/actions'
 import { getSchedules, getProgramations, getStateLog, getRawAppUsageLogs } from '../time/actions'
 import { getCategorizationApps } from './categorization-actions'
-import { AppUser, AppUsageLog, FlatAppUsageLog } from '@/types/AppUser'
+import { AppUser, AppUsageLog } from '@/types/AppUser'
 import { Machine } from '@/types/Machine'
 import { Programation } from '@/types/Schedules'
 import { StateLog, StateLogCategory } from '@/types/StateLog'
@@ -60,7 +60,6 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
   })
 }
 
-export type AppUsageEntry = FlatAppUsageLog
 
 export interface UserAppUsage {
   app: string
@@ -125,19 +124,26 @@ const isIntervalActive = (log: AppUsageLog, windows: Array<{ start: number; end:
 export const getProductivityReport = async (date: string): Promise<UserProductivity[]> => {
   const dayKey = DAY_KEYS[new Date(`${date}T12:00:00`).getDay()]
 
-  const [users, machines, schedules, programations, rawLogs, categorizationApps] =
-    await Promise.all([
-      getappuser(),
-      getMachines(),
-      getSchedules(),
-      getProgramations(),
-      getRawAppUsageLogs(date),
-      getCategorizationApps(),
-    ])
+  // Ronda 1: datos globales que no dependen del usuario
+  const [users, schedules, programations, rawLogs, categorizationApps] = await Promise.all([
+    getappuser(),
+    getSchedules(),
+    getProgramations(),
+    getRawAppUsageLogs(date),
+    getCategorizationApps(),
+  ])
 
-  const categoryMap = new Map(categorizationApps.map(a => [a.name.toLowerCase(), a.category]))
+  // Ronda 2: máquinas asignadas a cada usuario (endpoint correcto por usuario)
+  const machinesPerUser = await Promise.all(
+    users.map(u =>
+      findAsignedMachines(Number(u.id))
+        .then(ms => ({ userId: Number(u.id), machines: ms }))
+        .catch(() => ({ userId: Number(u.id), machines: [] as Machine[] }))
+    )
+  )
+  const machinesByUser = new Map(machinesPerUser.map(r => [r.userId, r.machines]))
 
-  // Agrupar intervalos de uso por máquina
+  // Agrupar intervalos de app por machineId
   const logsByMachine = new Map<number, AppUsageLog[]>()
   for (const log of rawLogs) {
     const cid = Number(log.computer_id)
@@ -145,56 +151,63 @@ export const getProductivityReport = async (date: string): Promise<UserProductiv
     logsByMachine.get(cid)!.push(log)
   }
 
-  // Obtener la máquina de cada usuario
-  const machineByUser = new Map<number, Machine>()
-  for (const user of users) {
-    const m = machines.find(m => Number(m.appuser_id) === Number(user.id))
-    if (m?.id != null) machineByUser.set(Number(user.id), m)
+  // Pares usuario-máquina para cargar state logs
+  const pairs: Array<{ userId: number; machine: Machine }> = []
+  for (const [userId, machines] of machinesByUser) {
+    for (const m of machines) {
+      if (m.id != null) pairs.push({ userId, machine: m })
+    }
   }
 
-  // Cargar state logs de todos los usuarios con máquina en paralelo
+  // Ronda 3: state logs para todos los pares en paralelo
   const stateLogResults = await Promise.all(
-    [...machineByUser.entries()].map(async ([userId, machine]) => {
+    pairs.map(async ({ userId, machine }) => {
       try {
         const raw = await getStateLog(userId, Number(machine.id))
         const logs: StateLog[] = (Array.isArray(raw) ? raw : [])
           .filter((l: StateLog) => l.timestamp?.startsWith(date))
         return { machineId: Number(machine.id), logs }
       } catch {
-        return { machineId: Number(machine.id), logs: [] }
+        return { machineId: Number(machine.id), logs: [] as StateLog[] }
       }
     })
   )
   const stateByMachine = new Map(stateLogResults.map(r => [r.machineId, r.logs]))
 
+  const categoryMap = new Map(categorizationApps.map(a => [a.name.toLowerCase(), a.category]))
+
   return users.map(user => {
-    const machine = machineByUser.get(Number(user.id))
-    const userSchedule = schedules.find(s => Number(s.appuser_id) === Number(user.id) && s.day_of_week === dayKey)
+    const userId = Number(user.id)
+    const userMachines = machinesByUser.get(userId) ?? []
+    const userSchedule = schedules.find(s => Number(s.appuser_id) === userId && s.day_of_week === dayKey)
     const programation = userSchedule ? programations.find(p => p.id === userSchedule.programation_id) : undefined
     const scheduledMinutes = programation ? scheduledWorkMinutes(programation) : 0
-    console.log(machine, userSchedule, programation, scheduledMinutes);
-
+    const primaryMachine = userMachines[0]
 
     const empty: UserProductivity = {
-      user, machine, programation, scheduledMinutes,
+      user, machine: primaryMachine, programation, scheduledMinutes,
       productiveSeconds: 0, unproductiveSeconds: 0, uncategorizedSeconds: 0, totalSeconds: 0,
       appProductivityPercent: 0, workCompliancePercent: 0, overallProductivityPercent: 0,
       topApps: [],
     }
 
-    if (!machine) return empty
+    if (!userMachines.length) return empty
 
-    const machineId = Number(machine.id)
-    const intervals = logsByMachine.get(machineId) ?? []
-    if (!intervals.length) return empty
-
-    const activeWindows = buildActiveWindows(stateByMachine.get(machineId) ?? [])
+    // Acumular intervalos y ventanas activas de TODAS las máquinas del usuario
+    const allIntervals: AppUsageLog[] = []
+    const allActiveWindows: Array<{ start: number; end: number }> = []
+    for (const m of userMachines) {
+      const mid = Number(m.id)
+      allIntervals.push(...(logsByMachine.get(mid) ?? []))
+      allActiveWindows.push(...buildActiveWindows(stateByMachine.get(mid) ?? []))
+    }
+    if (!allIntervals.length) return empty
 
     let productive = 0, unproductive = 0, uncategorized = 0
     const appMap = new Map<string, UserAppUsage>()
 
-    for (const interval of intervals) {
-      if (!isIntervalActive(interval, activeWindows)) continue
+    for (const interval of allIntervals) {
+      if (!isIntervalActive(interval, allActiveWindows)) continue
       for (const a of interval.apps ?? []) {
         const cat = categoryMap.get(a.app.toLowerCase())
         const resolved: UserAppUsage['category'] = cat === 'productive' ? 'productive'
@@ -219,10 +232,8 @@ export const getProductivityReport = async (date: string): Promise<UserProductiv
     const compliance = scheduledSecs > 0 ? Math.min(100, Math.round((total / scheduledSecs) * 100)) : 0
     const overall = scheduledSecs > 0 ? Math.min(100, Math.round((productive / scheduledSecs) * 100)) : 0
 
-    const topApps = [...appMap.values()].sort((a, b) => b.seconds - a.seconds).slice(0, 8)
-
     return {
-      user, machine, programation, scheduledMinutes,
+      user, machine: primaryMachine, programation, scheduledMinutes,
       productiveSeconds: Math.round(productive),
       unproductiveSeconds: Math.round(unproductive),
       uncategorizedSeconds: Math.round(uncategorized),
@@ -230,7 +241,7 @@ export const getProductivityReport = async (date: string): Promise<UserProductiv
       appProductivityPercent: appProd,
       workCompliancePercent: compliance,
       overallProductivityPercent: overall,
-      topApps,
+      topApps: [...appMap.values()].sort((a, b) => b.seconds - a.seconds).slice(0, 8),
     }
   })
 }

@@ -98,7 +98,7 @@ export default function LateArrivalsLog() {
                   return order[a.status] - order[b.status]
                 })
                 .map(({ user, scheduledStart, firstActivity, status, minutesLate }) => (
-                  <TableRow key={user.id}>
+                  <TableRow key={user.id ?? user.full_name}>
                     <TableCell className="font-medium">{user.full_name}</TableCell>
                     <TableCell className="text-muted-foreground">{scheduledStart}</TableCell>
                     <TableCell className="text-muted-foreground">{firstActivity ?? '—'}</TableCell>

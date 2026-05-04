@@ -111,7 +111,7 @@ export default function THProductivityReport() {
               {withActivity
                 .sort((a, b) => b.overallProductivityPercent - a.overallProductivityPercent)
                 .map(d => (
-                  <TableRow key={d.user.id}>
+                  <TableRow key={d.user.id ?? d.user.full_name}>
                     <TableCell className="font-medium">{d.user.full_name}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {d.scheduledMinutes > 0 ? fmtMin(d.scheduledMinutes) : '—'}

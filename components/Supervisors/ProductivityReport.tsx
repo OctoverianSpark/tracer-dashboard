@@ -144,9 +144,12 @@ export default function ProductivityReport() {
       )}
       {data !== null && filtered.length === 0 && (
         <p className='text-center text-sm text-muted-foreground py-10'>
-          {soloActivos
-            ? 'Ningún usuario registró actividad en esa fecha.'
-            : `No hay usuarios con productividad global ≥ ${minPercent}%.`}
+          {(() => {
+            const conActividad = (data ?? []).filter(d => d.totalSeconds > 0).length
+            if (soloActivos && conActividad === 0) return 'Ningún usuario registró actividad en esa fecha.'
+            if (minPercent > 0) return `Ningún usuario activo supera ${minPercent}% de productividad global.`
+            return 'No hay datos para mostrar con los filtros actuales.'
+          })()}
         </p>
       )}
       {data !== null && filtered.length > 0 && (
@@ -174,7 +177,7 @@ export default function ProductivityReport() {
             </TableHeader>
             <TableBody>
               {filtered.flatMap(d => [
-                <TableRow key={d.user.id}>
+                <TableRow key={d.user.id ?? d.user.full_name}>
                   <TableCell className='font-medium whitespace-nowrap'>{d.user.full_name}</TableCell>
 
                   <TableCell className='text-right text-muted-foreground text-sm'>
@@ -212,7 +215,7 @@ export default function ProductivityReport() {
                     {d.uncategorizedSeconds > 0 ? fmtSecs(d.uncategorizedSeconds) : '—'}
                   </TableCell>
                 </TableRow>,
-                <TopAppsRow key={`apps-${d.user.id}`} data={d} />,
+                <TopAppsRow key={`apps-${d.user.id ?? d.user.full_name}`} data={d} />,
               ])}
             </TableBody>
           </Table>

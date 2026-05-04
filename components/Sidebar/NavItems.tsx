@@ -183,7 +183,7 @@ const SUPERVISORS: NavSection = {
   icon: ShieldCheck,
   items: [
     {
-      title: 'Panel de supervisores',
+      title: 'Panel',
       type: NavTypes.LINK,
       icon: ShieldCheck,
       url: '/supervisors',
@@ -198,7 +198,7 @@ const TH: NavSection = {
   icon: UserRoundCog,
   items: [
     {
-      title: 'Panel TH',
+      title: 'Panel',
       type: NavTypes.LINK,
       icon: UserRoundCog,
       url: '/th',

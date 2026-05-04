@@ -56,8 +56,9 @@ export const getRawAppUsageLogs = async (date: string): Promise<AppUsageLog[]> =
     from: `${date}T00:00:00`,
     to: `${date}T23:59:59`,
   })
-  const raw = await fetcher<AppUsageLog[]>(`${API}/app-usage-logs/by-date?${params}`)
-  return Array.isArray(raw) ? raw : []
+  const raw = await fetcher<any>(`${API}/app-usage-logs/by-date?${params}`)
+  const list: AppUsageLog[] = Array.isArray(raw) ? raw : (raw?.data ?? raw?.logs ?? [])
+  return list
 }
 
 export const getAppUsageLogs = async (date: string, computer_id?: number): Promise<FlatAppUsageLog[]> => {
