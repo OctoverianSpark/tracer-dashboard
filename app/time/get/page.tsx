@@ -6,12 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/app/_components/_ui/card'
 import { findAsignedMachines } from '@/app/computers/actions'
 import { getappuser } from '@/app/app/actions'
-import { getScheduleByappuserId, getProgramationById, getStateLog, getAppUsageLogs, AppUsageLog } from '@/app/time/actions'
-import { getCategorizationApps, CategorizationApp } from '@/app/supervisors/categorization-actions'
+import { getScheduleByappuserId, getProgramationById, getStateLog, getAppUsageLogs } from '@/app/time/actions'
 import { Timeline } from '@/components/TimeReporting/Timeline'
 import AppUsageList from '@/components/TimeReporting/AppUsageList'
 import { Machine } from '@/types/Machine'
-import { AppUser } from '@/types/AppUser'
+import { AppUser, FlatAppUsageLog } from '@/types/AppUser'
 import { StateLog } from '@/types/StateLog'
 import { Programation } from '@/types/Schedules'
 
@@ -22,8 +21,8 @@ export default function Page() {
   const [computers, setComputers]       = useState<Machine[]>([])
   const [date, setDate]                 = useState<string>('')
   const [logs, setLogs]                 = useState<StateLog[]>([])
-  const [usageLogs, setUsageLogs]       = useState<AppUsageLog[]>([])
-  const [categorizations, setCats]      = useState<CategorizationApp[]>([])
+  const [usageLogs, setUsageLogs]       = useState<FlatAppUsageLog[]>([])
+
   const [selectedAppUser, setSelected]  = useState<AppUser | undefined>()
   const [selectedComputer, setComputer] = useState<Machine | undefined>()
   const [programation, setProgramation] = useState<Programation | null>(null)
@@ -35,7 +34,6 @@ export default function Page() {
 
   useEffect(() => {
     getappuser().then(setAppuser)
-    getCategorizationApps().then(setCats)
   }, [])
 
   useEffect(() => {
@@ -50,9 +48,9 @@ export default function Page() {
   }, [selectedAppUser, selectedComputer])
 
   useEffect(() => {
-    if (!date) { setUsageLogs([]); return }
-    getAppUsageLogs(date).then(setUsageLogs)
-  }, [date])
+    if (!date || !selectedComputer?.id) { setUsageLogs([]); return }
+    getAppUsageLogs(date, selectedComputer.id).then(setUsageLogs)
+  }, [date, selectedComputer])
 
   useEffect(() => {
     if (!selectedAppUser || !date) { setProgramation(null); return }
@@ -132,11 +130,7 @@ export default function Page() {
         <Card>
           <CardContent className="pt-5 space-y-3">
             <p className="font-semibold text-sm">Uso de aplicaciones</p>
-            <AppUsageList
-              logs={usageLogs}
-              categorizations={categorizations}
-              computerId={selectedComputer!.id!}
-            />
+            <AppUsageList logs={usageLogs} />
           </CardContent>
         </Card>
       )}

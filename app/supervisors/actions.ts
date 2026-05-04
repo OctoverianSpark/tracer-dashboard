@@ -1,16 +1,14 @@
 'use server'
 import { getappuser } from '../app/actions'
 import { getMachines } from '../computers/actions'
-import { getSchedules, getProgramations, getStateLog, getAppUsageLogs, AppUsageLog } from '../time/actions'
+import { getSchedules, getProgramations, getStateLog, getRawAppUsageLogs } from '../time/actions'
 import { getCategorizationApps } from './categorization-actions'
-import { AppUser } from '@/types/AppUser'
+import { AppUser, AppUsageLog, FlatAppUsageLog } from '@/types/AppUser'
 import { Machine } from '@/types/Machine'
 import { Programation } from '@/types/Schedules'
+import { StateLog, StateLogCategory } from '@/types/StateLog'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
 const DAY_KEYS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'] as const
-
-// ─── Conexión en tiempo real ──────────────────────────────────────────────────
 
 export interface UserConnectionStatus {
   user: AppUser
@@ -62,9 +60,7 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
   })
 }
 
-// ─── Tipos de productividad ───────────────────────────────────────────────────
-
-export type AppUsageEntry = AppUsageLog
+export type AppUsageEntry = FlatAppUsageLog
 
 export interface UserAppUsage {
   app: string
@@ -81,13 +77,11 @@ export interface UserProductivity {
   unproductiveSeconds: number
   uncategorizedSeconds: number
   totalSeconds: number
-  appProductivityPercent: number      // productivo / (prod + improd)
-  workCompliancePercent: number       // total / jornada programada
-  overallProductivityPercent: number  // productivo / jornada programada
+  appProductivityPercent: number
+  workCompliancePercent: number
+  overallProductivityPercent: number
   topApps: UserAppUsage[]
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const timeToMinutes = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number)
@@ -103,30 +97,83 @@ const scheduledWorkMinutes = (prog: Programation): number => {
   return Math.max(0, total)
 }
 
+// Construye ventanas de tiempo donde el estado era ACTIVE para un día dado.
+// Cada StateLog marca el inicio de un nuevo estado; el siguiente log marca su fin.
+const buildActiveWindows = (stateLogs: StateLog[]): Array<{ start: number; end: number }> => {
+  const sorted = [...stateLogs].sort((a, b) =>
+    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  )
+  const windows: Array<{ start: number; end: number }> = []
+  for (let i = 0; i < sorted.length; i++) {
+    if (Number(sorted[i].category) !== StateLogCategory.ACTIVE) continue
+    const start = new Date(sorted[i].timestamp).getTime()
+    const end = i + 1 < sorted.length
+      ? new Date(sorted[i + 1].timestamp).getTime()
+      : Infinity
+    windows.push({ start, end })
+  }
+  return windows
+}
 
-// ─── Reporte de productividad ─────────────────────────────────────────────────
+// Devuelve true si el punto medio del intervalo de app cae dentro de una ventana activa.
+const isIntervalActive = (log: AppUsageLog, windows: Array<{ start: number; end: number }>): boolean => {
+  if (windows.length === 0) return true // sin datos de estado → contar todo
+  const mid = (new Date(log.interval_start).getTime() + new Date(log.interval_end).getTime()) / 2
+  return windows.some(w => mid >= w.start && mid < w.end)
+}
 
 export const getProductivityReport = async (date: string): Promise<UserProductivity[]> => {
-  const dateObj = new Date(`${date}T12:00:00`)
-  const dayKey  = DAY_KEYS[dateObj.getDay()]
+  const dayKey = DAY_KEYS[new Date(`${date}T12:00:00`).getDay()]
 
-  const [users, machines, schedules, programations, usageLogs, categorizationApps] =
+  const [users, machines, schedules, programations, rawLogs, categorizationApps] =
     await Promise.all([
       getappuser(),
       getMachines(),
       getSchedules(),
       getProgramations(),
-      getAppUsageLogs(date),
+      getRawAppUsageLogs(date),
       getCategorizationApps(),
     ])
 
   const categoryMap = new Map(categorizationApps.map(a => [a.name.toLowerCase(), a.category]))
 
+  // Agrupar intervalos de uso por máquina
+  const logsByMachine = new Map<number, AppUsageLog[]>()
+  for (const log of rawLogs) {
+    const cid = Number(log.computer_id)
+    if (!logsByMachine.has(cid)) logsByMachine.set(cid, [])
+    logsByMachine.get(cid)!.push(log)
+  }
+
+  // Obtener la máquina de cada usuario
+  const machineByUser = new Map<number, Machine>()
+  for (const user of users) {
+    const m = machines.find(m => Number(m.appuser_id) === Number(user.id))
+    if (m?.id != null) machineByUser.set(Number(user.id), m)
+  }
+
+  // Cargar state logs de todos los usuarios con máquina en paralelo
+  const stateLogResults = await Promise.all(
+    [...machineByUser.entries()].map(async ([userId, machine]) => {
+      try {
+        const raw = await getStateLog(userId, Number(machine.id))
+        const logs: StateLog[] = (Array.isArray(raw) ? raw : [])
+          .filter((l: StateLog) => l.timestamp?.startsWith(date))
+        return { machineId: Number(machine.id), logs }
+      } catch {
+        return { machineId: Number(machine.id), logs: [] }
+      }
+    })
+  )
+  const stateByMachine = new Map(stateLogResults.map(r => [r.machineId, r.logs]))
+
   return users.map(user => {
-    const machine      = machines.find(m => Number(m.appuser_id) === user.id)
-    const userSchedule = schedules.find(s => s.appuser_id === user.id && s.day_of_week === dayKey)
+    const machine = machineByUser.get(Number(user.id))
+    const userSchedule = schedules.find(s => Number(s.appuser_id) === Number(user.id) && s.day_of_week === dayKey)
     const programation = userSchedule ? programations.find(p => p.id === userSchedule.programation_id) : undefined
     const scheduledMinutes = programation ? scheduledWorkMinutes(programation) : 0
+    console.log(machine, userSchedule, programation, scheduledMinutes);
+
 
     const empty: UserProductivity = {
       user, machine, programation, scheduledMinutes,
@@ -135,46 +182,55 @@ export const getProductivityReport = async (date: string): Promise<UserProductiv
       topApps: [],
     }
 
-    if (!machine?.id) return empty
+    if (!machine) return empty
 
-    const userLogs = usageLogs.filter(l => Number(l.computer_id) === machine.id)
-    if (userLogs.length === 0) return empty
+    const machineId = Number(machine.id)
+    const intervals = logsByMachine.get(machineId) ?? []
+    if (!intervals.length) return empty
+
+    const activeWindows = buildActiveWindows(stateByMachine.get(machineId) ?? [])
 
     let productive = 0, unproductive = 0, uncategorized = 0
+    const appMap = new Map<string, UserAppUsage>()
 
-    const topApps: UserAppUsage[] = userLogs
-      .sort((a, b) => b.seconds - a.seconds)
-      .map(l => {
-        const cat = categoryMap.get(l.app.toLowerCase())
-        const resolved = cat === 'productive' ? 'productive'
+    for (const interval of intervals) {
+      if (!isIntervalActive(interval, activeWindows)) continue
+      for (const a of interval.apps ?? []) {
+        const cat = categoryMap.get(a.app.toLowerCase())
+        const resolved: UserAppUsage['category'] = cat === 'productive' ? 'productive'
           : cat === 'unproductive' ? 'unproductive'
-          : 'uncategorized'
+            : 'uncategorized'
 
-        if (resolved === 'productive')     productive    += l.seconds
-        else if (resolved === 'unproductive') unproductive += l.seconds
-        else                              uncategorized += l.seconds
+        if (resolved === 'productive') productive += a.seconds
+        else if (resolved === 'unproductive') unproductive += a.seconds
+        else uncategorized += a.seconds
 
-        return { app: l.app, seconds: l.seconds, category: resolved }
-      })
+        const existing = appMap.get(a.app)
+        if (existing) existing.seconds += a.seconds
+        else appMap.set(a.app, { app: a.app, seconds: a.seconds, category: resolved })
+      }
+    }
 
-    const total         = productive + unproductive + uncategorized
-    const categorized   = productive + unproductive
+    const total = productive + unproductive + uncategorized
+    const categorized = productive + unproductive
     const scheduledSecs = scheduledMinutes * 60
 
-    const appProd      = categorized > 0 ? Math.round((productive / categorized) * 100) : 0
-    const compliance   = scheduledSecs > 0 ? Math.min(100, Math.round((total / scheduledSecs) * 100)) : 0
-    const overall      = scheduledSecs > 0 ? Math.min(100, Math.round((productive / scheduledSecs) * 100)) : appProd
+    const appProd = categorized > 0 ? Math.round((productive / categorized) * 100) : 0
+    const compliance = scheduledSecs > 0 ? Math.min(100, Math.round((total / scheduledSecs) * 100)) : 0
+    const overall = scheduledSecs > 0 ? Math.min(100, Math.round((productive / scheduledSecs) * 100)) : 0
+
+    const topApps = [...appMap.values()].sort((a, b) => b.seconds - a.seconds).slice(0, 8)
 
     return {
       user, machine, programation, scheduledMinutes,
-      productiveSeconds:    Math.round(productive),
-      unproductiveSeconds:  Math.round(unproductive),
+      productiveSeconds: Math.round(productive),
+      unproductiveSeconds: Math.round(unproductive),
       uncategorizedSeconds: Math.round(uncategorized),
-      totalSeconds:         Math.round(total),
-      appProductivityPercent:     appProd,
-      workCompliancePercent:      compliance,
+      totalSeconds: Math.round(total),
+      appProductivityPercent: appProd,
+      workCompliancePercent: compliance,
       overallProductivityPercent: overall,
-      topApps: topApps.slice(0, 8),
+      topApps,
     }
   })
 }

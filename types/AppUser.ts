@@ -17,3 +17,18 @@ export interface Role {
   name: string,
   access_level: string,
 }
+
+// types/AppUser.ts - agrega esto
+export interface AppUsageLog {
+  id: number
+  computer_id: number
+  interval_start: string
+  interval_end: string
+  apps: { app: string; seconds: number }[]
+}
+
+export interface FlatAppUsageLog {
+  app: string
+  seconds: number
+  computer_id: number
+}

@@ -8,7 +8,10 @@ import { Label } from '@/app/_components/_ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
 import { Loader2, CheckCircle2, AlertCircle, XCircle } from 'lucide-react'
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => {
+  const d = new Date()
+  return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-')
+}
 
 const StatusBadge = ({ status, minutesLate }: { status: LateArrival['status']; minutesLate: number }) => {
   if (status === 'on_time') return (

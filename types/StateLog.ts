@@ -1,5 +1,3 @@
-import { Timestamp } from "next/dist/server/lib/cache-handlers/types"
-
 export interface StateLog {
   id?: Number
   computer_id: Number

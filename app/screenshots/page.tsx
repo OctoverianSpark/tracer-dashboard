@@ -14,7 +14,7 @@ export default function Page() {
   const [machines, setMachines]           = useState<Machine[]>([])
   const [selectedUser, setSelectedUser]   = useState<AppUser | undefined>()
   const [machine, setMachine]             = useState<Machine | undefined>()
-  const [date, setDate]                   = useState(() => new Date().toISOString().split('T')[0])
+  const [date, setDate]                   = useState(() => { const d = new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-') })
   const [screenshots, setScreenshots]     = useState<string[]>([])
   const [actualMonitor, setActualMonitor] = useState<number | null>(null)
   const [loading, setLoading]             = useState(false)
