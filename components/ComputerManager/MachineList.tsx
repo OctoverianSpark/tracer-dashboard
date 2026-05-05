@@ -1,6 +1,7 @@
 'use client'
 import { Machine, machineLabel } from '@/types/Machine'
 import MachineCard from './MachineCard'
+import MachineDialog from './MachineDialog'
 import { deleteComputer } from '@/app/computers/actions'
 import { useState, useMemo } from 'react'
 import { Search, LayoutGrid, List, FileDown, Trash2 } from 'lucide-react'
@@ -154,14 +155,17 @@ export default function MachineList({ machines }: MachineListProps) {
                     <TableCell className="font-mono text-xs text-muted-foreground">{m.serial_number}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{formatDate(m.last_seen)}</TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="cursor-pointer"
-                        onClick={() => setConfirmSerial(m.serial_number)}
-                      >
-                        <Trash2 className="size-4 text-destructive" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <MachineDialog machine={m} />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="cursor-pointer"
+                          onClick={() => setConfirmSerial(m.serial_number)}
+                        >
+                          <Trash2 className="size-4 text-destructive" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )
