@@ -39,12 +39,11 @@ import { toast } from 'sonner'
 
 const EMPTY: CategorizationApp = { name: '', category: 'productive' }
 
-const CategoryBadge = ({ category }: { category: CategorizationApp['category'] }) =>
-  category === 'productive' ? (
-    <Badge className="bg-green-600 text-white">Productiva</Badge>
-  ) : (
-    <Badge variant="destructive">Improductiva</Badge>
-  )
+const CategoryBadge = ({ category }: { category: CategorizationApp['category'] }) => {
+  if (category === 'productive')   return <Badge className="bg-green-600 text-white">Productiva</Badge>
+  if (category === 'unproductive') return <Badge variant="destructive">Improductiva</Badge>
+  return <Badge variant="secondary">Ignorar</Badge>
+}
 
 function AppForm({
   initial,
@@ -114,6 +113,7 @@ function AppForm({
               <SelectContent>
                 <SelectItem value="productive">Productiva</SelectItem>
                 <SelectItem value="unproductive">Improductiva</SelectItem>
+                <SelectItem value="ignore">Ignorar</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -185,6 +185,7 @@ export default function AppCategorization() {
 
   const productive   = apps.filter(a => a.category === 'productive').length
   const unproductive = apps.filter(a => a.category === 'unproductive').length
+  const ignored      = apps.filter(a => a.category === 'ignore').length
 
   const filtered = apps.filter(a =>
     a.name.toLowerCase().includes(search.toLowerCase())
@@ -204,6 +205,7 @@ export default function AppCategorization() {
             <span className="text-green-600 font-medium">{productive} productivas</span>
             {' · '}
             <span className="text-red-500 font-medium">{unproductive} improductivas</span>
+            {ignored > 0 && <>{' · '}<span className="font-medium">{ignored} ignoradas</span></>}
           </span>
         </div>
         <AppForm onSaved={load} />

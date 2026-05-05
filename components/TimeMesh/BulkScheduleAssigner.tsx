@@ -2,10 +2,11 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { saveSchedule } from '@/app/time/actions'
-import { AppUser } from '@/types/AppUser'
+import { AppUser, Group } from '@/types/AppUser'
 import { Programation, Schedule } from '@/types/Schedules'
 import { Button } from '@/app/_components/_ui/button'
 import { Checkbox } from '@/app/_components/_ui/checkbox'
+import { Input } from '@/app/_components/_ui/input'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/app/_components/_ui/dialog'
 import { Label } from '@/app/_components/_ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
@@ -16,6 +17,7 @@ import { Users } from 'lucide-react'
 interface Props {
   appuser: AppUser[]
   programations: Programation[]
+  groups: Group[]
 }
 
 interface Errors {
@@ -24,13 +26,15 @@ interface Errors {
   users?: string
 }
 
-export default function BulkScheduleAssigner({ appuser, programations }: Props) {
+export default function BulkScheduleAssigner({ appuser, programations, groups }: Props) {
   const [open, setOpen] = useState(false)
   const [selectedProgramation, setSelectedProgramation] = useState<number | null>(null)
   const [selectedDays, setSelectedDays] = useState<string[]>([])
   const [selectedUsers, setSelectedUsers] = useState<number[]>([])
   const [errors, setErrors] = useState<Errors>({})
   const [loading, setLoading] = useState(false)
+  const [userSearch, setUserSearch] = useState('')
+  const [groupFilter, setGroupFilter] = useState<number | null>(null)
 
   function toggleUser(id: number) {
     setSelectedUsers(prev =>
@@ -50,7 +54,15 @@ export default function BulkScheduleAssigner({ appuser, programations }: Props) 
     setSelectedDays([])
     setSelectedUsers([])
     setErrors({})
+    setUserSearch('')
+    setGroupFilter(null)
   }
+
+  const filteredUsers = appuser.filter(u => {
+    if (groupFilter !== null && u.group_id !== groupFilter) return false
+    if (userSearch.trim() && !u.full_name.toLowerCase().includes(userSearch.toLowerCase())) return false
+    return true
+  })
 
   function validate(): boolean {
     const next: Errors = {}
@@ -150,8 +162,40 @@ export default function BulkScheduleAssigner({ appuser, programations }: Props) 
             </button>
           </div>
 
+          {groups.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              <button
+                type="button"
+                onMouseDown={e => { e.preventDefault(); e.stopPropagation() }}
+                onClick={() => setGroupFilter(null)}
+                className={`rounded px-2 py-0.5 text-xs transition-colors ${groupFilter === null ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+              >
+                Todos
+              </button>
+              {groups.map(g => (
+                <button
+                  key={g.id}
+                  type="button"
+                  onMouseDown={e => { e.preventDefault(); e.stopPropagation() }}
+                  onClick={() => setGroupFilter(groupFilter === g.id ? null : g.id!)}
+                  className={`rounded px-2 py-0.5 text-xs transition-colors ${groupFilter === g.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+                >
+                  {g.name}
+                </button>
+              ))}
+            </div>
+          )}
+          <Input
+            placeholder="Buscar empleado…"
+            value={userSearch}
+            onChange={e => setUserSearch(e.target.value)}
+            className="h-8 text-sm"
+          />
           <div className={`rounded-lg border ${errors.users ? 'border-destructive' : 'border-border'} divide-y divide-border max-h-52 overflow-y-auto`}>
-            {appuser.map(user => (
+            {filteredUsers.length === 0 && (
+              <p className="py-3 text-center text-xs text-muted-foreground">Sin resultados</p>
+            )}
+            {filteredUsers.map(user => (
               <label
                 key={user.id}
                 className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-accent transition-colors"

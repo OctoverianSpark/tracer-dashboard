@@ -1,5 +1,6 @@
 'use client'
 import { UserConnectionStatus } from '@/app/supervisors/actions'
+import { machineLabel } from '@/types/Machine'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
 import { Wifi, WifiOff, Clock } from 'lucide-react'
@@ -39,7 +40,7 @@ export default function ConnectedUsersTable({ statuses, mode }: Props) {
           <TableRow key={user.id}>
             <TableCell className="font-medium">{user.full_name}</TableCell>
             <TableCell className="text-muted-foreground text-sm">
-              {machine?.hostname ?? machine?.displayName ?? '—'}
+              {machine ? machineLabel(machine) : '—'}
             </TableCell>
             <TableCell>
               {startTime ? (

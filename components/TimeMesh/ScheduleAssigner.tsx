@@ -1,13 +1,14 @@
 'use client'
 import { saveSchedule } from '@/app/time/actions'
 import { Programation, Schedule } from '@/types/Schedules'
-import { AppUser } from '@/types/AppUser'
+import { AppUser, Group } from '@/types/AppUser'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/app/_components/_ui/dialog'
 import { Button } from '@/app/_components/_ui/button'
 import { Label } from '@/app/_components/_ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
+import { UserSelect } from '@/components/UserSelect'
 import { WeekPicker } from './Weekpicker'
 import { DIAS } from './shared'
 
@@ -15,6 +16,7 @@ interface Props {
   appuser: AppUser[]
   programations: Programation[]
   schedules: Schedule[]
+  groups: Group[]
 }
 
 interface AssignerErrors {
@@ -23,7 +25,7 @@ interface AssignerErrors {
   days?: string
 }
 
-export default function ScheduleAssigner({ appuser, programations, schedules }: Props) {
+export default function ScheduleAssigner({ appuser, programations, schedules, groups }: Props) {
   const [open, setOpen] = useState(false)
   const [selectedappuser, setSelectedappuser] = useState<number | null>(null)
   const [selectedProgramation, setSelectedProgramation] = useState<number | null>(null)
@@ -91,24 +93,17 @@ export default function ScheduleAssigner({ appuser, programations, schedules }: 
         <div className="flex gap-2">
           <div className="grid gap-1 flex-1">
             <Label>Empleado</Label>
-            <Select
+            <UserSelect
+              users={appuser}
+              groups={groups}
+              value={selectedappuser?.toString() ?? ''}
               onValueChange={val => {
                 setSelectedappuser(Number(val))
                 setErrors(prev => ({ ...prev, appuser: undefined }))
               }}
-              value={selectedappuser?.toString() ?? ''}
-            >
-              <SelectTrigger className={errors.appuser ? 'border-destructive' : ''}>
-                <SelectValue placeholder='Seleccionar empleado' />
-              </SelectTrigger>
-              <SelectContent>
-                {appuser.map(employee => (
-                  <SelectItem key={employee.id} value={employee.id!.toString()}>
-                    {employee.full_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Seleccionar empleado"
+              error={!!errors.appuser}
+            />
             {errors.appuser && <span className="text-xs text-destructive">{errors.appuser}</span>}
           </div>
 

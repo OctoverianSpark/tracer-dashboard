@@ -3,6 +3,7 @@ import { Button } from '@/app/_components/_ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/app/_components/_ui/dialog'
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
+import { Switch } from '@/app/_components/_ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { saveGroup } from '@/app/app/groups/actions'
 import { Group } from '@/types/AppUser'
@@ -85,6 +86,24 @@ export default function GroupForm({ group }: GroupFormProps) {
             className={errors?.name ? 'border-destructive outline-destructive' : ''}
           />
           {errors?.name && <span className='text-xs text-red-500'>{errors.name}</span>}
+        </div>
+
+        <div className='flex items-start gap-3 rounded-md border p-3'>
+          <Switch
+            id='block_own_reports'
+            checked={values.block_own_reports ?? false}
+            onCheckedChange={checked =>
+              setValues(prev => ({ ...prev, block_own_reports: checked }))
+            }
+          />
+          <div className='grid gap-0.5'>
+            <Label htmlFor='block_own_reports' className='cursor-pointer'>
+              Bloquear acceso a reportes propios
+            </Label>
+            <p className='text-xs text-muted-foreground'>
+              Los usuarios de este grupo no podrán ver su propia actividad ni capturas de pantalla.
+            </p>
+          </div>
         </div>
 
         <DialogFooter>

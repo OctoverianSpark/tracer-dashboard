@@ -1,23 +1,28 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
+import { UserSelect } from '@/components/UserSelect'
 import { Card, CardContent } from '@/app/_components/_ui/card'
 import { findAsignedMachines } from '@/app/computers/actions'
 import { getappuser } from '@/app/app/actions'
+import { getGroups } from '@/app/app/groups/actions'
 import { getScheduleByappuserId, getProgramationById, getStateLog, getAppUsageLogs } from '@/app/time/actions'
 import { Timeline } from '@/components/TimeReporting/Timeline'
 import AppUsageList from '@/components/TimeReporting/AppUsageList'
-import { Machine } from '@/types/Machine'
-import { AppUser, FlatAppUsageLog } from '@/types/AppUser'
+import { Machine, machineLabel } from '@/types/Machine'
+import { AppUser, FlatAppUsageLog, Group } from '@/types/AppUser'
 import { StateLog } from '@/types/StateLog'
 import { Programation } from '@/types/Schedules'
 
 const DAY_KEYS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'] as const
 
 export default function Page() {
+  const { data: session }               = useSession()
   const [appuser, setAppuser]           = useState<AppUser[]>([])
+  const [groups, setGroups]             = useState<Group[]>([])
   const [computers, setComputers]       = useState<Machine[]>([])
   const [date, setDate]                 = useState<string>('')
   const [logs, setLogs]                 = useState<StateLog[]>([])
@@ -27,6 +32,13 @@ export default function Page() {
   const [selectedComputer, setComputer] = useState<Machine | undefined>()
   const [programation, setProgramation] = useState<Programation | null>(null)
 
+  const currentUserId   = Number(session?.appUser?.id)
+  const currentGroup    = groups.find(g => g.id === session?.appUser?.group_id)
+  const blockOwn        = currentGroup?.block_own_reports === true
+  const selectableUsers = blockOwn
+    ? appuser.filter(u => Number(u.id) !== currentUserId)
+    : appuser
+
   const filteredLogs = useMemo(
     () => date ? logs.filter(log => log.timestamp.startsWith(date)) : [],
     [logs, date]
@@ -34,6 +46,7 @@ export default function Page() {
 
   useEffect(() => {
     getappuser().then(setAppuser)
+    getGroups().then(setGroups)
   }, [])
 
   useEffect(() => {
@@ -70,21 +83,13 @@ export default function Page() {
         <div className="flex gap-4">
           <div className="grid gap-2 min-w-48">
             <Label>Usuario</Label>
-            <Select
-              onValueChange={val => setSelected(appuser.find(e => e.id === Number(val)))}
+            <UserSelect
+              users={selectableUsers}
+              groups={groups}
               value={selectedAppUser?.id?.toString()}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccione usuario" />
-              </SelectTrigger>
-              <SelectContent>
-                {appuser.map(employee => (
-                  <SelectItem key={employee.id} value={`${employee.id}`}>
-                    {employee.full_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              onValueChange={val => setSelected(appuser.find(e => e.id === Number(val)))}
+              placeholder="Seleccione usuario"
+            />
           </div>
 
           <div className="grid gap-2 min-w-48">
@@ -100,7 +105,7 @@ export default function Page() {
               <SelectContent>
                 {computers.map((computer, i) => (
                   <SelectItem key={computer.id} value={`${computer.id}`}>
-                    {computer.hostname ?? `Computador ${i + 1}`}
+                    {machineLabel(computer)}
                   </SelectItem>
                 ))}
               </SelectContent>

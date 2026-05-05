@@ -1,7 +1,7 @@
 'use client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/_ui/card'
 import { Badge } from '@/app/_components/_ui/badge'
-import { Machine } from '@/types/Machine'
+import { Machine, machineLabel } from '@/types/Machine'
 import MachineDialog from './MachineDialog'
 import { Button } from '@/app/_components/_ui/button'
 import { Trash2 } from 'lucide-react'
@@ -22,8 +22,9 @@ export default function MachineCard({ machine, onDelete }: CardMachineProps) {
       ${machine.isAlive ? 'border-green-500' : 'border-red-500'}`}
     >
       <CardHeader className="w-full text-center pb-2 relative">
-        <CardTitle className="text-xl truncate">{machine.hostname}</CardTitle>
-        <p className="text-sm text-muted-foreground">{machine.ip_address ?? 'Sin IP'}</p>
+        <CardTitle className="text-xl truncate">{machineLabel(machine)}</CardTitle>
+        <p className="text-sm text-muted-foreground font-mono">{machine.hostname}</p>
+        <p className="text-xs text-muted-foreground">{machine.ip_address ?? 'Sin IP'}</p>
 
         <TooltipProvider>
           <Tooltip>
@@ -41,7 +42,7 @@ export default function MachineCard({ machine, onDelete }: CardMachineProps) {
             <AlertDialogHeader>
               <AlertDialogTitle>¿Eliminar computadora?</AlertDialogTitle>
               <AlertDialogDescription>
-                Se eliminará <strong>{machine.hostname}</strong> permanentemente. Esta acción no se puede deshacer.
+                Se eliminará <strong>{machineLabel(machine)}</strong> permanentemente. Esta acción no se puede deshacer.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

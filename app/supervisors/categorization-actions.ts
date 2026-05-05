@@ -3,7 +3,7 @@ import { revalidatePath } from 'next/cache'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-export type AppCategory = 'productive' | 'unproductive'
+export type AppCategory = 'productive' | 'unproductive' | 'ignore'
 
 export interface CategorizationApp {
   id?: number

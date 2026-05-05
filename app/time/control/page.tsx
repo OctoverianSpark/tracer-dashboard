@@ -1,4 +1,5 @@
 import { getappuser } from '@/app/app/actions'
+import { getGroups } from '@/app/app/groups/actions'
 import ProgramationForm from '@/components/TimeMesh/ProgramationForm'
 import ProgramationTable from '@/components/TimeMesh/ProgramationTable'
 import ScheduleAssigner from '@/components/TimeMesh/ScheduleAssigner'
@@ -8,10 +9,11 @@ import { getProgramations, getSchedules } from '../actions'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
 
 export default async function Page() {
-  const [appuser, programations, schedules] = await Promise.all([
+  const [appuser, programations, schedules, groups] = await Promise.all([
     getappuser(),
     getProgramations(),
-    getSchedules()
+    getSchedules(),
+    getGroups(),
   ])
   return (
     <div className="space-y-4">
@@ -22,10 +24,12 @@ export default async function Page() {
           appuser={appuser}
           programations={programations}
           schedules={schedules}
+          groups={groups}
         />
         <BulkScheduleAssigner
           appuser={appuser}
           programations={programations}
+          groups={groups}
         />
       </div>
       <Tabs defaultValue="programations">

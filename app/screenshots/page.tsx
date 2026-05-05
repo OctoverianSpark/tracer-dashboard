@@ -1,16 +1,21 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { getMachineReport, findAsignedMachines } from '../computers/actions'
 import { getappuser } from '../app/actions'
+import { getGroups } from '../app/groups/actions'
 import ReportScreenshotsList from '@/components/UserReporting/ReportScreenshots'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../_components/_ui/select'
-import { Machine } from '@/types/Machine'
-import { AppUser } from '@/types/AppUser'
+import { Machine, machineLabel } from '@/types/Machine'
+import { AppUser, Group } from '@/types/AppUser'
 import { Input } from '../_components/_ui/input'
 import { Label } from '../_components/_ui/label'
+import { UserSelect } from '@/components/UserSelect'
 
 export default function Page() {
+  const { data: session }                 = useSession()
   const [appusers, setAppusers]           = useState<AppUser[]>([])
+  const [groups, setGroups]               = useState<Group[]>([])
   const [machines, setMachines]           = useState<Machine[]>([])
   const [selectedUser, setSelectedUser]   = useState<AppUser | undefined>()
   const [machine, setMachine]             = useState<Machine | undefined>()
@@ -19,8 +24,16 @@ export default function Page() {
   const [actualMonitor, setActualMonitor] = useState<number | null>(null)
   const [loading, setLoading]             = useState(false)
 
+  const currentUserId    = Number(session?.appUser?.id)
+  const currentGroup     = groups.find(g => g.id === session?.appUser?.group_id)
+  const blockOwn         = currentGroup?.block_own_reports === true
+  const selectableUsers  = blockOwn
+    ? appusers.filter(u => Number(u.id) !== currentUserId)
+    : appusers
+
   useEffect(() => {
     getappuser().then(setAppusers)
+    getGroups().then(setGroups)
   }, [])
 
   useEffect(() => {
@@ -56,24 +69,16 @@ export default function Page() {
       <div className="flex gap-3 flex-wrap">
         <div className="grid gap-1 min-w-48">
           <Label>Usuario</Label>
-          <Select
+          <UserSelect
+            users={selectableUsers}
+            groups={groups}
             value={selectedUser?.id?.toString()}
             onValueChange={val => {
               setSelectedUser(appusers.find(u => u.id === Number(val)))
               setActualMonitor(null)
             }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecciona un usuario" />
-            </SelectTrigger>
-            <SelectContent>
-              {appusers.map(u => (
-                <SelectItem key={u.id} value={`${u.id}`}>
-                  {u.full_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder="Selecciona un usuario"
+          />
         </div>
 
         <div className="grid gap-1 min-w-48">
@@ -92,7 +97,7 @@ export default function Page() {
             <SelectContent>
               {machines.map(m => (
                 <SelectItem key={m.serial_number} value={m.serial_number}>
-                  {m.hostname}
+                  {machineLabel(m)}
                 </SelectItem>
               ))}
             </SelectContent>

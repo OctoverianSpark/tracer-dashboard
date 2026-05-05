@@ -10,6 +10,7 @@ export interface AppUser {
 export interface Group {
   id?: number
   name: string
+  block_own_reports?: boolean
 }
 
 export interface Role {

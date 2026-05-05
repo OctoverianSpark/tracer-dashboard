@@ -210,6 +210,8 @@ export const getProductivityReport = async (date: string): Promise<UserProductiv
       if (!isIntervalActive(interval, allActiveWindows)) continue
       for (const a of interval.apps ?? []) {
         const cat = categoryMap.get(a.app.toLowerCase())
+        if (cat === 'ignore') continue
+
         const resolved: UserAppUsage['category'] = cat === 'productive' ? 'productive'
           : cat === 'unproductive' ? 'unproductive'
             : 'uncategorized'

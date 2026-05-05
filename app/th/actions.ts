@@ -254,6 +254,7 @@ export const getTHProductivityReport = async (date: string): Promise<THProductiv
       if (!isIntervalActive(interval, allActiveWindows)) continue
       for (const a of interval.apps ?? []) {
         const cat = categoryMap.get(a.app.toLowerCase())
+        if (cat === 'ignore') continue
         if (cat === 'productive')        productive    += a.seconds
         else if (cat === 'unproductive') unproductive  += a.seconds
         else                             uncategorized += a.seconds

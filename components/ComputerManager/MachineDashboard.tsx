@@ -1,6 +1,6 @@
 // components/Computers/ComputersDashboard.tsx
 'use client'
-import { Machine } from '@/types/Machine'
+import { Machine, machineLabel } from '@/types/Machine'
 import { Monitor, Wifi, WifiOff, User, Clock, Search } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader } from '@/app/_components/_ui/card'
@@ -35,7 +35,10 @@ const MachineCard = ({ machine }: { machine: Machine }) => {
       <CardHeader className='pb-2 flex flex-row items-center justify-between'>
         <div className='flex items-center gap-2'>
           <Monitor className='size-4 text-muted-foreground' />
-          <span className='font-medium text-sm'>{machine.hostname}</span>
+          <div>
+            <span className='font-medium text-sm'>{machineLabel(machine)}</span>
+            <p className='text-[11px] text-muted-foreground font-mono leading-none mt-0.5'>{machine.hostname}</p>
+          </div>
         </div>
         <Badge variant={online ? 'default' : 'secondary'} className={`text-xs ${online ? 'bg-green-500 hover:bg-green-500' : ''}`}>
           {online
@@ -75,6 +78,7 @@ export default function ComputersDashboard({ machines }: Props) {
     return machines
       .filter(m => filter === 'all' ? true : filter === 'online' ? (m.alive || m.isAlive) : (!m.alive && !m.isAlive))
       .filter(m =>
+        machineLabel(m).toLowerCase().includes(search.toLowerCase()) ||
         m.hostname.toLowerCase().includes(search.toLowerCase()) ||
         m.username?.toLowerCase().includes(search.toLowerCase()) ||
         m.ip_address?.toLowerCase().includes(search.toLowerCase())
@@ -96,7 +100,7 @@ export default function ComputersDashboard({ machines }: Props) {
         <div className='relative flex-1 max-w-sm'>
           <Search className='absolute left-2.5 top-2.5 size-4 text-muted-foreground' />
           <Input
-            placeholder='Buscar por hostname, usuario, IP...'
+            placeholder='Buscar por marca, modelo, hostname, usuario, IP...'
             value={search}
             onChange={e => setSearch(e.target.value)}
             className='pl-8'

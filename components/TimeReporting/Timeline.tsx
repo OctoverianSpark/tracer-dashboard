@@ -58,11 +58,14 @@ interface Block {
 }
 
 function stateLabel(state: string): string {
-  switch (state) {
-    case "working": return "Trabajando"
-    case "WC":      return "Baño"
-    case "Lunch":   return "Almuerzo"
-    default:        return state.charAt(0).toUpperCase() + state.slice(1)
+  switch (state.toUpperCase()) {
+    case "0": case "TRABAJANDO": case "WORKING": return "Trabajando"
+    case "1": case "BREAK":                      return "Descanso"
+    case "2": case "WC":                         return "Baño"
+    case "3": case "ALMUERZO":   case "LUNCH":   return "Almuerzo"
+    case "4": case "IDLE":                       return "Inactivo"
+    case "5": case "OFFLINE":                    return "Desconectado"
+    default:                                     return state
   }
 }
 

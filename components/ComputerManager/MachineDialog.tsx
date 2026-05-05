@@ -10,7 +10,7 @@ import {
   DialogTrigger,
 } from '@/app/_components/_ui/dialog'
 import { getIPInfo, lockMachine, sendFileToMachine, sendNotice } from '@/app/computers/actions'
-import { Machine } from '@/types/Machine'
+import { Machine, machineLabel } from '@/types/Machine'
 import MachineActions from './MachineActions'
 
 interface MachineDialogProps {
@@ -34,8 +34,6 @@ export default function MachineDialog({ machine }: MachineDialogProps) {
     sendFileToMachine(machine.serial_number, formData)
   }
 
-  console.log(machine);
-  
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -57,7 +55,10 @@ export default function MachineDialog({ machine }: MachineDialogProps) {
             />
           </div>
           <DialogTitle>
-            {machine.hostname} ({machine.serial_number})
+            {machineLabel(machine)}
+            <span className="text-sm font-normal text-muted-foreground ml-2 font-mono">
+              {machine.hostname} · {machine.serial_number}
+            </span>
           </DialogTitle>
         </DialogHeader>
 

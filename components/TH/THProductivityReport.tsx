@@ -1,6 +1,8 @@
 'use client'
 import { useState } from 'react'
 import { THProductivity, getTHProductivityReport } from '@/app/th/actions'
+import { getGroups } from '@/app/app/groups/actions'
+import { Group } from '@/types/AppUser'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
 import { Input } from '@/app/_components/_ui/input'
@@ -9,7 +11,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/app/_components/_ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/app/_components/_ui/tooltip'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Download } from 'lucide-react'
+import * as XLSX from 'xlsx'
 
 const today = () => {
   const d = new Date()
@@ -40,15 +43,72 @@ const pctBadge = (pct: number, tip: string) => {
   )
 }
 
+function exportXLSX(rows: THProductivity[], groups: Group[], date: string) {
+  const groupMap  = new Map(groups.map(g => [g.id!, g.name]))
+  const groupName = (d: THProductivity) =>
+    d.user.group_id ? (groupMap.get(d.user.group_id) ?? 'Sin grupo') : 'Sin grupo'
+
+  const sorted = [...rows].sort((a, b) => {
+    const gA = a.user.group_id ?? Infinity
+    const gB = b.user.group_id ?? Infinity
+    return gA !== gB ? gA - gB : b.overallProductivityPercent - a.overallProductivityPercent
+  })
+
+  const HEADERS = [
+    'Grupo', 'Usuario', 'Jornada prog. (min)', 'Tiempo en apps (min)',
+    'Apps prod. (%)', 'Cumplimiento (%)', 'Global (%)',
+    'Productivo (min)', 'Improductivo (min)', 'Sin categoría (min)',
+  ]
+  const COL_WIDTHS = [{ wch: 22 }, { wch: 32 }, ...Array(8).fill({ wch: 20 })]
+
+  const toRow = (d: THProductivity) => [
+    groupName(d), d.user.full_name,
+    d.scheduledMinutes,
+    Math.round(d.totalSeconds / 60),
+    d.appProductivityPercent, d.workCompliancePercent, d.overallProductivityPercent,
+    Math.round(d.productiveSeconds / 60),
+    Math.round(d.unproductiveSeconds / 60),
+    Math.round(d.uncategorizedSeconds / 60),
+  ]
+
+  const wb = XLSX.utils.book_new()
+
+  // Hoja "Todos" con autofiltro
+  const allAoa = [HEADERS, ...sorted.map(toRow)]
+  const wsAll  = XLSX.utils.aoa_to_sheet(allAoa)
+  wsAll['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { c: 0, r: 0 }, e: { c: HEADERS.length - 1, r: allAoa.length - 1 } }) }
+  wsAll['!cols'] = COL_WIDTHS
+  XLSX.utils.book_append_sheet(wb, wsAll, 'Todos')
+
+  // Una hoja por grupo
+  const byGroup = new Map<string, THProductivity[]>()
+  for (const d of sorted) {
+    const name = groupName(d)
+    if (!byGroup.has(name)) byGroup.set(name, [])
+    byGroup.get(name)!.push(d)
+  }
+  for (const [name, groupRows] of byGroup) {
+    const aoa = [HEADERS, ...groupRows.map(toRow)]
+    const ws  = XLSX.utils.aoa_to_sheet(aoa)
+    ws['!cols'] = COL_WIDTHS
+    XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31).replace(/[/\\?*[\]]/g, '_'))
+  }
+
+  XLSX.writeFile(wb, `productividad_th_${date}.xlsx`)
+}
+
 export default function THProductivityReport() {
   const [date, setDate] = useState(today())
   const [data, setData] = useState<THProductivity[] | null>(null)
+  const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(false)
 
   const load = async () => {
     setLoading(true)
     try {
-      setData(await getTHProductivityReport(date))
+      const [report, grps] = await Promise.all([getTHProductivityReport(date), getGroups()])
+      setData(report)
+      setGroups(grps)
     } finally {
       setLoading(false)
     }
@@ -71,6 +131,12 @@ export default function THProductivityReport() {
         <Button onClick={load} disabled={loading}>
           {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Cargando…</> : 'Generar reporte'}
         </Button>
+        {withActivity.length > 0 && (
+          <Button variant="outline" onClick={() => exportXLSX(withActivity, groups, date)}>
+            <Download className="h-4 w-4 mr-2" />
+            Exportar Excel
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground border rounded-md p-3">
