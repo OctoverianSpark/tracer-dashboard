@@ -15,6 +15,10 @@ export type Machine = {
 }
 
 export function machineLabel(m: Machine): string {
-  if (m.machineBrand && m.machineModel) return `${m.machineBrand} ${m.machineModel}`
+  const brand = m.machineBrand?.trim()
+  const model = m.machineModel?.trim()
+  if (brand && model) return `${brand} ${model}`
+  if (brand) return brand
+  if (model) return model
   return m.hostname
 }

@@ -18,12 +18,12 @@ export default function MachineCard({ machine, onDelete }: CardMachineProps) {
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   return (
-    <Card className={`flex flex-col border-2 transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer
+    <Card className={`relative flex flex-col border-2 transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer
       ${machine.isAlive ? 'border-green-500' : 'border-red-500'}`}
     >
       <CardHeader className="w-full text-center pb-2 relative">
-        <CardTitle className="text-xl truncate">{machineLabel(machine)}</CardTitle>
-        <p className="text-sm text-muted-foreground font-mono">{machine.hostname}</p>
+        <CardTitle className="text-xl truncate">{machine.hostname}</CardTitle>
+        <p className="text-sm text-muted-foreground">{machineLabel(machine)}</p>
         <p className="text-xs text-muted-foreground">{machine.ip_address ?? 'Sin IP'}</p>
 
         <TooltipProvider>

@@ -7,6 +7,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export const getMachines = async (): Promise<Machine[]> => {
   const data = await (await fetch(`${API_URL}/machines/list`)).json()
+
+
   return data.machines
 }
 

@@ -55,9 +55,9 @@ export default function MachineDialog({ machine }: MachineDialogProps) {
             />
           </div>
           <DialogTitle>
-            {machineLabel(machine)}
+            {machine.hostname}
             <span className="text-sm font-normal text-muted-foreground ml-2 font-mono">
-              {machine.hostname} · {machine.serial_number}
+              {machineLabel(machine)} · {machine.serial_number}
             </span>
           </DialogTitle>
         </DialogHeader>
