@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Checkbox } from '@/app/_components/_ui/checkbox'
 import { Button } from '@/app/_components/_ui/button'
 import { Input } from '@/app/_components/_ui/input'
@@ -30,6 +30,7 @@ import { saveappuser } from '@/app/app/actions'
 import AppUserForm from './UserForm'
 import { getGroups } from '@/app/app/groups/actions'
 import { getRoles } from '@/app/app/roles/actions'
+import Paginator from '@/components/ComputerManager/Paginator'
 
 interface AppUserListProps {
   appusers: AppUser[]
@@ -50,20 +51,27 @@ export default function AppUserList ({
   const [groupFilter, setGroupFilter]   = useState<number | null>(null)
   const [groups, setGroups]             = useState<Group[]>([])
   const [roles, setRoles]               = useState<Role[]>([])
+  const [page, setPage]                 = useState(1)
+  const PAGE_SIZE = 15
   const handleUpdate = async (appuser: AppUser) => {
     await saveappuser(appuser)
   }
 
-  const filteredAppUsers = appusers.filter(emp => {
+  const filteredAppUsers = useMemo(() => appusers.filter(emp => {
     if (groupFilter !== null && emp.group_id !== groupFilter) return false
-
     if (!filterValue) return true
     const searchLower = filterValue.toLowerCase()
     switch (filterColumn) {
       case 'full_name': return emp.full_name.toLowerCase().includes(searchLower)
       default:          return emp.full_name.toLowerCase().includes(searchLower)
     }
-  })
+  }), [appusers, groupFilter, filterValue, filterColumn])
+
+  const totalPages = Math.max(1, Math.ceil(filteredAppUsers.length / PAGE_SIZE))
+  const pagedUsers = useMemo(
+    () => filteredAppUsers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filteredAppUsers, page]
+  )
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -85,15 +93,15 @@ export default function AppUserList ({
     setFilterValue('')
     setFilterColumn('all')
     setGroupFilter(null)
+    setPage(1)
   }
 
-  useEffect(()=>{
-    const getData = async () => {
-      getGroups().then(setGroups)
-      getRoles().then(setRoles)
-    }
-    getData()
-  },[])
+  useEffect(() => {
+    getGroups().then(setGroups)
+    getRoles().then(setRoles)
+  }, [])
+
+  useEffect(() => { setPage(1) }, [filterValue, filterColumn, groupFilter])
 
   const isAllSelected =
     filteredAppUsers.length > 0 && selected.length === filteredAppUsers.length
@@ -204,7 +212,7 @@ export default function AppUserList ({
                 </TableCell>
               </TableRow>
             ) : (
-              filteredAppUsers.map(appuser => (
+              pagedUsers.map(appuser => (
                 <TableRow key={appuser.id}>
                   <TableCell>
                     <Checkbox
@@ -237,9 +245,13 @@ export default function AppUserList ({
         </Table>
       </div>
 
-      <div className='text-sm text-muted-foreground'>
-        Mostrando {filteredAppUsers.length} de {appusers.length} empleado(s)
-      </div>
+      <Paginator
+        page={page}
+        totalPages={totalPages}
+        total={filteredAppUsers.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+      />
     </div>
   )
 }
