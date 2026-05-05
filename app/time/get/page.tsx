@@ -52,7 +52,10 @@ export default function Page() {
   useEffect(() => {
     if (!selectedAppUser) return
     setComputer(undefined)
-    findAsignedMachines(selectedAppUser.id!).then(setComputers)
+    findAsignedMachines(selectedAppUser.id!).then(machines => {
+      setComputers(machines)
+      if (machines.length === 1) setComputer(machines[0])
+    })
   }, [selectedAppUser])
 
   useEffect(() => {

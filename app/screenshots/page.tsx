@@ -41,7 +41,10 @@ export default function Page() {
     setMachine(undefined)
     setScreenshots([])
     setActualMonitor(null)
-    findAsignedMachines(selectedUser.id!).then(setMachines)
+    findAsignedMachines(selectedUser.id!).then(machines => {
+      setMachines(machines)
+      if (machines.length === 1) setMachine(machines[0])
+    })
   }, [selectedUser])
 
   useEffect(() => {
