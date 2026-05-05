@@ -51,6 +51,20 @@ export const saveSchedule = async (body: Schedule[]) => {
   revalidatePath('/time/control')
 }
 
+export const updateSchedule = async (id: number, body: Omit<Schedule, 'id'>) => {
+  await fetch(`${API}/schedules/update/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+  revalidatePath('/time/control')
+}
+
+export const deleteSchedule = async (id: number) => {
+  await fetch(`${API}/schedules/delete/${id}`, { method: 'DELETE' })
+  revalidatePath('/time/control')
+}
+
 export const getRawAppUsageLogs = async (date: string): Promise<AppUsageLog[]> => {
   const params = new URLSearchParams({
     from: `${date}T00:00:00`,

@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { saveSchedule } from '@/app/time/actions'
+import { saveSchedule, updateSchedule, deleteSchedule } from '@/app/time/actions'
 import { AppUser, Group } from '@/types/AppUser'
 import { Programation, Schedule } from '@/types/Schedules'
 import { Button } from '@/app/_components/_ui/button'
@@ -17,6 +17,7 @@ import { Users } from 'lucide-react'
 interface Props {
   appuser: AppUser[]
   programations: Programation[]
+  schedules: Schedule[]
   groups: Group[]
 }
 
@@ -26,7 +27,7 @@ interface Errors {
   users?: string
 }
 
-export default function BulkScheduleAssigner({ appuser, programations, groups }: Props) {
+export default function BulkScheduleAssigner({ appuser, programations, schedules, groups }: Props) {
   const [open, setOpen] = useState(false)
   const [selectedProgramation, setSelectedProgramation] = useState<number | null>(null)
   const [selectedDays, setSelectedDays] = useState<string[]>([])
@@ -76,15 +77,28 @@ export default function BulkScheduleAssigner({ appuser, programations, groups }:
   async function handleSave() {
     if (!validate()) return
     setLoading(true)
-    const payload: Schedule[] = selectedUsers.flatMap(userId =>
-      selectedDays.map(day => ({
-        appuser_id:      userId,
-        programation_id: selectedProgramation!,
-        day_of_week:     day,
-      }))
-    )
     try {
-      await saveSchedule(payload)
+      for (const userId of selectedUsers) {
+        const existing = schedules.filter(s => s.appuser_id === userId)
+
+        // Eliminar días que ya no están seleccionados
+        for (const s of existing.filter(s => !selectedDays.includes(s.day_of_week))) {
+          if (s.id) await deleteSchedule(s.id)
+        }
+
+        // Actualizar existentes / crear nuevos
+        const toSave: Schedule[] = []
+        for (const day of selectedDays) {
+          const match = existing.find(s => s.day_of_week === day)
+          if (match?.id) {
+            await updateSchedule(match.id, { appuser_id: userId, programation_id: selectedProgramation!, day_of_week: day })
+          } else {
+            toSave.push({ appuser_id: userId, programation_id: selectedProgramation!, day_of_week: day })
+          }
+        }
+        if (toSave.length > 0) await saveSchedule(toSave)
+      }
+
       toast.success(`Horario asignado a ${selectedUsers.length} empleado${selectedUsers.length > 1 ? 's' : ''}`)
       reset()
       setOpen(false)
@@ -96,7 +110,6 @@ export default function BulkScheduleAssigner({ appuser, programations, groups }:
   }
 
   const allSelected = selectedUsers.length === appuser.length
-  const someSelected = selectedUsers.length > 0 && !allSelected
 
   return (
     <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) reset() }}>

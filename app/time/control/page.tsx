@@ -29,6 +29,7 @@ export default async function Page() {
         <BulkScheduleAssigner
           appuser={appuser}
           programations={programations}
+          schedules={schedules}
           groups={groups}
         />
       </div>
