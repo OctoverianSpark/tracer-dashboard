@@ -36,9 +36,7 @@ interface AppUserListProps {
   onDelete: (selected: number[]) => void
 }
 
-type FilterColumn =
-  | 'full_name'
-  | 'all'
+type FilterColumn = 'full_name' | 'all'
 
 
 
@@ -46,28 +44,24 @@ export default function AppUserList ({
   appusers,
   onDelete
 }: AppUserListProps) {
-  const [selected, setSelected] = useState<number[]>([])
+  const [selected, setSelected]         = useState<number[]>([])
   const [filterColumn, setFilterColumn] = useState<FilterColumn>('all')
-  const [filterValue, setFilterValue] = useState('')
-  const [groups, setGroups] = useState<Group[]>([])
-  const [roles, setRoles] = useState<Role[]>([])
+  const [filterValue, setFilterValue]   = useState('')
+  const [groupFilter, setGroupFilter]   = useState<number | null>(null)
+  const [groups, setGroups]             = useState<Group[]>([])
+  const [roles, setRoles]               = useState<Role[]>([])
   const handleUpdate = async (appuser: AppUser) => {
     await saveappuser(appuser)
   }
 
   const filteredAppUsers = appusers.filter(emp => {
+    if (groupFilter !== null && emp.group_id !== groupFilter) return false
+
     if (!filterValue) return true
-
     const searchLower = filterValue.toLowerCase()
-
     switch (filterColumn) {
-      case 'full_name':
-        return emp.full_name.toLowerCase().includes(searchLower)
-      case 'all':
-      default:
-        return (
-          emp.full_name.toLowerCase().includes(searchLower)
-        )
+      case 'full_name': return emp.full_name.toLowerCase().includes(searchLower)
+      default:          return emp.full_name.toLowerCase().includes(searchLower)
     }
   })
 
@@ -90,6 +84,7 @@ export default function AppUserList ({
   const clearFilter = () => {
     setFilterValue('')
     setFilterColumn('all')
+    setGroupFilter(null)
   }
 
   useEffect(()=>{
@@ -105,6 +100,7 @@ export default function AppUserList ({
 
   return (
     <div className='space-y-4 max-w-7xl'>
+
       <div className='flex items-center justify-between gap-4'>
         <div className='flex items-center gap-2 flex-1 max-w-2xl'>
           <Select
@@ -119,6 +115,23 @@ export default function AppUserList ({
               <SelectItem value='full_name'>Nombre</SelectItem>
             </SelectContent>
           </Select>
+
+          {groups.length > 0 && (
+            <Select
+              value={groupFilter !== null ? String(groupFilter) : 'all'}
+              onValueChange={val => setGroupFilter(val === 'all' ? null : Number(val))}
+            >
+              <SelectTrigger className='w-40 cursor-pointer'>
+                <SelectValue placeholder='Grupo' />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='all'>Todos los grupos</SelectItem>
+                {groups.map(g => (
+                  <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
           <div className='flex-1 relative'>
             <InputGroup>

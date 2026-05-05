@@ -1,16 +1,20 @@
 'use client'
 import { Machine, machineLabel } from '@/types/Machine'
 import { Monitor, Wifi, WifiOff, User, Clock, Search, LayoutGrid, List, FileDown } from 'lucide-react'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Card, CardContent, CardHeader } from '@/app/_components/_ui/card'
 import { Input } from '@/app/_components/_ui/input'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
+import Paginator from './Paginator'
 import * as XLSX from 'xlsx'
 
 interface Props {
   machines: Machine[]
 }
+
+const PAGE_SIZE_GRID  = 12
+const PAGE_SIZE_TABLE = 15
 
 function formatDate(raw: string | undefined) {
   if (!raw) return '—'
@@ -72,7 +76,6 @@ function exportXLSX(machines: Machine[]) {
     'Número de serie': m.serial_number,
     'Último visto':    formatDate(m.last_seen),
   }))
-
   const ws = XLSX.utils.json_to_sheet(rows)
   ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: 7 } }) }
   const wb = XLSX.utils.book_new()
@@ -83,7 +86,8 @@ function exportXLSX(machines: Machine[]) {
 export default function ComputersDashboard({ machines }: Props) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
-  const [view, setView] = useState<'grid' | 'table'>('grid')
+  const [view, setView]     = useState<'grid' | 'table'>('grid')
+  const [page, setPage]     = useState(1)
 
   const online  = useMemo(() => machines.filter(m => m.alive || m.isAlive), [machines])
   const offline = useMemo(() => machines.filter(m => !m.alive && !m.isAlive), [machines])
@@ -96,6 +100,12 @@ export default function ComputersDashboard({ machines }: Props) {
       m.username?.toLowerCase().includes(search.toLowerCase()) ||
       m.ip_address?.toLowerCase().includes(search.toLowerCase())
     ), [machines, filter, search])
+
+  const pageSize   = view === 'grid' ? PAGE_SIZE_GRID : PAGE_SIZE_TABLE
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const paged      = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page, pageSize])
+
+  useEffect(() => { setPage(1) }, [search, filter, view])
 
   return (
     <div className='space-y-6'>
@@ -132,7 +142,6 @@ export default function ComputersDashboard({ machines }: Props) {
           ))}
         </div>
 
-        {/* Toggle de vista */}
         <div className='flex gap-1 border rounded-md p-0.5'>
           <button
             onClick={() => setView('grid')}
@@ -167,45 +176,51 @@ export default function ComputersDashboard({ machines }: Props) {
           No se encontraron equipos
         </div>
       ) : view === 'grid' ? (
-        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'>
-          {filtered.map(m => <MachineCard key={m.serial_number} machine={m} />)}
-        </div>
+        <>
+          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'>
+            {paged.map(m => <MachineCard key={m.serial_number} machine={m} />)}
+          </div>
+          <Paginator page={page} totalPages={totalPages} total={filtered.length} pageSize={pageSize} onPageChange={setPage} />
+        </>
       ) : (
-        <div className='rounded-md border'>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Hostname</TableHead>
-                <TableHead>Marca / Modelo</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Usuario</TableHead>
-                <TableHead>IP</TableHead>
-                <TableHead>Número de serie</TableHead>
-                <TableHead>Último visto</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map(m => {
-                const online = m.alive || m.isAlive
-                return (
-                  <TableRow key={m.serial_number}>
-                    <TableCell className='font-medium'>{m.hostname}</TableCell>
-                    <TableCell className='text-muted-foreground text-sm'>{machineLabel(m) || '—'}</TableCell>
-                    <TableCell>
-                      <Badge variant={online ? 'default' : 'secondary'} className={`text-xs ${online ? 'bg-green-500 hover:bg-green-500' : ''}`}>
-                        {online ? <><Wifi className='size-3 mr-1' />Online</> : <><WifiOff className='size-3 mr-1' />Offline</>}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className='text-sm'>{m.username || '—'}</TableCell>
-                    <TableCell className='font-mono text-xs'>{m.ip_address || '—'}</TableCell>
-                    <TableCell className='font-mono text-xs text-muted-foreground'>{m.serial_number}</TableCell>
-                    <TableCell className='text-sm text-muted-foreground'>{formatDate(m.last_seen)}</TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <>
+          <div className='rounded-md border'>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Hostname</TableHead>
+                  <TableHead>Marca / Modelo</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Usuario</TableHead>
+                  <TableHead>IP</TableHead>
+                  <TableHead>Número de serie</TableHead>
+                  <TableHead>Último visto</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paged.map(m => {
+                  const online = m.alive || m.isAlive
+                  return (
+                    <TableRow key={m.serial_number}>
+                      <TableCell className='font-medium'>{m.hostname}</TableCell>
+                      <TableCell className='text-muted-foreground text-sm'>{machineLabel(m) || '—'}</TableCell>
+                      <TableCell>
+                        <Badge variant={online ? 'default' : 'secondary'} className={`text-xs ${online ? 'bg-green-500 hover:bg-green-500' : ''}`}>
+                          {online ? <><Wifi className='size-3 mr-1' />Online</> : <><WifiOff className='size-3 mr-1' />Offline</>}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className='text-sm'>{m.username || '—'}</TableCell>
+                      <TableCell className='font-mono text-xs'>{m.ip_address || '—'}</TableCell>
+                      <TableCell className='font-mono text-xs text-muted-foreground'>{m.serial_number}</TableCell>
+                      <TableCell className='text-sm text-muted-foreground'>{formatDate(m.last_seen)}</TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          <Paginator page={page} totalPages={totalPages} total={filtered.length} pageSize={pageSize} onPageChange={setPage} />
+        </>
       )}
     </div>
   )

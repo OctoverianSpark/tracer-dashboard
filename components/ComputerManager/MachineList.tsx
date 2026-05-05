@@ -2,8 +2,9 @@
 import { Machine, machineLabel } from '@/types/Machine'
 import MachineCard from './MachineCard'
 import MachineDialog from './MachineDialog'
+import Paginator from './Paginator'
 import { deleteComputer } from '@/app/computers/actions'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Search, LayoutGrid, List, FileDown, Trash2 } from 'lucide-react'
 import { Input } from '@/app/_components/_ui/input'
 import { Badge } from '@/app/_components/_ui/badge'
@@ -15,6 +16,9 @@ import * as XLSX from 'xlsx'
 interface MachineListProps {
   machines: Machine[]
 }
+
+const PAGE_SIZE_GRID  = 12
+const PAGE_SIZE_TABLE = 15
 
 function formatDate(raw: string | undefined) {
   if (!raw) return '—'
@@ -40,8 +44,9 @@ function exportXLSX(machines: Machine[]) {
 }
 
 export default function MachineList({ machines }: MachineListProps) {
-  const [search, setSearch] = useState('')
-  const [view, setView] = useState<'grid' | 'table'>('grid')
+  const [search, setSearch]             = useState('')
+  const [view, setView]                 = useState<'grid' | 'table'>('grid')
+  const [page, setPage]                 = useState(1)
   const [confirmSerial, setConfirmSerial] = useState<string | null>(null)
 
   const filtered = useMemo(() => machines.filter(m =>
@@ -50,6 +55,13 @@ export default function MachineList({ machines }: MachineListProps) {
     m.username?.toLowerCase().includes(search.toLowerCase()) ||
     m.ip_address?.toLowerCase().includes(search.toLowerCase())
   ), [machines, search])
+
+  const pageSize   = view === 'grid' ? PAGE_SIZE_GRID : PAGE_SIZE_TABLE
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const paged      = useMemo(() => filtered.slice((page - 1) * pageSize, page * pageSize), [filtered, page, pageSize])
+
+  // Resetear página cuando cambian los filtros o la vista
+  useEffect(() => { setPage(1) }, [search, view])
 
   const confirmMachine = machines.find(m => m.serial_number === confirmSerial)
 
@@ -81,7 +93,6 @@ export default function MachineList({ machines }: MachineListProps) {
           />
         </div>
 
-        {/* Toggle de vista */}
         <div className="flex gap-1 border rounded-md p-0.5">
           <button
             onClick={() => setView('grid')}
@@ -115,73 +126,70 @@ export default function MachineList({ machines }: MachineListProps) {
           No se encontraron equipos.
         </p>
       ) : view === 'grid' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map(pc => (
-            <MachineCard onDelete={serial => setConfirmSerial(serial)} machine={pc} key={pc.serial_number} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {paged.map(pc => (
+              <MachineCard onDelete={serial => setConfirmSerial(serial)} machine={pc} key={pc.serial_number} />
+            ))}
+          </div>
+          <Paginator page={page} totalPages={totalPages} total={filtered.length} pageSize={pageSize} onPageChange={setPage} />
+        </>
       ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Hostname</TableHead>
-                <TableHead>Marca / Modelo</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Usuario</TableHead>
-                <TableHead>IP</TableHead>
-                <TableHead>Número de serie</TableHead>
-                <TableHead>Último visto</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map(m => {
-                const online = m.alive || m.isAlive
-                return (
-                  <TableRow key={m.serial_number}>
-                    <TableCell className="font-medium">{m.hostname}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{machineLabel(m) || '—'}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={online ? 'default' : 'secondary'}
-                        className={`text-xs ${online ? 'bg-green-500 hover:bg-green-500' : ''}`}
-                      >
-                        {online ? '🟢 Online' : '🔴 Offline'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">{m.username || '—'}</TableCell>
-                    <TableCell className="font-mono text-xs">{m.ip_address || '—'}</TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">{m.serial_number}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{formatDate(m.last_seen)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <MachineDialog machine={m} />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="cursor-pointer"
-                          onClick={() => setConfirmSerial(m.serial_number)}
-                        >
-                          <Trash2 className="size-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Hostname</TableHead>
+                  <TableHead>Marca / Modelo</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Usuario</TableHead>
+                  <TableHead>IP</TableHead>
+                  <TableHead>Número de serie</TableHead>
+                  <TableHead>Último visto</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paged.map(m => {
+                  const online = m.alive || m.isAlive
+                  return (
+                    <TableRow key={m.serial_number}>
+                      <TableCell className="font-medium">{m.hostname}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{machineLabel(m) || '—'}</TableCell>
+                      <TableCell>
+                        <Badge variant={online ? 'default' : 'secondary'} className={`text-xs ${online ? 'bg-green-500 hover:bg-green-500' : ''}`}>
+                          {online ? '🟢 Online' : '🔴 Offline'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">{m.username || '—'}</TableCell>
+                      <TableCell className="font-mono text-xs">{m.ip_address || '—'}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{m.serial_number}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{formatDate(m.last_seen)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <MachineDialog machine={m} />
+                          <Button variant="ghost" size="icon" className="cursor-pointer" onClick={() => setConfirmSerial(m.serial_number)}>
+                            <Trash2 className="size-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          <Paginator page={page} totalPages={totalPages} total={filtered.length} pageSize={pageSize} onPageChange={setPage} />
+        </>
       )}
 
-      {/* Diálogo de confirmación centralizado */}
       <AlertDialog open={!!confirmSerial} onOpenChange={open => { if (!open) setConfirmSerial(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar computadora?</AlertDialogTitle>
             <AlertDialogDescription>
-              Se eliminará <strong>{confirmMachine ? (confirmMachine.hostname) : confirmSerial}</strong> permanentemente. Esta acción no se puede deshacer.
+              Se eliminará <strong>{confirmMachine ? confirmMachine.hostname : confirmSerial}</strong> permanentemente. Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

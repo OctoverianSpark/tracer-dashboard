@@ -6,14 +6,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
 import { Label } from '@/app/_components/_ui/label'
-import { saveappuser } from '@/app/app/actions'
+import { saveappuser, getappuser } from '@/app/app/actions'
 import { getGroups } from '@/app/app/groups/actions'
 import { getRoles } from '@/app/app/roles/actions'
 import { AppUser, Group, Role } from '@/types/AppUser'
 import { Upload, CheckCircle, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
-type RowResult = { row: number; name: string; status: 'ok' | 'error'; error?: string }
+type RowResult = { row: number; name: string; status: 'ok' | 'error'; action?: 'created' | 'updated'; error?: string }
 type ColumnMap = Record<string, keyof AppUser | 'ignore'>
 type Step      = 'upload' | 'map' | 'results'
 
@@ -106,8 +106,8 @@ export default function BulkUploadForm() {
   }
 
   const handleSubmit = async () => {
-    const mapped   = Object.values(columnMap).filter(v => v !== 'ignore')
-    const missing  = (['full_name'] as (keyof AppUser)[]).filter(f => !mapped.includes(f))
+    const mapped  = Object.values(columnMap).filter(v => v !== 'ignore')
+    const missing = (['full_name'] as (keyof AppUser)[]).filter(f => !mapped.includes(f))
 
     if (missing.length) {
       toast.error('El campo Nombre completo es requerido')
@@ -117,6 +117,12 @@ export default function BulkUploadForm() {
     setLoading(true)
     const rowResults: RowResult[] = []
 
+    // Cargar usuarios existentes para detectar duplicados por email
+    const existing = await getappuser().catch(() => [] as AppUser[])
+    const byEmail = new Map(
+      existing.filter(u => u.email?.trim()).map(u => [u.email!.trim().toLowerCase(), u])
+    )
+
     for (let i = 0; i < rows.length; i++) {
       const row  = rows[i]
       const user: Partial<AppUser> = {}
@@ -125,13 +131,17 @@ export default function BulkUploadForm() {
         if (field !== 'ignore') (user as any)[field] = row[col]
       })
 
-      // asigna grupo y rol en bloque
       if (selectedGroup) user.group_id = selectedGroup
       if (selectedRole)  user.role_id  = selectedRole
 
+      // Upsert por email: si ya existe, asignar su id para que haga PUT
+      const emailKey = user.email?.trim().toLowerCase()
+      const match    = emailKey ? byEmail.get(emailKey) : undefined
+      if (match?.id) user.id = match.id
+
       try {
         await saveappuser(user as AppUser)
-        rowResults.push({ row: i + 2, name: user.full_name ?? `Fila ${i + 2}`, status: 'ok' })
+        rowResults.push({ row: i + 2, name: user.full_name ?? `Fila ${i + 2}`, status: 'ok', action: match ? 'updated' : 'created' })
       } catch (e) {
         rowResults.push({ row: i + 2, name: user.full_name ?? `Fila ${i + 2}`, status: 'error', error: (e as Error).message })
       }
@@ -141,9 +151,11 @@ export default function BulkUploadForm() {
     setStep('results')
     setLoading(false)
 
-    const ok    = rowResults.filter(r => r.status === 'ok').length
-    const error = rowResults.filter(r => r.status === 'error').length
-    toast.success(`${ok} usuarios registrados${error ? `, ${error} con errores` : ''}`)
+    const ok      = rowResults.filter(r => r.status === 'ok').length
+    const updated = rowResults.filter(r => r.action === 'updated').length
+    const created = rowResults.filter(r => r.action === 'created').length
+    const error   = rowResults.filter(r => r.status === 'error').length
+    toast.success(`${created} creados, ${updated} actualizados${error ? `, ${error} con errores` : ''}`)
   }
 
   return (
@@ -280,9 +292,12 @@ export default function BulkUploadForm() {
         {/* STEP 3 - Resultados */}
         {step === 'results' && (
           <div className='space-y-4'>
-            <div className='flex gap-4 text-sm'>
+            <div className='flex gap-4 text-sm flex-wrap'>
               <span className='text-green-600 font-medium'>
-                ✓ {results.filter(r => r.status === 'ok').length} exitosos
+                ✓ {results.filter(r => r.action === 'created').length} creados
+              </span>
+              <span className='text-blue-600 font-medium'>
+                ↑ {results.filter(r => r.action === 'updated').length} actualizados
               </span>
               <span className='text-red-500 font-medium'>
                 ✗ {results.filter(r => r.status === 'error').length} con errores
@@ -293,10 +308,11 @@ export default function BulkUploadForm() {
               {results.map(r => (
                 <div key={r.row} className='flex items-center gap-2 text-xs px-2 py-1.5 rounded-md bg-muted/40'>
                   {r.status === 'ok'
-                    ? <CheckCircle className='size-3 text-green-500 shrink-0' />
-                    : <XCircle    className='size-3 text-red-500 shrink-0'   />
+                    ? <CheckCircle className={`size-3 shrink-0 ${r.action === 'updated' ? 'text-blue-500' : 'text-green-500'}`} />
+                    : <XCircle    className='size-3 text-red-500 shrink-0' />
                   }
                   <span className='flex-1 truncate'>{r.name}</span>
+                  {r.action === 'updated' && <span className='text-blue-500 text-[10px]'>actualizado</span>}
                   {r.error && <span className='text-red-500 truncate max-w-32'>{r.error}</span>}
                 </div>
               ))}

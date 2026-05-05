@@ -7,7 +7,7 @@ import { cn } from '@/app/_components/_lib/utils'
 
 interface UserSelectProps {
   users: AppUser[]
-  groups?: Group[]
+  groups?: Group[]  // reservado para compatibilidad, no se usa internamente
   value?: string
   onValueChange: (value: string) => void
   placeholder?: string
@@ -27,50 +27,14 @@ export function UserSelect({
   error,
 }: UserSelectProps) {
   const [search, setSearch] = useState('')
-  const [groupFilter, setGroupFilter] = useState<number | null>(null)
-
-  const hasGroups = groups && groups.length > 0
 
   const visibleUsers = users.filter(u => {
-    if (groupFilter !== null && u.group_id !== groupFilter) return false
     if (search.trim() && !u.full_name.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
 
   return (
     <div className="space-y-1.5">
-      {/* Chips de grupo — fuera del Select para no interferir con el scroll-lock de Radix */}
-      {hasGroups && (
-        <div className="flex flex-wrap gap-1">
-          <button
-            type="button"
-            onClick={() => setGroupFilter(null)}
-            className={cn(
-              'rounded px-2 py-0.5 text-xs transition-colors',
-              groupFilter === null
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-            )}
-          >
-            Todos
-          </button>
-          {groups.map(g => (
-            <button
-              key={g.id}
-              type="button"
-              onClick={() => setGroupFilter(groupFilter === g.id ? null : g.id!)}
-              className={cn(
-                'rounded px-2 py-0.5 text-xs transition-colors',
-                groupFilter === g.id
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-              )}
-            >
-              {g.name}
-            </button>
-          ))}
-        </div>
-      )}
 
       <Select
         value={value}
