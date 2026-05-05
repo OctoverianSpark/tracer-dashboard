@@ -82,9 +82,9 @@ export default function Page() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between gap-4">
-        <div className="flex gap-4">
-          <div className="grid gap-2 min-w-48">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          <div className="grid gap-2 w-full sm:min-w-48">
             <Label>Usuario</Label>
             <UserSelect
               users={selectableUsers}
@@ -95,7 +95,7 @@ export default function Page() {
             />
           </div>
 
-          <div className="grid gap-2 min-w-48">
+          <div className="grid gap-2 w-full sm:min-w-48">
             <Label>Computador</Label>
             <Select
               disabled={!selectedAppUser}
@@ -116,7 +116,7 @@ export default function Page() {
           </div>
         </div>
 
-        <div className="grid gap-2 w-44">
+        <div className="grid gap-2 w-full sm:w-44">
           <Label>Fecha</Label>
           <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
         </div>

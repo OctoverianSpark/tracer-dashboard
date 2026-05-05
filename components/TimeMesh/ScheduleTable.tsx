@@ -40,6 +40,7 @@ export default function ScheduleTable({ schedules, appuser, programations }: Pro
 
   return (
     <>
+      <div className='overflow-x-auto'>
       <Table>
         <TableHeader>
           <TableRow>
@@ -81,6 +82,7 @@ export default function ScheduleTable({ schedules, appuser, programations }: Pro
           })}
         </TableBody>
       </Table>
+      </div>
 
       <AlertDialog open={!!confirmUserId} onOpenChange={open => { if (!open) setConfirmUserId(null) }}>
         <AlertDialogContent>

@@ -111,15 +111,15 @@ export default function ComputersDashboard({ machines }: Props) {
     <div className='space-y-6'>
 
       {/* Stats */}
-      <div className='grid grid-cols-3 gap-4'>
+      <div className='grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4'>
         <StatCard label='Total equipos'  value={machines.length} sub='registrados' />
         <StatCard label='En línea'        value={online.length}   sub={`${Math.round(online.length / machines.length * 100) || 0}% del total`} />
         <StatCard label='Fuera de línea'  value={offline.length}  sub='sin conexión activa' />
       </div>
 
       {/* Barra de herramientas */}
-      <div className='flex gap-3 items-center flex-wrap'>
-        <div className='relative flex-1 min-w-48'>
+      <div className='flex gap-2 items-center flex-wrap'>
+        <div className='relative flex-1 min-w-0 w-full sm:w-auto'>
           <Search className='absolute left-2.5 top-2.5 size-4 text-muted-foreground' />
           <Input
             placeholder='Buscar hostname, marca, usuario, IP...'
@@ -184,7 +184,7 @@ export default function ComputersDashboard({ machines }: Props) {
         </>
       ) : (
         <>
-          <div className='rounded-md border'>
+          <div className='rounded-md border overflow-x-auto'>
             <Table>
               <TableHeader>
                 <TableRow>

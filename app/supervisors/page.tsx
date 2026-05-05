@@ -30,9 +30,9 @@ export default function SupervisorsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Panel de Supervisores</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold">Panel de Supervisores</h1>
           <p className="text-muted-foreground text-sm">Monitoreo en tiempo real del equipo</p>
         </div>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}>

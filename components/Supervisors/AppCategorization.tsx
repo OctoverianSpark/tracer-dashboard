@@ -193,13 +193,13 @@ export default function AppCategorization() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
           <Input
             placeholder="Buscar aplicación…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-60"
+            className="w-full sm:w-60"
           />
           <span className="text-sm text-muted-foreground">
             <span className="text-green-600 font-medium">{productive} productivas</span>
@@ -224,6 +224,7 @@ export default function AppCategorization() {
       )}
 
       {!loading && filtered.length > 0 && (
+        <div className='overflow-x-auto'>
         <Table>
           <TableHeader>
             <TableRow>
@@ -247,6 +248,7 @@ export default function AppCategorization() {
             ))}
           </TableBody>
         </Table>
+        </div>
       )}
     </div>
   )

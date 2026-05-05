@@ -69,8 +69,8 @@ export default function Page() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-3 flex-wrap">
-        <div className="grid gap-1 min-w-48">
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+        <div className="grid gap-1 w-full sm:min-w-48">
           <Label>Usuario</Label>
           <UserSelect
             users={selectableUsers}
@@ -84,7 +84,7 @@ export default function Page() {
           />
         </div>
 
-        <div className="grid gap-1 min-w-48">
+        <div className="grid gap-1 w-full sm:min-w-48">
           <Label>Equipo</Label>
           <Select
             disabled={!selectedUser}

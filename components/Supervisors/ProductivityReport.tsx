@@ -158,17 +158,17 @@ export default function ProductivityReport() {
   return (
     <div className='space-y-4'>
       {/* Controles */}
-      <div className='flex flex-wrap items-end gap-4'>
-        <div className='grid gap-1.5'>
+      <div className='flex flex-wrap items-end gap-3'>
+        <div className='grid gap-1.5 w-full sm:w-auto'>
           <Label>Fecha</Label>
-          <Input type='date' value={date} onChange={e => setDate(e.target.value)} className='w-44' />
+          <Input type='date' value={date} onChange={e => setDate(e.target.value)} className='w-full sm:w-44' />
         </div>
-        <div className='grid gap-1.5'>
+        <div className='grid gap-1.5 w-full sm:w-auto'>
           <Label>Productividad global mínima (%)</Label>
           <Input
             type='number' min={0} max={100} value={minPercent}
             onChange={e => setMinPercent(Number(e.target.value))}
-            className='w-32'
+            className='w-full sm:w-32'
           />
         </div>
         <div className='flex items-center gap-2 pb-0.5'>

@@ -26,6 +26,7 @@ export default function ConnectedUsersTable({ statuses, mode }: Props) {
   }
 
   return (
+    <div className='overflow-x-auto'>
     <Table>
       <TableHeader>
         <TableRow>
@@ -65,5 +66,6 @@ export default function ConnectedUsersTable({ statuses, mode }: Props) {
         ))}
       </TableBody>
     </Table>
+    </div>
   )
 }

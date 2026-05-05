@@ -22,23 +22,22 @@ export function AppHeader () {
   }, [])
 
   return (
-    <header className={`border-b w-full py-4 flex items-center gap-2 px-4 sticky top-0 z-20 bg-background transition-opacity duration-300 ${scrolled ? 'opacity-40' : 'opacity-100'}`}>
+    <header className={`border-b w-full py-3 sm:py-4 flex items-center gap-2 px-3 sm:px-4 sticky top-0 z-20 bg-background transition-opacity duration-300 ${scrolled ? 'opacity-40' : 'opacity-100'}`}>
       <Button asChild variant='ghost' className='cursor-pointer'>
         <SidebarTrigger />
       </Button>
-      <div className='h-6 w-px bg-border ' />
-      <div className="flex justify-between w-full">
-        
-      <h1 className='text-2xl font-semibold flex items-center gap-2'>
-        {Icon && <Icon className='size-6' />}
-        {actualItem?.title}
-      </h1>
-      <h3 className='flex justify-center items-center text-xl font-bold gap-2'>
-        <span>{session?.user?.name}</span>
-        <Button onClick={()=>signOut({callbackUrl: '/'})} variant='ghost' size='icon' className='ml-2 cursor-pointer'>
-          <LogOut />
-        </Button>
-      </h3>
+      <div className='h-6 w-px bg-border' />
+      <div className="flex justify-between items-center w-full min-w-0">
+        <h1 className='text-lg sm:text-2xl font-semibold flex items-center gap-2 truncate'>
+          {Icon && <Icon className='size-5 sm:size-6 shrink-0' />}
+          <span className='truncate'>{actualItem?.title}</span>
+        </h1>
+        <h3 className='flex items-center text-sm sm:text-base font-semibold gap-1 sm:gap-2 shrink-0 ml-2'>
+          <span className='hidden sm:block'>{session?.user?.name}</span>
+          <Button onClick={()=>signOut({callbackUrl: '/'})} variant='ghost' size='icon' className='cursor-pointer'>
+            <LogOut />
+          </Button>
+        </h3>
       </div>
     </header>
   )

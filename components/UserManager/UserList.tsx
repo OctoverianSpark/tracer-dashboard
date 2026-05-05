@@ -107,15 +107,15 @@ export default function AppUserList ({
     filteredAppUsers.length > 0 && selected.length === filteredAppUsers.length
 
   return (
-    <div className='space-y-4 max-w-7xl'>
+    <div className='space-y-4'>
 
-      <div className='flex items-center justify-between gap-4'>
-        <div className='flex items-center gap-2 flex-1 max-w-2xl'>
+      <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4'>
+        <div className='flex flex-col sm:flex-row sm:items-center gap-2 flex-1'>
           <Select
             value={filterColumn}
             onValueChange={value => setFilterColumn(value as FilterColumn)}
           >
-            <SelectTrigger className='w-45'>
+            <SelectTrigger className='w-full sm:w-45'>
               <SelectValue placeholder='Seleccionar columna' />
             </SelectTrigger>
             <SelectContent>
@@ -129,7 +129,7 @@ export default function AppUserList ({
               value={groupFilter !== null ? String(groupFilter) : 'all'}
               onValueChange={val => setGroupFilter(val === 'all' ? null : Number(val))}
             >
-              <SelectTrigger className='w-40 cursor-pointer'>
+              <SelectTrigger className='w-full sm:w-40 cursor-pointer'>
                 <SelectValue placeholder='Grupo' />
               </SelectTrigger>
               <SelectContent>
@@ -187,7 +187,7 @@ export default function AppUserList ({
         )}
       </div>
 
-      <div className='rounded-md border'>
+      <div className='rounded-md border overflow-x-auto'>
         <Table>
           <TableHeader>
             <TableRow>

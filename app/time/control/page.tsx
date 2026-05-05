@@ -17,8 +17,8 @@ export default async function Page() {
   ])
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Administración de Horarios</h1>
-      <div className="flex gap-2">
+      <h1 className="text-xl sm:text-2xl font-semibold">Administración de Horarios</h1>
+      <div className="flex flex-wrap gap-2">
         <ProgramationForm />
         <ScheduleAssigner
           appuser={appuser}
