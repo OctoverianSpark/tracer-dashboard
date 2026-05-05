@@ -173,7 +173,7 @@ export default function BulkUploadForm() {
           <TooltipContent>Carga masiva de usuarios</TooltipContent>
         </Tooltip>
 
-      <DialogContent className='max-w-lg overflow-auto'>
+      <DialogContent className='max-w-lg max-h-[85vh] overflow-y-auto'>
         <DialogHeader>
           <DialogTitle>Carga masiva de usuarios</DialogTitle>
         </DialogHeader>
@@ -244,7 +244,10 @@ export default function BulkUploadForm() {
               </p>
 
               <div className='grid gap-2'>
-                <Label>Grupo</Label>
+                <div className='flex items-baseline gap-2'>
+                  <Label>Grupo</Label>
+                  <span className='text-xs text-muted-foreground'>opcional — vacío los dejará sin grupo</span>
+                </div>
                 <Select
                   value={selectedGroup ? String(selectedGroup) : 'none'}
                   onValueChange={val => setSelectedGroup(val === 'none' ? null : Number(val))}
@@ -262,7 +265,10 @@ export default function BulkUploadForm() {
               </div>
 
               <div className='grid gap-2'>
-                <Label>Rol</Label>
+                <div className='flex items-baseline gap-2'>
+                  <Label>Rol</Label>
+                  <span className='text-xs text-muted-foreground'>opcional — vacío los dejará sin rol</span>
+                </div>
                 <Select
                   value={selectedRole ? String(selectedRole) : 'none'}
                   onValueChange={val => setSelectedRole(val === 'none' ? null : Number(val))}
