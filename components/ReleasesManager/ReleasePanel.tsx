@@ -63,18 +63,15 @@ export default function ReleasePanel({ initialInfo }: Props) {
     e.preventDefault()
     setDragging(false)
     const file = e.dataTransfer.files[0]
-    if (file) {
-      setSelectedFile(file)
-      setVersionName(file.name)
-    }
+    if (file) setSelectedFile(file)
   }, [])
 
   const handleUpload = () => {
     if (!selectedFile || !versionName.trim()) return
 
-    const named = new File([selectedFile], versionName.trim(), { type: selectedFile.type })
     const formData = new FormData()
-    formData.append('file', named)
+    formData.append('file', selectedFile)
+    formData.append('version', versionName.trim())
 
     const xhr = new XMLHttpRequest()
 
@@ -189,19 +186,17 @@ export default function ReleasePanel({ initialInfo }: Props) {
               type="file"
               className="hidden"
               onChange={(e) => {
-                const file = e.target.files?.[0] ?? null
-                setSelectedFile(file)
-                if (file) setVersionName(file.name)
+                setSelectedFile(e.target.files?.[0] ?? null)
                 e.target.value = ''
               }}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="version-name">Nombre del archivo</Label>
+            <Label htmlFor="version-name">Versión</Label>
             <Input
               id="version-name"
-              placeholder="tracer-setup-1.0.0.exe"
+              placeholder="1.0.0"
               value={versionName}
               onChange={(e) => setVersionName(e.target.value)}
               disabled={uploading}
