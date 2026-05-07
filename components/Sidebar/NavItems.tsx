@@ -26,6 +26,7 @@ import {
   Users2,
   ShieldCheck,
   UserRoundCog,
+  PackageOpen,
 } from 'lucide-react'
 import { join } from 'path'
 import UserForm from '../UserManager/UserForm'
@@ -135,6 +136,14 @@ const APPLICATION: NavSection = {
       url: UriGenerator('app/roles', Actions.GET),
       desc: 'Control de roles',
       perm: 'manage_roles'
+    },
+    {
+      title: 'Actualizaciones',
+      type: NavTypes.LINK,
+      icon: PackageOpen,
+      url: '/app/releases',
+      desc: 'Gestionar versiones del agente Tracer',
+      perm: 'manage_releases'
     }
   ]
 }

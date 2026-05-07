@@ -28,6 +28,20 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
     getProgramations(),
   ])
 
+  // Máquinas por usuario usando el endpoint fiable (igual que getProductivityReport)
+  const machinesPerUser = await Promise.all(
+    users.map(u =>
+      findAsignedMachines(Number(u.id))
+        .then(ms => ({ userId: Number(u.id), machines: ms }))
+        .catch(() => {
+          // Fallback: buscar en la lista completa por appuser_id
+          const fallback = machines.filter(m => Number(m.appuser_id) === Number(u.id))
+          return { userId: Number(u.id), machines: fallback }
+        })
+    )
+  )
+  const machinesByUser = new Map(machinesPerUser.map(r => [r.userId, r.machines]))
+
   const now = new Date()
   const todayKey = DAY_KEYS[now.getDay()]
   const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
@@ -53,7 +67,8 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
       }
     }
 
-    const machine = machines.find(m => Number(m.appuser_id) === user.id)
+    const userMachines = machinesByUser.get(Number(user.id)) ?? []
+    const machine = userMachines.find(m => m.isAlive || m.alive) ?? userMachines[0]
     const isConnected = !!(machine && (machine.isAlive || machine.alive))
 
     return { user, isConnected, shouldBeConnected, machine, programation, startTime, endTime }

@@ -9,6 +9,7 @@ const ROUTE_PERMISSIONS: Record<string, string> = {
   '/time': 'view_schedules',
   '/screenshots': 'view_screenshots',
   '/settings': 'manage_roles',
+  '/app/releases': 'manage_releases',
   '/supervisors': 'view_supervisors',
   '/th': 'view_th',
 }
@@ -48,6 +49,7 @@ export const config = {
     '/time/:path*',
     '/screenshots/:path*',
     '/settings/:path*',
+    '/app/releases',
     '/supervisors/:path*',
     '/th/:path*',
   ]

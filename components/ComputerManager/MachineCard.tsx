@@ -54,6 +54,7 @@ export default function MachineCard({ machine, onDelete }: CardMachineProps) {
 
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-3">
+        <h3 className="text-xl">{machine.displayName}</h3>
         <Badge variant={machine.isAlive ? 'default' : 'destructive'}>
           {machine.isAlive ? '🟢 Online' : '🔴 Offline'}
         </Badge>

@@ -56,5 +56,12 @@ export const PERMISSION_GROUPS = [
     permissions: [
       { id: 'view_th', label: 'Puede acceder al panel de Talento Humano', default: false }
     ]
+  },
+  {
+    id: 'releases_group',
+    label: 'Actualizaciones',
+    permissions: [
+      { id: 'manage_releases', label: 'Puede gestionar versiones del agente', default: false }
+    ]
   }
 ]
