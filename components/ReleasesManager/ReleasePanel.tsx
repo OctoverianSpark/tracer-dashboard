@@ -100,7 +100,7 @@ export default function ReleasePanel({ initialInfo }: Props) {
       setProgress(0)
     })
 
-    xhr.open('POST', `${API_URL}/tracer/updates`)
+    xhr.open('POST', `${API_URL}/tracer/updates?version=${versionName}`)
     xhr.send(formData)
     setUploading(true)
   }
