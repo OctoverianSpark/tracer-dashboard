@@ -106,7 +106,7 @@ export default function ReleasePanel({ initialInfo }: Props) {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-4 md:grid-cols-2 items-start">
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">

@@ -101,3 +101,26 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   filter: invert(48%) sepia(79%) saturate(2476%) hue-rotate(200deg) brightness(90%);
   cursor: pointer;
 }
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.340 0.031 277.7) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: oklch(0.340 0.031 277.7);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: oklch(0.440 0.035 277.7);
+}

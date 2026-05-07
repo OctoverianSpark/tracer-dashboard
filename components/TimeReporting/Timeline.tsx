@@ -256,7 +256,7 @@ export function Timeline({ logs, scheduleStart, scheduleEnd, className }: Produc
         )}
 
         {/* Hour ticks */}
-        <div className="relative mt-1 h-4">
+        <div className="relative mt-1 h-4 overflow-x-hidden">
           {hours.map(h => {
             const leftPct = ((h - WORKDAY_START) / (WORKDAY_END - WORKDAY_START)) * 100
             return (
