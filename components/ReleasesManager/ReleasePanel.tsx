@@ -4,6 +4,8 @@ import { useState, useRef, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/_components/_ui/card'
 import { Button } from '@/app/_components/_ui/button'
 import { Badge } from '@/app/_components/_ui/badge'
+import { Input } from '@/app/_components/_ui/input'
+import { Label } from '@/app/_components/_ui/label'
 import { type ReleaseInfo } from '@/app/app/releases/actions'
 import { UploadCloud, Download, PackageCheck, PackageX, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
@@ -32,6 +34,7 @@ export default function ReleasePanel({ initialInfo }: Props) {
   const [info, setInfo] = useState<ReleaseInfo>(initialInfo)
   const [dragging, setDragging] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [versionName, setVersionName] = useState('')
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -60,14 +63,18 @@ export default function ReleasePanel({ initialInfo }: Props) {
     e.preventDefault()
     setDragging(false)
     const file = e.dataTransfer.files[0]
-    if (file) setSelectedFile(file)
+    if (file) {
+      setSelectedFile(file)
+      setVersionName(file.name)
+    }
   }, [])
 
   const handleUpload = () => {
-    if (!selectedFile) return
+    if (!selectedFile || !versionName.trim()) return
 
+    const named = new File([selectedFile], versionName.trim(), { type: selectedFile.type })
     const formData = new FormData()
-    formData.append('file', selectedFile)
+    formData.append('file', named)
 
     const xhr = new XMLHttpRequest()
 
@@ -81,6 +88,7 @@ export default function ReleasePanel({ initialInfo }: Props) {
       if (xhr.status >= 200 && xhr.status < 300) {
         toast.success('Instalador publicado exitosamente')
         setSelectedFile(null)
+        setVersionName('')
         setProgress(0)
         refreshInfo()
       } else {
@@ -181,9 +189,22 @@ export default function ReleasePanel({ initialInfo }: Props) {
               type="file"
               className="hidden"
               onChange={(e) => {
-                setSelectedFile(e.target.files?.[0] ?? null)
+                const file = e.target.files?.[0] ?? null
+                setSelectedFile(file)
+                if (file) setVersionName(file.name)
                 e.target.value = ''
               }}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="version-name">Nombre del archivo</Label>
+            <Input
+              id="version-name"
+              placeholder="tracer-setup-1.0.0.exe"
+              value={versionName}
+              onChange={(e) => setVersionName(e.target.value)}
+              disabled={uploading}
             />
           </div>
 
@@ -204,7 +225,7 @@ export default function ReleasePanel({ initialInfo }: Props) {
 
           <Button
             onClick={handleUpload}
-            disabled={!selectedFile || uploading}
+            disabled={!selectedFile || !versionName.trim() || uploading}
             className="w-full gap-2"
           >
             <UploadCloud className="size-4" />
