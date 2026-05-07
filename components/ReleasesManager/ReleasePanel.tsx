@@ -193,9 +193,9 @@ export default function ReleasePanel({ initialInfo }: Props) {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="version-name">Versión</Label>
+            <Label htmlFor="version">Versión</Label>
             <Input
-              id="version-name"
+              id="version"
               placeholder="1.0.0"
               value={versionName}
               onChange={(e) => setVersionName(e.target.value)}
