@@ -4,7 +4,7 @@ import { Badge } from '@/app/_components/_ui/badge'
 import { Machine, machineLabel } from '@/types/Machine'
 import MachineDialog from './MachineDialog'
 import { Button } from '@/app/_components/_ui/button'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Wifi, WifiOff } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/app/_components/_ui/alert-dialog'
 import { useState } from 'react'
@@ -54,9 +54,10 @@ export default function MachineCard({ machine, onDelete }: CardMachineProps) {
 
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-3">
-        <h3 className="text-xl truncate">{machine.displayName}</h3>
-        <Badge variant={machine.isAlive ? 'default' : 'destructive'}>
-          {machine.isAlive ? '🟢 Online' : '🔴 Offline'}
+        <span className="text-md truncate">{machine.displayName}</span>
+        
+        <Badge variant={machine.isAlive ? 'default' : 'secondary'} className={`text-xs ${machine.isAlive ? 'bg-green-500 hover:bg-green-500' : ''}`}>
+          {machine.isAlive ? <><Wifi className='size-3 mr-1' />Online</> : <><WifiOff className='size-3 mr-1' />Offline</>}
         </Badge>
         <MachineDialog machine={machine} />
       </CardContent>
