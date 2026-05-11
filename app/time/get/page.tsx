@@ -10,6 +10,7 @@ import { findAsignedMachines } from '@/app/computers/actions'
 import { getappuser } from '@/app/app/actions'
 import { getGroups } from '@/app/app/groups/actions'
 import { getScheduleByappuserId, getProgramationById, getStateLog, getAppUsageLogs } from '@/app/time/actions'
+import { getCategorizationApps } from '@/app/supervisors/categorization-actions'
 import { Timeline } from '@/components/TimeReporting/Timeline'
 import AppUsageList from '@/components/TimeReporting/AppUsageList'
 import { Machine, machineLabel } from '@/types/Machine'
@@ -31,6 +32,7 @@ export default function Page() {
   const [selectedAppUser, setSelected]  = useState<AppUser | undefined>()
   const [selectedComputer, setComputer] = useState<Machine | undefined>()
   const [programation, setProgramation] = useState<Programation | null>(null)
+  const [ignoredApps, setIgnoredApps]   = useState<Set<string>>(new Set())
 
   const currentUserId   = Number(session?.appUser?.id)
   const currentGroup    = groups.find(g => g.id === session?.appUser?.group_id)
@@ -47,6 +49,9 @@ export default function Page() {
   useEffect(() => {
     getappuser().then(setAppuser)
     getGroups().then(setGroups)
+    getCategorizationApps().then(apps => {
+      setIgnoredApps(new Set(apps.filter(a => a.category === 'ignore').map(a => a.name.toLowerCase())))
+    })
   }, [])
 
   useEffect(() => {
@@ -106,7 +111,7 @@ export default function Page() {
                 <SelectValue placeholder={selectedAppUser ? 'Seleccione equipo' : 'Primero seleccione usuario'} />
               </SelectTrigger>
               <SelectContent>
-                {computers.map((computer, i) => (
+                {computers.map(computer => (
                   <SelectItem key={computer.id} value={`${computer.id}`}>
                     {machineLabel(computer)}
                   </SelectItem>
@@ -138,7 +143,7 @@ export default function Page() {
         <Card>
           <CardContent className="pt-5 space-y-3">
             <p className="font-semibold text-sm">Uso de aplicaciones</p>
-            <AppUsageList logs={usageLogs} />
+            <AppUsageList logs={usageLogs} ignoredApps={ignoredApps} />
           </CardContent>
         </Card>
       )}

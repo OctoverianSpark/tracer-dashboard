@@ -3,6 +3,7 @@ import { FlatAppUsageLog } from '@/types/AppUser'
 
 interface Props {
   logs: FlatAppUsageLog[]
+  ignoredApps?: Set<string>
 }
 
 const fmtSecs = (s: number) => {
@@ -14,8 +15,10 @@ const fmtSecs = (s: number) => {
   return `${sec}s`
 }
 
-export default function AppUsageList({ logs }: Props) {
-  const sorted = logs.filter(l => l.app != null).sort((a, b) => b.seconds - a.seconds)
+export default function AppUsageList({ logs, ignoredApps }: Props) {
+  const sorted = logs
+    .filter(l => l.app != null && !ignoredApps?.has(l.app.toLowerCase()))
+    .sort((a, b) => b.seconds - a.seconds)
 
   if (sorted.length === 0) {
     return (

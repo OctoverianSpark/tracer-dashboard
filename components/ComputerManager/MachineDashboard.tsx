@@ -98,6 +98,7 @@ export default function ComputersDashboard({ machines }: Props) {
       m.hostname.toLowerCase().includes(search.toLowerCase()) ||
       machineLabel(m).toLowerCase().includes(search.toLowerCase()) ||
       m.username?.toLowerCase().includes(search.toLowerCase()) ||
+      m.displayName?.toLowerCase().includes(search.toLowerCase()) ||
       m.ip_address?.toLowerCase().includes(search.toLowerCase())
     ), [machines, filter, search])
 
