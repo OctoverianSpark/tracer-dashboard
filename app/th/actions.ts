@@ -6,7 +6,7 @@ import { getCategorizationApps } from '../supervisors/categorization-actions'
 import { AppUser, AppUsageLog } from '@/types/AppUser'
 import { Machine } from '@/types/Machine'
 import { Programation } from '@/types/Schedules'
-import { StateLog, StateLogCategory } from '@/types/StateLog'
+import { StateLog, StateLogCategory, StateLogState } from '@/types/StateLog'
 
 const DAY_KEYS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'] as const
 
@@ -162,9 +162,9 @@ export const getLateArrivals = async (date: string): Promise<LateArrival[]> => {
 
     const activeLogs = allLogs
       .filter(l => {
-        // StateLogState.OFFLINE = 5; el API devuelve el valor numérico
+        // StateLogState.OFFLINE = 6; el API devuelve el valor numérico
         const s = Number(l.state)
-        return s !== 5
+        return s !== StateLogState.OFFLINE
       })
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 

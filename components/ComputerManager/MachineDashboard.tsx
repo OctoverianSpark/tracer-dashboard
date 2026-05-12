@@ -1,7 +1,8 @@
 'use client'
 import { Machine, machineLabel } from '@/types/Machine'
 import { Monitor, Wifi, WifiOff, User, Clock, Search, LayoutGrid, List, FileDown } from 'lucide-react'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { getMachines } from '@/app/computers/actions'
 import { Card, CardContent, CardHeader } from '@/app/_components/_ui/card'
 import { Input } from '@/app/_components/_ui/input'
 import { Badge } from '@/app/_components/_ui/badge'
@@ -83,11 +84,31 @@ function exportXLSX(machines: Machine[]) {
   XLSX.writeFile(wb, `equipos_${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
-export default function ComputersDashboard({ machines }: Props) {
+const POLL_INTERVAL = 30_000
+
+export default function ComputersDashboard({ machines: initial }: Props) {
+  const [machines, setMachines] = useState<Machine[]>(initial)
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
+  const [polling, setPolling] = useState(false)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all')
   const [view, setView]     = useState<'grid' | 'table'>('grid')
   const [page, setPage]     = useState(1)
+
+  const refresh = useCallback(async () => {
+    setPolling(true)
+    try {
+      const fresh = await getMachines()
+      if (fresh?.length) { setMachines(fresh); setLastUpdated(new Date()) }
+    } finally {
+      setPolling(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    const id = setInterval(refresh, POLL_INTERVAL)
+    return () => clearInterval(id)
+  }, [refresh])
 
   const online  = useMemo(() => machines.filter(m => m.alive || m.isAlive), [machines])
   const offline = useMemo(() => machines.filter(m => !m.alive && !m.isAlive), [machines])
@@ -120,6 +141,10 @@ export default function ComputersDashboard({ machines }: Props) {
 
       {/* Barra de herramientas */}
       <div className='flex gap-2 items-center flex-wrap'>
+        <div className='flex items-center gap-1.5 text-xs text-muted-foreground'>
+          <span className={`size-2 rounded-full ${polling ? 'bg-yellow-400 animate-pulse' : 'bg-green-500 animate-pulse'}`} />
+          {polling ? 'Actualizando...' : `Actualizado ${lastUpdated.toLocaleTimeString('es-CO', { timeStyle: 'short' })}`}
+        </div>
         <div className='relative flex-1 min-w-0 w-full sm:w-auto'>
           <Search className='absolute left-2.5 top-2.5 size-4 text-muted-foreground' />
           <Input

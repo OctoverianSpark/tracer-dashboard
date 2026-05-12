@@ -10,12 +10,13 @@ export interface StateLog {
 
 
 export enum StateLogState {
-  TRABAJANDO,
-  BREAK,
-  WC,
-  ALMUERZO,
-  IDLE,
-  OFFLINE
+  TRABAJANDO,   // 0
+  OVERTIME,     // 1
+  BREAK,        // 2
+  WC,           // 3
+  ALMUERZO,     // 4
+  IDLE,         // 5
+  OFFLINE       // 6
 }
 export enum StateLogCategory {
   ACTIVE,
