@@ -59,13 +59,14 @@ interface Block {
 
 function stateLabel(state: string): string {
   switch (state.toUpperCase()) {
-    case "0": case "TRABAJANDO": case "WORKING": return "Trabajando"
-    case "1": case "BREAK":                      return "Descanso"
-    case "2": case "WC":                         return "Baño"
-    case "3": case "ALMUERZO":   case "LUNCH":   return "Almuerzo"
-    case "4": case "IDLE":                       return "Inactivo"
-    case "5": case "OFFLINE":                    return "Desconectado"
-    default:                                     return state
+    case "0": case "TRABAJANDO": case "WORKING":  return "Trabajando"
+    case "1": case "OVERTIME":                    return "Horas Extras"
+    case "2": case "BREAK":                       return "Descanso"
+    case "3": case "WC":                          return "Baño"
+    case "4": case "ALMUERZO":  case "LUNCH":     return "Almuerzo"
+    case "5": case "IDLE":                        return "Inactivo"
+    case "6": case "OFFLINE":                     return "Desconectado"
+    default:                                      return state
   }
 }
 
@@ -215,45 +216,43 @@ export function Timeline({ logs, scheduleStart, scheduleEnd, className }: Produc
               </TooltipContent>
             </Tooltip>
           ))}
+
+          {/* Marca de entrada según malla — dentro del track para que overflow-hidden la contenga */}
+          {scheduleStartMins !== null && (
+            <div
+              className={cn(
+                "absolute top-0 h-full z-20 pointer-events-none border-l-2 border-dashed",
+                isLate ? "border-orange-400" : "border-emerald-500"
+              )}
+              style={{ left: `${pct(scheduleStartMins)}%` }}
+            >
+              <span className={cn(
+                "absolute top-1 left-1 text-[9px] font-sans font-semibold whitespace-nowrap",
+                isLate ? "text-orange-300" : "text-emerald-300"
+              )}>
+                Entrada
+              </span>
+            </div>
+          )}
+
+          {/* Marca de fin de turno según malla — dentro del track */}
+          {scheduleEndMins !== null && (
+            <div
+              className={cn(
+                "absolute top-0 h-full z-20 pointer-events-none border-l-2 border-dashed",
+                isOvertime ? "border-red-400" : "border-muted-foreground/50"
+              )}
+              style={{ left: `${pct(scheduleEndMins)}%` }}
+            >
+              <span className={cn(
+                "absolute top-1 left-1 text-[9px] font-sans font-semibold whitespace-nowrap",
+                isOvertime ? "text-red-300" : "text-muted-foreground"
+              )}>
+                Fin turno
+              </span>
+            </div>
+          )}
         </div>
-
-        {/* Marca de entrada según malla */}
-        {scheduleStartMins !== null && (
-          <div
-            className={cn(
-              "absolute top-0 h-10 z-20 pointer-events-none",
-              "border-l-2 border-dashed",
-              isLate ? "border-orange-400" : "border-emerald-500"
-            )}
-            style={{ left: `${pct(scheduleStartMins)}%` }}
-          >
-            <span className={cn(
-              "absolute -top-5 -translate-x-1/2 text-[10px] font-sans font-medium whitespace-nowrap px-1 rounded",
-              isLate ? "text-orange-400" : "text-emerald-500"
-            )}>
-              Entrada
-            </span>
-          </div>
-        )}
-
-        {/* Marca de fin de turno según malla */}
-        {scheduleEndMins !== null && (
-          <div
-            className={cn(
-              "absolute top-0 h-10 z-20 pointer-events-none",
-              "border-l-2 border-dashed",
-              isOvertime ? "border-red-400" : "border-muted-foreground/50"
-            )}
-            style={{ left: `${pct(scheduleEndMins)}%` }}
-          >
-            <span className={cn(
-              "absolute -top-5 -translate-x-1/2 text-[10px] font-sans font-medium whitespace-nowrap px-1 rounded",
-              isOvertime ? "text-red-400" : "text-muted-foreground"
-            )}>
-              Fin turno
-            </span>
-          </div>
-        )}
 
         {/* Hour ticks */}
         <div className="relative mt-1 h-4 overflow-x-hidden">
