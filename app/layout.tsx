@@ -24,7 +24,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <Toaster position='top-right' />
         <Providers>
           {session && <AppSidebar />}
-          <div className='flex flex-col w-full h-full min-h-screen'>
+          <div className='flex flex-col flex-1 min-w-0 h-full min-h-screen'>
             {session && <AppHeader />}
             <main className='flex-1 p-4 sm:p-6 w-full relative z-0'>{children}</main>
           </div>
