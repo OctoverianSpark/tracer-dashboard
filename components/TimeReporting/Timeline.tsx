@@ -154,7 +154,7 @@ export function Timeline({ logs, scheduleStart, scheduleEnd, className }: Produc
   const isOvertime = overtimeBlock !== null && overtimeBlock !== undefined
 
   return (
-    <div className={cn("w-full space-y-4 font-mono", className)}>
+    <div className={cn("w-full min-w-0 overflow-x-hidden space-y-4 font-mono", className)}>
 
       {/* Header */}
       <div className="flex items-end justify-between flex-wrap gap-3">

@@ -37,7 +37,7 @@ export default function AppUsageList({ logs, ignoredApps }: Props) {
         return (
           <div key={crypto.randomUUID()} className='space-y-1'>
             <div className='flex items-center justify-between gap-2'>
-              <span className='font-mono text-sm truncate'>{l.app}</span>
+              <span className='font-mono text-sm truncate min-w-0'>{l.app}</span>
               <span className='text-sm text-muted-foreground shrink-0'>{fmtSecs(l.seconds)}</span>
             </div>
             <div className='h-1.5 rounded-full bg-secondary overflow-hidden'>
