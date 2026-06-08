@@ -25,7 +25,7 @@ export default function Page() {
   const [screenshots, setScreenshots]             = useState<string[]>([])
   const [actualMonitor, setActualMonitor]         = useState<number | null>(null)
   const [loading, setLoading]                     = useState(false)
-  const [productivityByInterval, setProductivityByInterval] = useState<Map<number, number>>(new Map())
+  const [productivityIntervals, setProductivityIntervals] = useState<{ start: number; end: number; pct: number }[]>([])
 
   const currentUserId    = Number(session?.appUser?.id)
   const currentGroup     = groups.find(g => g.id === session?.appUser?.group_id)
@@ -62,17 +62,19 @@ export default function Page() {
   // Carga de productividad por intervalo (independiente, best-effort)
   useEffect(() => {
     if (!machine) return
-    setProductivityByInterval(new Map())
+    setProductivityIntervals([])
     Promise.all([
       getRawAppUsageLogs(date, machine.id),
       getCategorizationApps(),
     ]).then(([rawLogs, categorizationApps]) => {
-      console.log('[Prod] logs recibidos:', rawLogs.length, '| machine.id:', machine.id, '| primer log:', rawLogs[0])
-
       const categoryMap = new Map(categorizationApps.map(a => [a.name.toLowerCase(), a.category]))
-      const map         = new Map<number, number>()
+      const intervals: { start: number; end: number; pct: number }[] = []
 
       for (const log of rawLogs) {
+        const startMs = new Date(log.interval_start).getTime()
+        const endMs   = new Date(log.interval_end).getTime()
+        if (!startMs || !endMs || endMs <= startMs) continue
+
         let prod = 0, unprod = 0, uncat = 0
         for (const a of log.apps ?? []) {
           const cat = categoryMap.get(a.app.toLowerCase())
@@ -81,18 +83,14 @@ export default function Page() {
           else if (cat === 'unproductive') unprod += a.seconds
           else                             uncat  += a.seconds
         }
-        const startMs   = new Date(log.interval_start).getTime()
-        const endMs     = new Date(log.interval_end).getTime()
-        const durSecs   = endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
+        const durSecs   = Math.round((endMs - startMs) / 1000)
         const effective = prod + uncat * 0.3
-        const pct       = durSecs > 0 ? Math.min(100, Math.round((effective / durSecs) * 100)) : -1
-        const bucket    = Math.floor(startMs / 300_000) * 300_000
-        map.set(bucket, pct)
+        const pct       = Math.min(100, Math.round((effective / durSecs) * 100))
+        intervals.push({ start: startMs, end: endMs, pct })
       }
 
-      console.log('[Prod] mapa generado:', map.size, 'entradas')
-      setProductivityByInterval(map)
-    }).catch(err => console.error('[Prod] Error cargando productividad:', err))
+      setProductivityIntervals(intervals)
+    }).catch(err => console.error('[Prod] Error:', err))
   }, [machine, date])
 
   const monitorCount = useMemo(() => {
@@ -178,7 +176,7 @@ export default function Page() {
             <ReportScreenshotsList
               machineName={machine.hostname}
               screenshots={filteredScreenshots}
-              productivityByInterval={productivityByInterval}
+              productivityIntervals={productivityIntervals}
             />
           )}
         </div>

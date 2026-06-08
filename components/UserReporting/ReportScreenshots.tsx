@@ -7,10 +7,12 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+interface IntervalPct { start: number; end: number; pct: number }
+
 interface ScreenshotsListProps {
   screenshots: string[]
   machineName: string
-  productivityByInterval?: Map<number, number>
+  productivityIntervals?: IntervalPct[]
 }
 
 const PAGE_SIZE = 24
@@ -38,13 +40,13 @@ function parseTime(fileName: string): string {
   return `${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}`
 }
 
-function fileBucket(fileName: string): number | null {
+function fileMs(fileName: string): number | null {
   const match = fileName.match(/(\d{8})-(\d{6})/)
   if (!match) return null
   const [, d, t] = match
   const iso = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}`
   const ms = new Date(iso).getTime()
-  return isNaN(ms) ? null : Math.floor(ms / 300_000) * 300_000
+  return isNaN(ms) ? null : ms
 }
 
 function ProductivityBadge({ pct }: { pct: number | undefined }) {
@@ -58,7 +60,7 @@ function ProductivityBadge({ pct }: { pct: number | undefined }) {
   )
 }
 
-export default function ReportScreenshotsList({ screenshots, machineName, productivityByInterval }: ScreenshotsListProps) {
+export default function ReportScreenshotsList({ screenshots, machineName, productivityIntervals }: ScreenshotsListProps) {
   const [page, setPage] = useState(1)
   const [openIndex, setOpenIndex] = useState<number | null>(null)
 
@@ -83,14 +85,10 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
   }, [openIndex, goTo])
 
   const getPct = (fileName: string): number | undefined => {
-    if (!productivityByInterval || productivityByInterval.size === 0) return undefined
-    const bucket = fileBucket(fileName)
-    if (bucket === null) return undefined
-    const val = productivityByInterval.get(bucket)
-    if (val === undefined) {
-      console.log('[Prod] sin match para', fileName, '| bucket:', bucket, '| claves en mapa:', [...productivityByInterval.keys()].slice(0, 3))
-    }
-    return val
+    if (!productivityIntervals?.length) return undefined
+    const ms = fileMs(fileName)
+    if (ms === null) return undefined
+    return productivityIntervals.find(iv => ms >= iv.start && ms < iv.end)?.pct
   }
 
   const currentFile = openIndex !== null ? screenshots[openIndex] : null
@@ -102,7 +100,7 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
     <>
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">{screenshots.length} capturas</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {visible.map((file, i) => {
             const pct = getPct(file)
             return (
@@ -118,7 +116,7 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
                     alt={parseDate(file)}
                     width={800}
                     height={450}
-                    className="rounded-md w-full object-contain h-56"
+                    className="rounded-md w-full object-contain h-36"
                   />
                   <div className="flex items-center justify-between mt-2 px-0.5">
                     <span className="text-xs text-muted-foreground">{parseTime(file)}</span>
