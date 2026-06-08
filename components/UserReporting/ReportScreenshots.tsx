@@ -53,7 +53,7 @@ function ProductivityBadge({ pct }: { pct: number | undefined }) {
   const color = pct >= 70 ? 'bg-green-600' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
   return (
     <span className={`text-xs text-white font-medium px-1.5 py-0.5 rounded ${color}`}>
-      {pct}% prod.
+      {pct}%
     </span>
   )
 }

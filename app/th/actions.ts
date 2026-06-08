@@ -270,6 +270,8 @@ export const getTHProductivityReport = async (date: string): Promise<THProductiv
     const total         = totalIntervalSecs
     const categorized   = productive + unproductive
     const scheduledSecs = scheduledMinutes * 60
+    // efectivo: productivo 100% + sin-categoría 30% (beneficio de la duda al usuario)
+    const effective     = productive + uncategorized * 0.3
 
     return {
       user, programation, scheduledMinutes,
@@ -277,9 +279,9 @@ export const getTHProductivityReport = async (date: string): Promise<THProductiv
       unproductiveSeconds:  Math.round(unproductive),
       uncategorizedSeconds: Math.round(uncategorized),
       totalSeconds:         Math.round(total),
-      appProductivityPercent:     categorized > 0    ? Math.round((productive / categorized)   * 100) : 0,
-      workCompliancePercent:      scheduledSecs > 0  ? Math.min(100, Math.round((total       / scheduledSecs) * 100)) : 0,
-      overallProductivityPercent: scheduledSecs > 0  ? Math.min(100, Math.round((productive  / scheduledSecs) * 100)) : 0,
+      appProductivityPercent:     categorized > 0   ? Math.round((productive / categorized)  * 100) : 0,
+      workCompliancePercent:      scheduledSecs > 0 ? Math.min(100, Math.round((total      / scheduledSecs) * 100)) : 0,
+      overallProductivityPercent: scheduledSecs > 0 ? Math.min(100, Math.round((effective  / scheduledSecs) * 100)) : 0,
     }
   })
 }

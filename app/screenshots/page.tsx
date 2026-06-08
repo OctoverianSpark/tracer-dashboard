@@ -55,26 +55,29 @@ export default function Page() {
     setLoading(true)
     Promise.all([
       getMachineReport(machine.hostname, date),
-      getRawAppUsageLogs(date),
+      getRawAppUsageLogs(date, machine.id ?? undefined),
       getCategorizationApps(),
     ]).then(([report, rawLogs, categorizationApps]) => {
       setScreenshots(report.files ?? [])
 
-      const machineId   = Number(machine.id)
       const categoryMap = new Map(categorizationApps.map(a => [a.name.toLowerCase(), a.category]))
       const map         = new Map<number, number>()
 
       for (const log of rawLogs) {
-        if (Number(log.computer_id) !== machineId) continue
-        let prod = 0, unprod = 0
+        let prod = 0, unprod = 0, uncat = 0
         for (const a of log.apps ?? []) {
           const cat = categoryMap.get(a.app.toLowerCase())
           if (cat === 'ignore') continue
           if (cat === 'productive')        prod   += a.seconds
           else if (cat === 'unproductive') unprod += a.seconds
+          else                             uncat  += a.seconds
         }
-        const categorized = prod + unprod
-        const pct    = categorized > 0 ? Math.round((prod / categorized) * 100) : -1
+        // misma fórmula que Global: productivo 100% + sin-categ 30%
+        const startMs  = new Date(log.interval_start).getTime()
+        const endMs    = new Date(log.interval_end).getTime()
+        const durSecs  = endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
+        const effective = prod + uncat * 0.3
+        const pct       = durSecs > 0 ? Math.min(100, Math.round((effective / durSecs) * 100)) : -1
         const bucket = Math.floor(new Date(log.interval_start).getTime() / 300_000) * 300_000
         map.set(bucket, pct)
       }

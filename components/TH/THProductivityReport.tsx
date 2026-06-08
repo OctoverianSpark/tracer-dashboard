@@ -142,7 +142,7 @@ export default function THProductivityReport() {
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground border rounded-md p-3">
         <span><span className="font-semibold text-foreground">Apps prod.</span> = productivas / (prod + improd)</span>
         <span><span className="font-semibold text-foreground">Cumplimiento</span> = intervalos activos × 5 min ÷ jornada programada</span>
-        <span><span className="font-semibold text-foreground">Global</span> = productivas / jornada programada</span>
+        <span><span className="font-semibold text-foreground">Global</span> = (productivo + sin-categ × 30%) ÷ jornada programada</span>
       </div>
 
       {data === null && !loading && (

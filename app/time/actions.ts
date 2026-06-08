@@ -65,11 +65,12 @@ export const deleteSchedule = async (id: number) => {
   revalidatePath('/time/control')
 }
 
-export const getRawAppUsageLogs = async (date: string): Promise<AppUsageLog[]> => {
+export const getRawAppUsageLogs = async (date: string, computer_id?: number): Promise<AppUsageLog[]> => {
   const params = new URLSearchParams({
     from: `${date}T00:00:00`,
     to: `${date}T23:59:59`,
   })
+  if (computer_id != null) params.set('computer_id', String(computer_id))
   const raw = await fetcher<any>(`${API}/app-usage-logs/by-date?${params}`)
   const list: AppUsageLog[] = Array.isArray(raw) ? raw : (raw?.data ?? raw?.logs ?? [])
   return list

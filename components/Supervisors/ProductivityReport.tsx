@@ -198,7 +198,7 @@ export default function ProductivityReport() {
         </span>
         <span>
           <span className='font-semibold text-foreground'>Global</span>
-          {' '}= tiempo en apps productivas (estado activo) ÷ jornada programada
+          {' '}= (productivo + sin-categ × 30%) ÷ jornada programada
         </span>
       </div>
 

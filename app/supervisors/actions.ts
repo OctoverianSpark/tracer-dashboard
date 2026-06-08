@@ -247,13 +247,15 @@ export const getProductivityReport = async (date: string): Promise<UserProductiv
     }
 
     // totalIntervalSecs = suma de duraciones de intervalos activos (unidad: bloques de ~5 min)
-    const total = totalIntervalSecs
-    const categorized = productive + unproductive
+    const total         = totalIntervalSecs
+    const categorized   = productive + unproductive
     const scheduledSecs = scheduledMinutes * 60
+    // efectivo: productivo 100% + sin-categoría 30% (beneficio de la duda al usuario)
+    const effective = productive + uncategorized * 0.3
 
-    const appProd = categorized > 0 ? Math.round((productive / categorized) * 100) : 0
-    const compliance = scheduledSecs > 0 ? Math.min(100, Math.round((total / scheduledSecs) * 100)) : 0
-    const overall = scheduledSecs > 0 ? Math.min(100, Math.round((productive / scheduledSecs) * 100)) : 0
+    const appProd    = categorized > 0   ? Math.round((productive / categorized)  * 100) : 0
+    const compliance = scheduledSecs > 0 ? Math.min(100, Math.round((total      / scheduledSecs) * 100)) : 0
+    const overall    = scheduledSecs > 0 ? Math.min(100, Math.round((effective   / scheduledSecs) * 100)) : 0
 
     return {
       user, machine: primaryMachine, programation, scheduledMinutes,
