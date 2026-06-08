@@ -50,15 +50,24 @@ export default function Page() {
     })
   }, [selectedUser])
 
+  // Carga de capturas (crítica)
   useEffect(() => {
     if (!machine) return
     setLoading(true)
+    getMachineReport(machine.hostname, date)
+      .then(data => setScreenshots(data.files ?? []))
+      .finally(() => setLoading(false))
+  }, [machine, date])
+
+  // Carga de productividad por intervalo (independiente, best-effort)
+  useEffect(() => {
+    if (!machine) return
+    setProductivityByInterval(new Map())
     Promise.all([
-      getMachineReport(machine.hostname, date),
-      getRawAppUsageLogs(date, machine.id ?? undefined),
+      getRawAppUsageLogs(date, machine.id),
       getCategorizationApps(),
-    ]).then(([report, rawLogs, categorizationApps]) => {
-      setScreenshots(report.files ?? [])
+    ]).then(([rawLogs, categorizationApps]) => {
+      console.log('[Prod] logs recibidos:', rawLogs.length, '| machine.id:', machine.id, '| primer log:', rawLogs[0])
 
       const categoryMap = new Map(categorizationApps.map(a => [a.name.toLowerCase(), a.category]))
       const map         = new Map<number, number>()
@@ -72,18 +81,18 @@ export default function Page() {
           else if (cat === 'unproductive') unprod += a.seconds
           else                             uncat  += a.seconds
         }
-        // misma fórmula que Global: productivo 100% + sin-categ 30%
-        const startMs  = new Date(log.interval_start).getTime()
-        const endMs    = new Date(log.interval_end).getTime()
-        const durSecs  = endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
+        const startMs   = new Date(log.interval_start).getTime()
+        const endMs     = new Date(log.interval_end).getTime()
+        const durSecs   = endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
         const effective = prod + uncat * 0.3
         const pct       = durSecs > 0 ? Math.min(100, Math.round((effective / durSecs) * 100)) : -1
-        const bucket = Math.floor(new Date(log.interval_start).getTime() / 300_000) * 300_000
+        const bucket    = Math.floor(startMs / 300_000) * 300_000
         map.set(bucket, pct)
       }
 
+      console.log('[Prod] mapa generado:', map.size, 'entradas')
       setProductivityByInterval(map)
-    }).finally(() => setLoading(false))
+    }).catch(err => console.error('[Prod] Error cargando productividad:', err))
   }, [machine, date])
 
   const monitorCount = useMemo(() => {

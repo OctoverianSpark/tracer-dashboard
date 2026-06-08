@@ -83,9 +83,14 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
   }, [openIndex, goTo])
 
   const getPct = (fileName: string): number | undefined => {
-    if (!productivityByInterval) return undefined
+    if (!productivityByInterval || productivityByInterval.size === 0) return undefined
     const bucket = fileBucket(fileName)
-    return bucket !== null ? productivityByInterval.get(bucket) : undefined
+    if (bucket === null) return undefined
+    const val = productivityByInterval.get(bucket)
+    if (val === undefined) {
+      console.log('[Prod] sin match para', fileName, '| bucket:', bucket, '| claves en mapa:', [...productivityByInterval.keys()].slice(0, 3))
+    }
+    return val
   }
 
   const currentFile = openIndex !== null ? screenshots[openIndex] : null
