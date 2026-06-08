@@ -1,6 +1,8 @@
 import ReleasePanel from '@/components/ReleasesManager/ReleasePanel'
 import { getReleaseInfo } from './actions'
 
+export const dynamic = 'force-dynamic'
+
 export default async function Page() {
   const info = await getReleaseInfo()
 
