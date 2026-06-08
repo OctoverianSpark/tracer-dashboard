@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/app/_components/_ui/button'
-import { Card, CardContent, CardHeader } from '@/app/_components/_ui/card'
+import { Card, CardContent } from '@/app/_components/_ui/card'
 import { Dialog, DialogContent, DialogTitle } from '@/app/_components/_ui/dialog'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 interface ScreenshotsListProps {
   screenshots: string[]
   machineName: string
+  productivityByInterval?: Map<number, number>
 }
 
 const PAGE_SIZE = 24
@@ -30,7 +31,34 @@ function parseDate(fileName: string): string {
   })
 }
 
-export default function ReportScreenshotsList({ screenshots, machineName }: ScreenshotsListProps) {
+function parseTime(fileName: string): string {
+  const match = fileName.match(/-(\d{6})/)
+  if (!match) return ''
+  const t = match[1]
+  return `${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}`
+}
+
+function fileBucket(fileName: string): number | null {
+  const match = fileName.match(/(\d{8})-(\d{6})/)
+  if (!match) return null
+  const [, d, t] = match
+  const iso = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}`
+  const ms = new Date(iso).getTime()
+  return isNaN(ms) ? null : Math.floor(ms / 300_000) * 300_000
+}
+
+function ProductivityBadge({ pct }: { pct: number | undefined }) {
+  if (pct === undefined) return null
+  if (pct < 0) return <span className="text-xs text-muted-foreground">Sin datos</span>
+  const color = pct >= 70 ? 'bg-green-600' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+  return (
+    <span className={`text-xs text-white font-medium px-1.5 py-0.5 rounded ${color}`}>
+      {pct}% prod.
+    </span>
+  )
+}
+
+export default function ReportScreenshotsList({ screenshots, machineName, productivityByInterval }: ScreenshotsListProps) {
   const [page, setPage] = useState(1)
   const [openIndex, setOpenIndex] = useState<number | null>(null)
 
@@ -54,36 +82,47 @@ export default function ReportScreenshotsList({ screenshots, machineName }: Scre
     return () => window.removeEventListener('keydown', onKey)
   }, [openIndex, goTo])
 
+  const getPct = (fileName: string): number | undefined => {
+    if (!productivityByInterval) return undefined
+    const bucket = fileBucket(fileName)
+    return bucket !== null ? productivityByInterval.get(bucket) : undefined
+  }
+
   const currentFile = openIndex !== null ? screenshots[openIndex] : null
-  const currentSrc = currentFile ? `/api/screenshot/${machineName}/${currentFile}` : ''
+  const currentSrc  = currentFile ? `/api/screenshot/${machineName}/${currentFile}` : ''
   const currentDate = currentFile ? parseDate(currentFile) : ''
+  const currentPct  = currentFile ? getPct(currentFile) : undefined
 
   return (
     <>
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">{screenshots.length} capturas</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {visible.map((file, i) => (
-            <Card
-              key={file}
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => setOpenIndex(i)}
-            >
-              <CardHeader className="pb-2">
-                <p className="text-sm font-medium">{parseDate(file)}</p>
-              </CardHeader>
-              <CardContent>
-                <Image
-                  src={`/api/screenshot/${machineName}/${file}`}
-                  loading="lazy"
-                  alt={parseDate(file)}
-                  width={800}
-                  height={450}
-                  className="rounded-md w-full object-contain h-56"
-                />
-              </CardContent>
-            </Card>
-          ))}
+          {visible.map((file, i) => {
+            const pct = getPct(file)
+            return (
+              <Card
+                key={file}
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => setOpenIndex(i)}
+              >
+                <CardContent>
+                  <Image
+                    src={`/api/screenshot/${machineName}/${file}`}
+                    loading="lazy"
+                    alt={parseDate(file)}
+                    width={800}
+                    height={450}
+                    className="rounded-md w-full object-contain h-56"
+                  />
+                  <div className="flex items-center justify-between mt-2 px-0.5">
+                    <span className="text-xs text-muted-foreground">{parseTime(file)}</span>
+                    <ProductivityBadge pct={pct} />
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
         {remaining > 0 && (
           <div className="flex justify-center">
@@ -96,7 +135,10 @@ export default function ReportScreenshotsList({ screenshots, machineName }: Scre
 
       <Dialog open={openIndex !== null} onOpenChange={open => !open && setOpenIndex(null)}>
         <DialogContent className="sm:max-w-[92vw] w-[92vw] p-4 gap-3">
-          <DialogTitle className="text-center text-sm">{currentDate}</DialogTitle>
+          <DialogTitle className="text-center text-sm flex items-center justify-center gap-2">
+            {currentDate}
+            <ProductivityBadge pct={currentPct} />
+          </DialogTitle>
 
           <div className="w-full h-[75vh] flex items-center justify-center overflow-hidden">
             {currentSrc && (

@@ -4,6 +4,8 @@ import { useSession } from 'next-auth/react'
 import { getMachineReport, findAsignedMachines } from '../computers/actions'
 import { getappuser } from '../app/actions'
 import { getGroups } from '../app/groups/actions'
+import { getRawAppUsageLogs } from '../time/actions'
+import { getCategorizationApps } from '../supervisors/categorization-actions'
 import ReportScreenshotsList from '@/components/UserReporting/ReportScreenshots'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../_components/_ui/select'
 import { Machine, machineLabel } from '@/types/Machine'
@@ -20,9 +22,10 @@ export default function Page() {
   const [selectedUser, setSelectedUser]   = useState<AppUser | undefined>()
   const [machine, setMachine]             = useState<Machine | undefined>()
   const [date, setDate]                   = useState(() => { const d = new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-') })
-  const [screenshots, setScreenshots]     = useState<string[]>([])
-  const [actualMonitor, setActualMonitor] = useState<number | null>(null)
-  const [loading, setLoading]             = useState(false)
+  const [screenshots, setScreenshots]             = useState<string[]>([])
+  const [actualMonitor, setActualMonitor]         = useState<number | null>(null)
+  const [loading, setLoading]                     = useState(false)
+  const [productivityByInterval, setProductivityByInterval] = useState<Map<number, number>>(new Map())
 
   const currentUserId    = Number(session?.appUser?.id)
   const currentGroup     = groups.find(g => g.id === session?.appUser?.group_id)
@@ -50,9 +53,34 @@ export default function Page() {
   useEffect(() => {
     if (!machine) return
     setLoading(true)
-    getMachineReport(machine.hostname, date)
-      .then(data => setScreenshots(data.files ?? []))
-      .finally(() => setLoading(false))
+    Promise.all([
+      getMachineReport(machine.hostname, date),
+      getRawAppUsageLogs(date),
+      getCategorizationApps(),
+    ]).then(([report, rawLogs, categorizationApps]) => {
+      setScreenshots(report.files ?? [])
+
+      const machineId   = Number(machine.id)
+      const categoryMap = new Map(categorizationApps.map(a => [a.name.toLowerCase(), a.category]))
+      const map         = new Map<number, number>()
+
+      for (const log of rawLogs) {
+        if (Number(log.computer_id) !== machineId) continue
+        let prod = 0, unprod = 0
+        for (const a of log.apps ?? []) {
+          const cat = categoryMap.get(a.app.toLowerCase())
+          if (cat === 'ignore') continue
+          if (cat === 'productive')        prod   += a.seconds
+          else if (cat === 'unproductive') unprod += a.seconds
+        }
+        const categorized = prod + unprod
+        const pct    = categorized > 0 ? Math.round((prod / categorized) * 100) : -1
+        const bucket = Math.floor(new Date(log.interval_start).getTime() / 300_000) * 300_000
+        map.set(bucket, pct)
+      }
+
+      setProductivityByInterval(map)
+    }).finally(() => setLoading(false))
   }, [machine, date])
 
   const monitorCount = useMemo(() => {
@@ -135,7 +163,11 @@ export default function Page() {
           {loading ? (
             <p className="text-sm text-muted-foreground py-4">Cargando capturas...</p>
           ) : (
-            <ReportScreenshotsList machineName={machine.hostname} screenshots={filteredScreenshots} />
+            <ReportScreenshotsList
+              machineName={machine.hostname}
+              screenshots={filteredScreenshots}
+              productivityByInterval={productivityByInterval}
+            />
           )}
         </div>
       )}

@@ -194,7 +194,7 @@ export default function ProductivityReport() {
         </span>
         <span>
           <span className='font-semibold text-foreground'>Cumplimiento</span>
-          {' '}= tiempo total en apps (estado activo) ÷ jornada programada
+          {' '}= intervalos activos × 5 min ÷ jornada programada
         </span>
         <span>
           <span className='font-semibold text-foreground'>Global</span>

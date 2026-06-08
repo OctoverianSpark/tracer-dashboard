@@ -48,7 +48,7 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
 
   return users.map(user => {
     const userScheduleToday = schedules.find(
-      s => s.appuser_id === user.id && s.day_of_week === todayKey
+      s => Number(s.appuser_id) === Number(user.id) && s.day_of_week === todayKey
     )
 
     let shouldBeConnected = false
@@ -218,11 +218,16 @@ export const getProductivityReport = async (date: string): Promise<UserProductiv
     }
     if (!allIntervals.length) return empty
 
-    let productive = 0, unproductive = 0, uncategorized = 0
+    let productive = 0, unproductive = 0, uncategorized = 0, totalIntervalSecs = 0
     const appMap = new Map<string, UserAppUsage>()
 
     for (const interval of allIntervals) {
       if (!isIntervalActive(interval, allActiveWindows)) continue
+
+      const startMs = new Date(interval.interval_start).getTime()
+      const endMs   = new Date(interval.interval_end).getTime()
+      totalIntervalSecs += endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
+
       for (const a of interval.apps ?? []) {
         const cat = categoryMap.get(a.app.toLowerCase())
         if (cat === 'ignore') continue
@@ -241,7 +246,8 @@ export const getProductivityReport = async (date: string): Promise<UserProductiv
       }
     }
 
-    const total = productive + unproductive + uncategorized
+    // totalIntervalSecs = suma de duraciones de intervalos activos (unidad: bloques de ~5 min)
+    const total = totalIntervalSecs
     const categorized = productive + unproductive
     const scheduledSecs = scheduledMinutes * 60
 

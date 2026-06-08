@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npx tsc *)",
       "Bash(cat)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(xargs grep -l \"calculateProductivity\\\\|computeProductivity\\\\|calculateMetric\")",
+      "Bash(xargs grep -l \"interval_start.*interval_end\")"
     ]
   }
 }

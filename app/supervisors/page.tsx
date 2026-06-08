@@ -6,7 +6,6 @@ import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
 import ConnectedUsersTable from '@/components/Supervisors/ConnectedUsersTable'
 import ProductivityReport from '@/components/Supervisors/ProductivityReport'
-import AppCategorization from '@/components/Supervisors/AppCategorization'
 import { Loader2, RefreshCw, Wifi, WifiOff } from 'lucide-react'
 
 export default function SupervisorsPage() {
@@ -58,7 +57,6 @@ export default function SupervisorsPage() {
             )}
           </TabsTrigger>
           <TabsTrigger value="productivity">Productividad</TabsTrigger>
-          <TabsTrigger value="categorization">Categorización de apps</TabsTrigger>
         </TabsList>
 
         <TabsContent value="connected" className="mt-4">
@@ -79,9 +77,6 @@ export default function SupervisorsPage() {
           <ProductivityReport />
         </TabsContent>
 
-        <TabsContent value="categorization" className="mt-4">
-          <AppCategorization />
-        </TabsContent>
       </Tabs>
     </div>
   )

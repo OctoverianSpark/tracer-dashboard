@@ -249,9 +249,14 @@ export const getTHProductivityReport = async (date: string): Promise<THProductiv
 
     if (!allIntervals.length) return empty
 
-    let productive = 0, unproductive = 0, uncategorized = 0
+    let productive = 0, unproductive = 0, uncategorized = 0, totalIntervalSecs = 0
     for (const interval of allIntervals) {
       if (!isIntervalActive(interval, allActiveWindows)) continue
+
+      const startMs = new Date(interval.interval_start).getTime()
+      const endMs   = new Date(interval.interval_end).getTime()
+      totalIntervalSecs += endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
+
       for (const a of interval.apps ?? []) {
         const cat = categoryMap.get(a.app.toLowerCase())
         if (cat === 'ignore') continue
@@ -261,7 +266,8 @@ export const getTHProductivityReport = async (date: string): Promise<THProductiv
       }
     }
 
-    const total         = productive + unproductive + uncategorized
+    // totalIntervalSecs = suma de duraciones de intervalos activos (bloques de ~5 min)
+    const total         = totalIntervalSecs
     const categorized   = productive + unproductive
     const scheduledSecs = scheduledMinutes * 60
 

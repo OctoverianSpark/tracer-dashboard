@@ -1,7 +1,7 @@
 import { getMachines } from '../actions'
-import MachineList from '@/components/ComputerManager/MachineList'
+import ComputersControlTabs from '@/components/ComputerManager/ComputersControlTabs'
 
 export default async function Page() {
   const machines = await getMachines()
-  return <MachineList machines={machines} />
+  return <ComputersControlTabs machines={machines} />
 }
