@@ -87,16 +87,19 @@ export default function Page() {
         const endMs   = new Date(log.interval_end).getTime()
         if (!startMs || !endMs || endMs <= startMs) continue
 
-        const durSecs      = Math.round((endMs - startMs) / 1000)
-        const clicks       = log.MouseClicks ?? 0
-        const keystrokes   = log.Keystrokes  ?? 0
-        const activity     = clicks + keystrokes
-        const eventsPerMin = (activity * 60) / durSecs
-        const pct          = Math.min(100, Math.round(Math.log2(eventsPerMin + 1) / Math.log2(31) * 100))
+        // Mínimos esperados por intervalo para considerar 100% activo
+        const MIN_CLICKS = 5
+        const MIN_KEYS   = 15
+
+        const clicks     = log.MouseClicks ?? 0
+        const keystrokes = log.Keystrokes  ?? 0
+        const clicksPct  = Math.min(100, Math.round((clicks     / MIN_CLICKS) * 100))
+        const keysPct    = Math.min(100, Math.round((keystrokes / MIN_KEYS)   * 100))
+        const pct        = Math.round((clicksPct + keysPct) / 2)
 
         console.log(
           `%c${new Date(startMs).toLocaleTimeString('es-CO')} – ${new Date(endMs).toLocaleTimeString('es-CO')}` +
-          `  🖱 ${clicks}  ⌨ ${keystrokes}  →  ${pct}%`,
+          `  🖱 ${clicks}(${clicksPct}%)  ⌨ ${keystrokes}(${keysPct}%)  →  ${pct}%`,
           pct >= 70 ? 'color:#22c55e' : pct >= 40 ? 'color:#eab308' : 'color:#ef4444'
         )
 
