@@ -84,10 +84,12 @@ export default function Page() {
         const endMs   = new Date(log.interval_end).getTime()
         if (!startMs || !endMs || endMs <= startMs) continue
 
-        const durSecs  = Math.round((endMs - startMs) / 1000)
-        const activity = (log.MouseClicks ?? 0) + (log.Keystrokes ?? 0)
-        // 1 evento de entrada por segundo = 100 % de actividad
-        const pct = Math.min(100, Math.round((activity / durSecs) * 100))
+        const durSecs      = Math.round((endMs - startMs) / 1000)
+        const activity     = (log.MouseClicks ?? 0) + (log.Keystrokes ?? 0)
+        // Escala log2: 30 eventos/min = 100 %; amigable con actividad baja
+        // 1/min → ~20 %   5/min → ~52 %   15/min → ~80 %   ≥30/min → 100 %
+        const eventsPerMin = (activity * 60) / durSecs
+        const pct          = Math.min(100, Math.round(Math.log2(eventsPerMin + 1) / Math.log2(31) * 100))
         intervals.push({ start: startMs, end: endMs, pct })
       }
 
