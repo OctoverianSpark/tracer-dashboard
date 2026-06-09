@@ -12,7 +12,7 @@ interface IntervalPct { start: number; end: number; pct: number }
 interface ScreenshotsListProps {
   screenshots: string[]
   machineName: string
-  productivityIntervals?: IntervalPct[]
+  productivityIntervals?: IntervalPct[] | undefined
 }
 
 const PAGE_SIZE = 24
@@ -51,12 +51,32 @@ function fileMs(fileName: string): number | null {
 
 function ProductivityBadge({ pct }: { pct: number | undefined }) {
   if (pct === undefined) return null
-  if (pct < 0) return <span className="text-xs text-muted-foreground">Sin datos</span>
   const color = pct >= 70 ? 'bg-green-600' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
   return (
     <span className={`text-xs text-white font-medium px-1.5 py-0.5 rounded ${color}`}>
       {pct}%
     </span>
+  )
+}
+
+function IntervalBar({ pct, loading }: { pct: number | undefined; loading: boolean }) {
+  if (loading) {
+    return <div className="w-full h-1.5 mt-1.5 bg-muted rounded-full animate-pulse" />
+  }
+  if (pct === undefined) {
+    return <div className="w-full h-1.5 mt-1.5 bg-muted/50 rounded-full" />
+  }
+  const bg = pct >= 70 ? 'bg-green-500' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+  const label = pct >= 70 ? 'text-green-500' : pct >= 40 ? 'text-yellow-500' : 'text-red-500'
+  return (
+    <div className="mt-1.5 space-y-0.5">
+      <div className="flex items-center justify-between">
+        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+          <div className={`h-full rounded-full ${bg}`} style={{ width: `${pct}%` }} />
+        </div>
+        <span className={`text-[10px] font-semibold ml-2 tabular-nums ${label}`}>{pct}%</span>
+      </div>
+    </div>
   )
 }
 
@@ -70,8 +90,26 @@ function fmt(ms: number) {
   return new Date(ms).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
 }
 
-function ProductivityTimeline({ intervals }: { intervals: IntervalPct[] }) {
-  if (!intervals.length) return null
+function ProductivityTimeline({ intervals }: { intervals: IntervalPct[] | undefined }) {
+  if (intervals === undefined) {
+    return (
+      <div className="space-y-1.5">
+        <p className="text-xs font-medium text-muted-foreground">Productividad por intervalo</p>
+        <div className="w-full h-8 bg-muted rounded animate-pulse" />
+      </div>
+    )
+  }
+
+  if (intervals.length === 0) {
+    return (
+      <div className="space-y-1.5">
+        <p className="text-xs font-medium text-muted-foreground">Productividad por intervalo</p>
+        <div className="w-full h-8 bg-muted rounded flex items-center justify-center">
+          <span className="text-xs text-muted-foreground">Sin datos de productividad para este día</span>
+        </div>
+      </div>
+    )
+  }
 
   const sorted = [...intervals].sort((a, b) => a.start - b.start)
   const minMs  = sorted[0].start
@@ -195,7 +233,12 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
   return (
     <>
       <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">{screenshots.length} capturas</p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">{screenshots.length} capturas</p>
+        </div>
+
+        <ProductivityTimeline intervals={productivityIntervals} />
+
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {visible.map((file, i) => {
             const pct = getPct(file)
@@ -214,9 +257,9 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
                     height={450}
                     className="rounded-md w-full object-contain h-36"
                   />
-                  <div className="flex items-center justify-between mt-2 px-0.5">
+                  <div className="mt-2 px-0.5">
                     <span className="text-xs text-muted-foreground">{parseTime(file)}</span>
-                    <ProductivityBadge pct={pct} />
+                    <IntervalBar pct={pct} loading={productivityIntervals === undefined} />
                   </div>
                 </CardContent>
               </Card>
@@ -231,9 +274,6 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
           </div>
         )}
 
-        {productivityIntervals && productivityIntervals.length > 0 && (
-          <ProductivityTimeline intervals={productivityIntervals} />
-        )}
       </div>
 
       <Dialog open={openIndex !== null} onOpenChange={open => !open && setOpenIndex(null)}>

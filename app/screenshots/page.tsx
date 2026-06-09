@@ -25,7 +25,7 @@ export default function Page() {
   const [screenshots, setScreenshots]             = useState<string[]>([])
   const [actualMonitor, setActualMonitor]         = useState<number | null>(null)
   const [loading, setLoading]                     = useState(false)
-  const [productivityIntervals, setProductivityIntervals] = useState<{ start: number; end: number; pct: number }[]>([])
+  const [productivityIntervals, setProductivityIntervals] = useState<{ start: number; end: number; pct: number }[] | undefined>(undefined)
 
   const [visibleGroupIds, setVisibleGroupIds] = useState<number[]>([])
 
@@ -57,6 +57,7 @@ export default function Page() {
     setMachine(undefined)
     setScreenshots([])
     setActualMonitor(null)
+    setProductivityIntervals(undefined)
     findAsignedMachines(selectedUser.id!).then(machines => {
       setMachines(machines)
       if (machines.length === 1) setMachine(machines[0])
@@ -75,7 +76,7 @@ export default function Page() {
   // Carga de productividad por intervalo (independiente, best-effort)
   useEffect(() => {
     if (!machine) return
-    setProductivityIntervals([])
+    setProductivityIntervals(undefined) // undefined = cargando
     Promise.all([
       getRawAppUsageLogs(date, machine.id),
       getCategorizationApps(),
