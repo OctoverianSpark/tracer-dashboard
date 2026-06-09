@@ -68,6 +68,16 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
 
   useEffect(() => { setPage(1) }, [screenshots])
 
+  useEffect(() => {
+    if (!productivityIntervals?.length || !screenshots.length) return
+    const first = screenshots[0]
+    const ms = fileMs(first)
+    console.log('[DEBUG] screenshots:', screenshots.length, '| intervals:', productivityIntervals.length)
+    console.log('[DEBUG] first file:', first)
+    console.log('[DEBUG] fileMs →', ms, ms ? new Date(ms).toISOString() : 'NULL')
+    console.log('[DEBUG] iv[0].start →', productivityIntervals[0].start, new Date(productivityIntervals[0].start).toISOString())
+  }, [productivityIntervals, screenshots])
+
   const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screenshots, page])
   const remaining = screenshots.length - visible.length
 
