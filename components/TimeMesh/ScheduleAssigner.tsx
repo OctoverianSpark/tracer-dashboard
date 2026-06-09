@@ -1,5 +1,5 @@
 'use client'
-import { saveSchedule, updateSchedule, deleteSchedule } from '@/app/time/actions'
+import { saveSchedule } from '@/app/time/actions'
 import { Programation, Schedule } from '@/types/Schedules'
 import { AppUser, Group } from '@/types/AppUser'
 import { useState, useEffect } from 'react'
@@ -73,31 +73,16 @@ export default function ScheduleAssigner({ appuser, programations, schedules, gr
   async function asignSchedule() {
     if (!validate()) return
 
-    const existing = schedules.filter(s => s.appuser_id === selectedappuser)
-    // Solo operar sobre los horarios de la programación seleccionada; las demás se conservan
-    const existingForProg = existing.filter(s => s.programation_id === selectedProgramation)
-
-    // Días de esta programación que ya no están seleccionados → eliminar
-    const toDelete = existingForProg.filter(s => !selectedDays.includes(s.day_of_week))
-    for (const s of toDelete) {
-      if (s.id) await deleteSchedule(s.id)
-    }
-
-    // Días seleccionados → actualizar si ya existe en esta programación, crear si no
-    const toSave: Schedule[] = []
-    for (const day of selectedDays) {
-      const match = existingForProg.find(s => s.day_of_week === day)
-      if (match?.id) {
-        await updateSchedule(match.id, {
-          appuser_id: selectedappuser!,
-          programation_id: selectedProgramation!,
-          day_of_week: day,
-        })
-      } else {
-        toSave.push({ appuser_id: selectedappuser!, programation_id: selectedProgramation!, day_of_week: day })
-      }
-    }
-    if (toSave.length > 0) await saveSchedule(toSave)
+    // El backend hace upsert por (appuser_id, day_of_week):
+    // si el día ya existe lo actualiza, si no lo crea.
+    // Los días no incluidos en este envío quedan intactos.
+    await saveSchedule(
+      selectedDays.map(day => ({
+        appuser_id: selectedappuser!,
+        programation_id: selectedProgramation!,
+        day_of_week: day,
+      }))
+    )
 
     setOpen(false)
     toast.success('Horario asignado a empleado')
