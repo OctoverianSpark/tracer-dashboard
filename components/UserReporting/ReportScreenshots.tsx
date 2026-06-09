@@ -90,6 +90,15 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
     if (!productivityIntervals?.length) return undefined
     const ms = fileMs(fileName)
     if (ms === null) return undefined
+
+    // LOG para diagnóstico (eliminar una vez confirmado)
+    if (productivityIntervals.length > 0) {
+      const iv0 = productivityIntervals[0]
+      console.log('[getPct] screenshot local:', new Date(ms).toLocaleTimeString(),
+        '| intervalo[0]:', new Date(iv0.start).toLocaleTimeString(), '–', new Date(iv0.end).toLocaleTimeString(),
+        '| pct:', iv0.pct)
+    }
+
     const exact = productivityIntervals.find(iv => ms >= iv.start && ms < iv.end)
     if (exact) return exact.pct
     // Fallback: intervalo más cercano dentro de 15 min
@@ -118,6 +127,11 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">{screenshots.length} capturas</p>
+          <p className="text-xs text-muted-foreground">
+            {productivityIntervals === undefined
+              ? 'Cargando productividad...'
+              : `${productivityIntervals.length} intervalos de prod.`}
+          </p>
         </div>
 
 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
