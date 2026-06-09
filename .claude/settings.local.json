@@ -6,7 +6,8 @@
       "Read(//tmp/**)",
       "Bash(xargs grep -l \"calculateProductivity\\\\|computeProductivity\\\\|calculateMetric\")",
       "Bash(xargs grep -l \"interval_start.*interval_end\")",
-      "Bash(Get-ChildItem -Path . -Name)"
+      "Bash(Get-ChildItem -Path . -Name)",
+      "Bash(npm install *)"
     ]
   }
 }

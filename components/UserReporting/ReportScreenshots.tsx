@@ -3,9 +3,28 @@
 import { Button } from '@/app/_components/_ui/button'
 import { Card, CardContent } from '@/app/_components/_ui/card'
 import { Dialog, DialogContent, DialogTitle } from '@/app/_components/_ui/dialog'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { zip } from 'fflate'
+import { Archive, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+
+async function downloadOne(url: string, filename: string) {
+  const res = await fetch(url)
+  const blob = await res.blob()
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(a.href)
+}
+
+function zipFiles(data: Record<string, Uint8Array>): Promise<Uint8Array> {
+  return new Promise((resolve, reject) =>
+    zip(data, (err, result) => (err ? reject(err) : resolve(result)))
+  )
+}
 
 interface IntervalPct { start: number; end: number; pct: number }
 
@@ -102,6 +121,41 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
   }
 
   const [imgLoaded, setImgLoaded] = useState(false)
+  const [zipping, setZipping] = useState(false)
+  const [zipProgress, setZipProgress] = useState(0)
+
+  async function handleDownloadZip() {
+    if (zipping) return
+    setZipping(true)
+    setZipProgress(0)
+    try {
+      const fileData: Record<string, Uint8Array> = {}
+      const BATCH = 5
+      for (let i = 0; i < screenshots.length; i += BATCH) {
+        await Promise.all(
+          screenshots.slice(i, i + BATCH).map(async f => {
+            const res = await fetch(`/api/screenshot/${machineName}/${f}`)
+            fileData[f] = new Uint8Array(await res.arrayBuffer())
+          })
+        )
+        setZipProgress(Math.min(i + BATCH, screenshots.length))
+      }
+      const data = await zipFiles(fileData)
+      const blob = new Blob([data], { type: 'application/zip' })
+      const dateStr = screenshots[0]?.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? 'export'
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `capturas_${machineName}_${dateStr}.zip`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(a.href)
+    } catch (e) {
+      console.error('[ZIP]', e)
+    } finally {
+      setZipping(false)
+    }
+  }
 
   const currentFile = openIndex !== null ? screenshots[openIndex] : null
   const currentSrc  = currentFile ? `/api/screenshot/${machineName}/${currentFile}` : ''
@@ -116,6 +170,10 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">{screenshots.length} capturas</p>
+          <Button variant="outline" size="sm" onClick={handleDownloadZip} disabled={zipping} className="gap-1.5">
+            <Archive className="h-3.5 w-3.5" />
+            {zipping ? `Empaquetando… ${zipProgress}/${screenshots.length}` : 'Descargar ZIP'}
+          </Button>
         </div>
 
 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -124,7 +182,7 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
             return (
               <Card
                 key={file}
-                className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden"
+                className="group cursor-pointer hover:shadow-md transition-shadow overflow-hidden"
                 onClick={() => setOpenIndex(i)}
               >
                 <CardContent className="p-0">
@@ -137,6 +195,13 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
                       height={450}
                       className="w-full object-contain h-36"
                     />
+                    <button
+                      className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 hover:bg-black/80 text-white rounded p-1"
+                      onClick={e => { e.stopPropagation(); downloadOne(`/api/screenshot/${machineName}/${file}`, file) }}
+                      title="Descargar captura"
+                    >
+                      <Download className="h-3 w-3" />
+                    </button>
                     {/* barra de productividad sobre la imagen */}
                     {productivityIntervals === undefined ? (
                       <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/20 animate-pulse" />
@@ -211,9 +276,19 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
             >
               <ChevronLeft />
             </Button>
-            <span className="text-sm text-muted-foreground">
-              {(openIndex ?? 0) + 1} / {screenshots.length}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                {(openIndex ?? 0) + 1} / {screenshots.length}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => currentSrc && currentFile && downloadOne(currentSrc, currentFile)}
+                title="Descargar esta captura"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            </div>
             <Button
               variant="outline"
               size="icon"
