@@ -3,7 +3,6 @@
 import { Button } from '@/app/_components/_ui/button'
 import { Card, CardContent } from '@/app/_components/_ui/card'
 import { Dialog, DialogContent, DialogTitle } from '@/app/_components/_ui/dialog'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -61,131 +60,7 @@ function ProductivityBadge({ pct }: { pct: number | undefined }) {
 }
 
 
-function pctColor(pct: number) {
-  if (pct >= 70) return '#22c55e'
-  if (pct >= 40) return '#eab308'
-  return '#ef4444'
-}
 
-function fmt(ms: number) {
-  return new Date(ms).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
-}
-
-function ProductivityTimeline({ intervals }: { intervals: IntervalPct[] | undefined }) {
-  if (intervals === undefined) {
-    return (
-      <div className="space-y-1.5">
-        <p className="text-xs font-medium text-muted-foreground">Productividad por intervalo</p>
-        <div className="w-full h-8 bg-muted rounded animate-pulse" />
-      </div>
-    )
-  }
-
-  if (intervals.length === 0) {
-    return (
-      <div className="space-y-1.5">
-        <p className="text-xs font-medium text-muted-foreground">Productividad por intervalo</p>
-        <div className="w-full h-8 bg-muted rounded flex items-center justify-center">
-          <span className="text-xs text-muted-foreground">Sin datos de productividad para este día</span>
-        </div>
-      </div>
-    )
-  }
-
-  const sorted = [...intervals].sort((a, b) => a.start - b.start)
-  const minMs  = sorted[0].start
-  const maxMs  = sorted[sorted.length - 1].end
-  const range  = maxMs - minMs
-  if (range <= 0) return null
-
-  const toLeft  = (ms: number) => ((ms - minMs) / range) * 100
-  const toWidth = (s: number, e: number) => Math.max(0.3, ((e - s) / range) * 100)
-
-  // Etiquetas de hora sobre el rango visible
-  const startHour = new Date(minMs).getHours()
-  const endHour   = new Date(maxMs).getHours() + 1
-  const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i)
-
-  return (
-    <div className="space-y-1.5 pt-2">
-      <p className="text-xs font-medium text-muted-foreground">Productividad por intervalo</p>
-
-      {/* Barra de colores */}
-      <TooltipProvider delayDuration={100}>
-      <div className="relative w-full h-8 bg-muted rounded overflow-hidden">
-        {sorted.map((iv, i) => (
-          <Tooltip key={i}>
-            <TooltipTrigger asChild>
-              <div
-                className="absolute h-full cursor-help transition-[filter] duration-100 hover:brightness-125 flex items-center justify-center overflow-hidden"
-                style={{
-                  left:            `${toLeft(iv.start)}%`,
-                  width:           `${toWidth(iv.start, iv.end)}%`,
-                  backgroundColor: pctColor(iv.pct),
-                }}
-              >
-                <span className="text-[10px] font-bold text-white/90 select-none leading-none">
-                  {iv.pct}%
-                </span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              <p className="text-xs font-medium">{fmt(iv.start)} – {fmt(iv.end)}</p>
-              <p className="text-xs">{iv.pct}% productividad</p>
-            </TooltipContent>
-          </Tooltip>
-        ))}
-        {/* Líneas de hora */}
-        {hours.map(h => {
-          const d = new Date(minMs)
-          d.setHours(h, 0, 0, 0)
-          const left = toLeft(d.getTime())
-          if (left < 0 || left > 100) return null
-          return (
-            <div
-              key={h}
-              className="absolute top-0 h-full border-l border-white/40 pointer-events-none"
-              style={{ left: `${left}%` }}
-            />
-          )
-        })}
-      </div>
-      </TooltipProvider>
-
-      {/* Labels de hora */}
-      <div className="relative w-full h-4">
-        {hours.map(h => {
-          const d = new Date(minMs)
-          d.setHours(h, 0, 0, 0)
-          const left = toLeft(d.getTime())
-          if (left < 0 || left > 100) return null
-          return (
-            <span
-              key={h}
-              className="absolute text-[10px] text-muted-foreground -translate-x-1/2 select-none"
-              style={{ left: `${left}%` }}
-            >
-              {h}:00
-            </span>
-          )
-        })}
-      </div>
-
-      {/* Leyenda */}
-      <div className="flex gap-4 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm inline-block bg-green-500" />≥ 70 %
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm inline-block bg-yellow-500" />40 – 69 %
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm inline-block bg-red-500" />&lt; 40 %
-        </span>
-      </div>
-    </div>
-  )
-}
 
 export default function ReportScreenshotsList({ screenshots, machineName, productivityIntervals }: ScreenshotsListProps) {
   const [page, setPage] = useState(1)
@@ -215,7 +90,17 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
     if (!productivityIntervals?.length) return undefined
     const ms = fileMs(fileName)
     if (ms === null) return undefined
-    return productivityIntervals.find(iv => ms >= iv.start && ms < iv.end)?.pct
+    const exact = productivityIntervals.find(iv => ms >= iv.start && ms < iv.end)
+    if (exact) return exact.pct
+    // Fallback: intervalo más cercano dentro de 15 min
+    const MAX_GAP = 15 * 60 * 1000
+    let best: IntervalPct | undefined
+    let bestDist = Infinity
+    for (const iv of productivityIntervals) {
+      const dist = ms < iv.start ? iv.start - ms : ms - iv.end
+      if (dist < bestDist && dist <= MAX_GAP) { bestDist = dist; best = iv }
+    }
+    return best?.pct
   }
 
   const [imgLoaded, setImgLoaded] = useState(false)
@@ -235,9 +120,7 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
           <p className="text-sm text-muted-foreground">{screenshots.length} capturas</p>
         </div>
 
-        <ProductivityTimeline intervals={productivityIntervals} />
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {visible.map((file, i) => {
             const pct = getPct(file)
             return (
