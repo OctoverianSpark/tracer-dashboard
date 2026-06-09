@@ -77,6 +77,8 @@ export default function Page() {
     if (!machine) return
     setProductivityIntervals(undefined)
     getRawAppUsageLogs(date, machine.id).then(rawLogs => {
+      console.groupCollapsed(`[ActiMetrics] Reportes recibidos: ${rawLogs.length} intervalos — ${machine.hostname} ${date}`)
+
       const intervals: { start: number; end: number; pct: number }[] = []
 
       for (const log of rawLogs) {
@@ -85,13 +87,26 @@ export default function Page() {
         if (!startMs || !endMs || endMs <= startMs) continue
 
         const durSecs      = Math.round((endMs - startMs) / 1000)
-        const activity     = (log.MouseClicks ?? 0) + (log.Keystrokes ?? 0)
-        // Escala log2: 30 eventos/min = 100 %; amigable con actividad baja
-        // 1/min → ~20 %   5/min → ~52 %   15/min → ~80 %   ≥30/min → 100 %
+        const clicks       = log.MouseClicks ?? 0
+        const keystrokes   = log.Keystrokes  ?? 0
+        const activity     = clicks + keystrokes
         const eventsPerMin = (activity * 60) / durSecs
         const pct          = Math.min(100, Math.round(Math.log2(eventsPerMin + 1) / Math.log2(31) * 100))
+
+        console.log(
+          `%c${new Date(startMs).toLocaleTimeString('es-CO')} – ${new Date(endMs).toLocaleTimeString('es-CO')}` +
+          `  🖱 ${clicks}  ⌨ ${keystrokes}  →  ${pct}%`,
+          pct >= 70 ? 'color:#22c55e' : pct >= 40 ? 'color:#eab308' : 'color:#ef4444'
+        )
+
         intervals.push({ start: startMs, end: endMs, pct })
       }
+
+      const avg = intervals.length
+        ? Math.round(intervals.reduce((s, iv) => s + iv.pct, 0) / intervals.length)
+        : 0
+      console.log(`Promedio: ${avg}%  |  Intervalos procesados: ${intervals.length}`)
+      console.groupEnd()
 
       setProductivityIntervals(intervals)
     }).catch(err => console.error('[Prod] Error:', err))
