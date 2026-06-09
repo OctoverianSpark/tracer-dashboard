@@ -17,34 +17,30 @@ interface ScreenshotsListProps {
 
 const PAGE_SIZE = 24
 
-function parseDate(fileName: string): string {
-  const match = fileName.match(/(\d{8})-(\d{6})/)
-  if (!match) return fileName
+// Formato de nombre: 2026-06-09T20-42-11-939Z_Monitor1.jpg
+const FILE_REGEX = /(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})(?:-(\d{3}))?Z/
 
-  const [, d, t] = match
-  const iso = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}`
+function parseDate(fileName: string): string {
+  const m = fileName.match(FILE_REGEX)
+  if (!m) return fileName
+  const iso = `${m[1]}T${m[2]}:${m[3]}:${m[4]}${m[5] ? `.${m[5]}` : ''}Z`
   return new Date(iso).toLocaleString('es-CO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
   })
 }
 
 function parseTime(fileName: string): string {
-  const match = fileName.match(/-(\d{6})/)
-  if (!match) return ''
-  const t = match[1]
-  return `${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}`
+  const m = fileName.match(FILE_REGEX)
+  if (!m) return ''
+  const iso = `${m[1]}T${m[2]}:${m[3]}:${m[4]}${m[5] ? `.${m[5]}` : ''}Z`
+  return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
 function fileMs(fileName: string): number | null {
-  const match = fileName.match(/(\d{8})-(\d{6})/)
-  if (!match) return null
-  const [, d, t] = match
-  const iso = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}T${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}`
+  const m = fileName.match(FILE_REGEX)
+  if (!m) return null
+  const iso = `${m[1]}T${m[2]}:${m[3]}:${m[4]}${m[5] ? `.${m[5]}` : ''}Z`
   const ms = new Date(iso).getTime()
   return isNaN(ms) ? null : ms
 }
@@ -68,17 +64,7 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
 
   useEffect(() => { setPage(1) }, [screenshots])
 
-  useEffect(() => {
-    if (!productivityIntervals?.length || !screenshots.length) return
-    const first = screenshots[0]
-    const ms = fileMs(first)
-    console.log('[DEBUG] screenshots:', screenshots.length, '| intervals:', productivityIntervals.length)
-    console.log('[DEBUG] first file:', first)
-    console.log('[DEBUG] fileMs →', ms, ms ? new Date(ms).toISOString() : 'NULL')
-    console.log('[DEBUG] iv[0].start →', productivityIntervals[0].start, new Date(productivityIntervals[0].start).toISOString())
-  }, [productivityIntervals, screenshots])
-
-  const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screenshots, page])
+const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screenshots, page])
   const remaining = screenshots.length - visible.length
 
   const goTo = useCallback((index: number) => {
@@ -99,8 +85,6 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
   const getPct = (fileName: string): number | undefined => {
     if (!productivityIntervals?.length) return undefined
     const ms = fileMs(fileName)
-
-    console.log('[getPct] file:', fileName, '| ms:', ms, '| iv[0]:', productivityIntervals[0])
 
     if (ms === null) return undefined
 
@@ -132,11 +116,6 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">{screenshots.length} capturas</p>
-          <p className="text-xs text-muted-foreground">
-            {productivityIntervals === undefined
-              ? 'Cargando productividad...'
-              : `${productivityIntervals.length} intervalos de prod.`}
-          </p>
         </div>
 
 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
