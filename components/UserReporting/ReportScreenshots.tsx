@@ -141,7 +141,7 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
         setZipProgress(Math.min(i + BATCH, screenshots.length))
       }
       const data = await zipFiles(fileData)
-      const blob = new Blob([data], { type: 'application/zip' })
+      const blob = new Blob([data.buffer as ArrayBuffer], { type: 'application/zip' })
       const dateStr = screenshots[0]?.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? 'export'
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
