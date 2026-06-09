@@ -5,7 +5,8 @@
       "Bash(cat)",
       "Read(//tmp/**)",
       "Bash(xargs grep -l \"calculateProductivity\\\\|computeProductivity\\\\|calculateMetric\")",
-      "Bash(xargs grep -l \"interval_start.*interval_end\")"
+      "Bash(xargs grep -l \"interval_start.*interval_end\")",
+      "Bash(Get-ChildItem -Path . -Name)"
     ]
   }
 }

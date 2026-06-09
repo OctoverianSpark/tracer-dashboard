@@ -153,7 +153,7 @@ export default function ReleasePanel({ initialInfo }: Props) {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Publicar nueva versión</CardTitle>
-          <CardDescription>Arrastra el instalador o selecciónalo desde tu equipo</CardDescription>
+          <CardDescription>Arrastra el paquete .nupkg o selecciónalo desde tu equipo</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div
@@ -177,13 +177,14 @@ export default function ReleasePanel({ initialInfo }: Props) {
               </div>
             ) : (
               <div>
-                <p className="text-sm font-medium">Soltar archivo aquí</p>
+                <p className="text-sm font-medium">Soltar archivo .nupkg aquí</p>
                 <p className="text-xs text-muted-foreground">o haz clic para explorar</p>
               </div>
             )}
             <input
               ref={fileInputRef}
               type="file"
+              accept=".nupkg"
               className="hidden"
               onChange={(e) => {
                 setSelectedFile(e.target.files?.[0] ?? null)

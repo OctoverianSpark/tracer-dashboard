@@ -13,11 +13,12 @@ import { toast } from 'sonner'
 
 interface GroupFormProps {
   group?: Group
+  allGroups?: Group[]
 }
 
 const EMPTY_GROUP: Group = { name: '' }
 
-export default function GroupForm({ group }: GroupFormProps) {
+export default function GroupForm({ group, allGroups = [] }: GroupFormProps) {
 
   const [values, setValues] = useState<Group>(group ?? EMPTY_GROUP)
   const [open, setOpen] = useState<boolean>(false)
@@ -105,6 +106,41 @@ export default function GroupForm({ group }: GroupFormProps) {
             </p>
           </div>
         </div>
+
+        {allGroups.filter(g => g.id !== group?.id).length > 0 && (
+          <div className='grid gap-2'>
+            <Label>Grupos visibles</Label>
+            <p className='text-xs text-muted-foreground'>
+              Este grupo solo podrá ver la actividad de los usuarios en los grupos seleccionados. Si no se selecciona ninguno, verá todos los grupos.
+            </p>
+            <div className='rounded-md border p-3 flex flex-col gap-2 max-h-40 overflow-y-auto'>
+              {allGroups
+                .filter(g => g.id !== group?.id)
+                .map(g => {
+                  const checked = (values.visible_group_ids ?? []).includes(g.id!)
+                  return (
+                    <label key={g.id} className='flex items-center gap-2 cursor-pointer'>
+                      <input
+                        type='checkbox'
+                        checked={checked}
+                        onChange={e => {
+                          const ids = values.visible_group_ids ?? []
+                          setValues(prev => ({
+                            ...prev,
+                            visible_group_ids: e.target.checked
+                              ? [...ids, g.id!]
+                              : ids.filter(id => id !== g.id),
+                          }))
+                        }}
+                        className='accent-primary'
+                      />
+                      <span className='text-sm'>{g.name}</span>
+                    </label>
+                  )
+                })}
+            </div>
+          </div>
+        )}
 
         <DialogFooter>
           <Button className='cursor-pointer' onClick={handleSubmit} disabled={loading}>

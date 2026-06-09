@@ -11,6 +11,7 @@ export interface Group {
   id?: number
   name: string
   block_own_reports?: boolean
+  visible_group_ids?: number[]
 }
 
 export interface Role {

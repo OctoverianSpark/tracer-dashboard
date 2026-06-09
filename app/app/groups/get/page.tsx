@@ -13,7 +13,7 @@ export default async function Page() {
   const users = await getappuser()
   return (
     <div className="grid gap-4">
-      <GroupForm />
+      <GroupForm allGroups={groups} />
       <GroupList groups={groups} users={users}/>
 
     </div>

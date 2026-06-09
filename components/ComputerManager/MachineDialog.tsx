@@ -1,6 +1,10 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { ArrowRight, Trash2 } from 'lucide-react'
+
+function isPrivateIP(ip: string): boolean {
+  return /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|127\.|0\.0\.0\.0$|::1$|fd|fc)/.test(ip.trim())
+}
 import { Button } from '@/app/_components/_ui/button'
 import {
   Dialog,
@@ -22,9 +26,11 @@ export default function MachineDialog({ machine }: MachineDialogProps) {
   const [ip, setIp] = useState<Record<string, string>>()
 
   useEffect(() => {
-    if (!open || !machine.ip_address) return
+    if (!open || !machine.ip_address || isPrivateIP(machine.ip_address)) return
     getIPInfo(machine.ip_address)
-      .then(setIp)
+      .then(data => {
+        if (data?.city) setIp(data)
+      })
       .catch(() => {})
   }, [open, machine.ip_address])
 
@@ -76,8 +82,14 @@ export default function MachineDialog({ machine }: MachineDialogProps) {
           <div className="grid gap-0.5">
             <p className="text-xs text-muted-foreground uppercase tracking-wide">Localización</p>
             <div className="flex items-center gap-2 font-medium">
-              {ip?.city ?? '—'}
-              {ip?.flag && <img src={ip.flag} alt="" className="h-4" />}
+              {!machine.ip_address
+                ? '—'
+                : isPrivateIP(machine.ip_address)
+                ? <span className="text-muted-foreground text-sm">Red local</span>
+                : ip?.city
+                ? <>{ip.city}{ip.flag && <img src={ip.flag} alt="" className="h-4" />}</>
+                : <span className="text-muted-foreground text-sm">—</span>
+              }
             </div>
           </div>
         </div>

@@ -16,15 +16,16 @@ interface CardMachineProps {
 
 export default function MachineCard({ machine, onDelete }: CardMachineProps) {
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const online = machine.alive || machine.isAlive
 
   return (
     <Card className={`relative flex flex-col border-2 transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer
-      ${machine.isAlive ? 'border-green-500' : 'border-red-500'}`}
+      ${online ? 'border-green-500' : 'border-red-500'}`}
     >
       <CardHeader className="w-full text-center pb-2 relative">
         <CardTitle className="text-xl truncate">{machine.hostname}</CardTitle>
         <p className="text-sm text-muted-foreground">{machineLabel(machine)}</p>
-        <p className="text-xs text-muted-foreground">{machine.ip_address ?? 'Sin IP'}</p>
+        <p className="text-xs text-muted-foreground">{machine.ip_address || 'Sin IP'}</p>
 
         <TooltipProvider>
           <Tooltip>
@@ -56,8 +57,8 @@ export default function MachineCard({ machine, onDelete }: CardMachineProps) {
       <CardContent className="flex flex-col items-center gap-3">
         <span className="text-md truncate">{machine.displayName}</span>
         
-        <Badge variant={machine.isAlive ? 'default' : 'secondary'} className={`text-xs ${machine.isAlive ? 'bg-green-500 hover:bg-green-500' : ''}`}>
-          {machine.isAlive ? <><Wifi className='size-3 mr-1' />Online</> : <><WifiOff className='size-3 mr-1' />Offline</>}
+        <Badge variant={online ? 'default' : 'secondary'} className={`text-xs ${online ? 'bg-green-500 hover:bg-green-500' : ''}`}>
+          {online ? <><Wifi className='size-3 mr-1' />Online</> : <><WifiOff className='size-3 mr-1' />Offline</>}
         </Badge>
         <MachineDialog machine={machine} />
       </CardContent>

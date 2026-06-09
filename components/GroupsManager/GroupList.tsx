@@ -66,7 +66,7 @@ function CardSearch({ value, onChange }: { value: string; onChange: (v: string) 
   )
 }
 
-function DroppableGroup({ group, users, onDelete }: { group: Group; users: AppUser[], onDelete: (id: number) => void }) {
+function DroppableGroup({ group, users, allGroups, onDelete }: { group: Group; users: AppUser[]; allGroups: Group[]; onDelete: (id: number) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: group.id! })
   const [search, setSearch] = useState('')
 
@@ -103,7 +103,7 @@ function DroppableGroup({ group, users, onDelete }: { group: Group; users: AppUs
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          <GroupForm group={group} />
+          <GroupForm group={group} allGroups={allGroups} />
         </div>
       </CardHeader>
       <div className={CARD_BODY}>
@@ -187,7 +187,7 @@ export default function GroupList({ groups, users }: GroupTableProps) {
       <div className="flex gap-4 items-start flex-wrap">
         <DroppableUngrouped users={localUsers} />
         {groups.map(g => (
-          <DroppableGroup onDelete={handleDeleteGroup} key={g.id} group={g} users={localUsers} />
+          <DroppableGroup onDelete={handleDeleteGroup} key={g.id} group={g} users={localUsers} allGroups={groups} />
         ))}
       </div>
 
