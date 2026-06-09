@@ -78,6 +78,9 @@ export default function Page() {
     setProductivityIntervals(undefined)
     getRawAppUsageLogs(date, machine.id).then(rawLogs => {
       console.groupCollapsed(`[ActiMetrics] Reportes recibidos: ${rawLogs.length} intervalos — ${machine.hostname} ${date}`)
+      if (rawLogs.length > 0) {
+        console.log('[ActiMetrics] Raw body ejemplo (primer intervalo):', rawLogs[0])
+      }
 
       const intervals: { start: number; end: number; pct: number }[] = []
 
