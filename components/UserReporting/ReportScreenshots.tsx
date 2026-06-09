@@ -89,15 +89,10 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
   const getPct = (fileName: string): number | undefined => {
     if (!productivityIntervals?.length) return undefined
     const ms = fileMs(fileName)
-    if (ms === null) return undefined
 
-    // LOG para diagnóstico (eliminar una vez confirmado)
-    if (productivityIntervals.length > 0) {
-      const iv0 = productivityIntervals[0]
-      console.log('[getPct] screenshot local:', new Date(ms).toLocaleTimeString(),
-        '| intervalo[0]:', new Date(iv0.start).toLocaleTimeString(), '–', new Date(iv0.end).toLocaleTimeString(),
-        '| pct:', iv0.pct)
-    }
+    console.log('[getPct] file:', fileName, '| ms:', ms, '| iv[0]:', productivityIntervals[0])
+
+    if (ms === null) return undefined
 
     const exact = productivityIntervals.find(iv => ms >= iv.start && ms < iv.end)
     if (exact) return exact.pct
