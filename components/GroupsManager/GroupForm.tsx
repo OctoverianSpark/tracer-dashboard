@@ -5,10 +5,15 @@ import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
 import { Switch } from '@/app/_components/_ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/app/_components/_ui/tooltip'
-import { saveGroup } from '@/app/app/groups/actions'
+import {
+  saveGroup,
+  getGroupVisibility,
+  addGroupVisibility,
+  removeGroupVisibility,
+} from '@/app/app/groups/actions'
 import { Group } from '@/types/AppUser'
 import { Pencil, Plus } from 'lucide-react'
-import React, { ChangeEventHandler, useState } from 'react'
+import React, { ChangeEventHandler, useState, useEffect } from 'react'
 import { toast } from 'sonner'
 
 interface GroupFormProps {
@@ -19,11 +24,30 @@ interface GroupFormProps {
 const EMPTY_GROUP: Group = { name: '' }
 
 export default function GroupForm({ group, allGroups = [] }: GroupFormProps) {
-
   const [values, setValues] = useState<Group>(group ?? EMPTY_GROUP)
   const [open, setOpen] = useState<boolean>(false)
   const [errors, setErrors] = useState<Partial<Record<keyof Group, string>>>({})
   const [loading, setLoading] = useState(false)
+
+  // Visibilidad: IDs cargados del API (base) y selección actual
+  const [initialVisibleIds, setInitialVisibleIds] = useState<number[]>([])
+  const [selectedVisibleIds, setSelectedVisibleIds] = useState<number[]>([])
+
+  // Cargar visibilidad actual al abrir el diálogo de edición
+  useEffect(() => {
+    if (open && group?.id) {
+      getGroupVisibility(group.id)
+        .then(ids => {
+          setInitialVisibleIds(ids)
+          setSelectedVisibleIds(ids)
+        })
+        .catch(() => {})
+    }
+    if (!open) {
+      setInitialVisibleIds([])
+      setSelectedVisibleIds([])
+    }
+  }, [open, group?.id])
 
   const validate = () => {
     const newErrors: Partial<Record<keyof Group, string>> = {}
@@ -44,7 +68,21 @@ export default function GroupForm({ group, allGroups = [] }: GroupFormProps) {
     }
     try {
       setLoading(true)
-      await saveGroup(values)
+
+      // 1. Guardar datos del grupo; el API devuelve el grupo con su ID
+      const saved = await saveGroup(values)
+      const groupId = saved?.id ?? group?.id
+
+      // 2. Sincronizar visibilidad usando los endpoints dedicados
+      if (groupId) {
+        const toAdd    = selectedVisibleIds.filter(id => !initialVisibleIds.includes(id))
+        const toRemove = initialVisibleIds.filter(id => !selectedVisibleIds.includes(id))
+        await Promise.all([
+          ...toAdd.map(id => addGroupVisibility(groupId, id)),
+          ...toRemove.map(id => removeGroupVisibility(groupId, id)),
+        ])
+      }
+
       toast.success(group?.id ? 'Grupo actualizado!' : 'Grupo guardado!')
       setValues(EMPTY_GROUP)
       setErrors({})
@@ -56,23 +94,23 @@ export default function GroupForm({ group, allGroups = [] }: GroupFormProps) {
     }
   }
 
+  const otherGroups = allGroups.filter(g => g.id !== group?.id)
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-              <DialogTrigger asChild>
-
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DialogTrigger asChild>
             <Button size='icon-sm' variant={group?.id ? 'ghost' : 'default'} className='cursor-pointer'>
               {group?.id ? <Pencil /> : <Plus />}
             </Button>
-      </DialogTrigger>
+          </DialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent>
+          {group?.id ? 'Editar grupo' : 'Registrar nuevo grupo'}
+        </TooltipContent>
+      </Tooltip>
 
-          </TooltipTrigger>
-          
-          <TooltipContent>
-            {group?.id ? 'Editar grupo' : 'Registrar nuevo grupo'}
-          </TooltipContent>
-        </Tooltip>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{group?.id ? 'Editar grupo' : 'Registrar nuevo grupo'}</DialogTitle>
@@ -107,37 +145,30 @@ export default function GroupForm({ group, allGroups = [] }: GroupFormProps) {
           </div>
         </div>
 
-        {allGroups.filter(g => g.id !== group?.id).length > 0 && (
+        {otherGroups.length > 0 && (
           <div className='grid gap-2'>
             <Label>Grupos visibles</Label>
             <p className='text-xs text-muted-foreground'>
               Este grupo solo podrá ver la actividad de los usuarios en los grupos seleccionados. Si no se selecciona ninguno, verá todos los grupos.
             </p>
             <div className='rounded-md border p-3 flex flex-col gap-2 max-h-40 overflow-y-auto'>
-              {allGroups
-                .filter(g => g.id !== group?.id)
-                .map(g => {
-                  const checked = (values.visible_group_ids ?? []).includes(g.id!)
-                  return (
-                    <label key={g.id} className='flex items-center gap-2 cursor-pointer'>
-                      <input
-                        type='checkbox'
-                        checked={checked}
-                        onChange={e => {
-                          const ids = values.visible_group_ids ?? []
-                          setValues(prev => ({
-                            ...prev,
-                            visible_group_ids: e.target.checked
-                              ? [...ids, g.id!]
-                              : ids.filter(id => id !== g.id),
-                          }))
-                        }}
-                        className='accent-primary'
-                      />
-                      <span className='text-sm'>{g.name}</span>
-                    </label>
-                  )
-                })}
+              {otherGroups.map(g => (
+                <label key={g.id} className='flex items-center gap-2 cursor-pointer'>
+                  <input
+                    type='checkbox'
+                    checked={selectedVisibleIds.includes(g.id!)}
+                    onChange={e =>
+                      setSelectedVisibleIds(prev =>
+                        e.target.checked
+                          ? [...prev, g.id!]
+                          : prev.filter(id => id !== g.id)
+                      )
+                    }
+                    className='accent-primary'
+                  />
+                  <span className='text-sm'>{g.name}</span>
+                </label>
+              ))}
             </div>
           </div>
         )}

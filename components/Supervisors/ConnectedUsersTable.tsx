@@ -12,7 +12,7 @@ interface Props {
 export default function ConnectedUsersTable({ statuses, mode }: Props) {
   const filtered = statuses.filter(s =>
     mode === 'connected'
-      ? s.isConnected && s.shouldBeConnected
+      ? s.isConnected
       : s.shouldBeConnected && !s.isConnected
   )
 

@@ -24,7 +24,7 @@ export default function SupervisorsPage() {
 
   useEffect(() => { load() }, [])
 
-  const connected = statuses.filter(s => s.isConnected && s.shouldBeConnected).length
+  const connected    = statuses.filter(s => s.isConnected).length
   const disconnected = statuses.filter(s => s.shouldBeConnected && !s.isConnected).length
 
   return (
