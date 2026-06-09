@@ -3,6 +3,7 @@
 import { Button } from '@/app/_components/_ui/button'
 import { Card, CardContent } from '@/app/_components/_ui/card'
 import { Dialog, DialogContent, DialogTitle } from '@/app/_components/_ui/dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -59,26 +60,6 @@ function ProductivityBadge({ pct }: { pct: number | undefined }) {
   )
 }
 
-function IntervalBar({ pct, loading }: { pct: number | undefined; loading: boolean }) {
-  if (loading) {
-    return <div className="w-full h-1.5 mt-1.5 bg-muted rounded-full animate-pulse" />
-  }
-  if (pct === undefined) {
-    return <div className="w-full h-1.5 mt-1.5 bg-muted/50 rounded-full" />
-  }
-  const bg = pct >= 70 ? 'bg-green-500' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
-  const label = pct >= 70 ? 'text-green-500' : pct >= 40 ? 'text-yellow-500' : 'text-red-500'
-  return (
-    <div className="mt-1.5 space-y-0.5">
-      <div className="flex items-center justify-between">
-        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-          <div className={`h-full rounded-full ${bg}`} style={{ width: `${pct}%` }} />
-        </div>
-        <span className={`text-[10px] font-semibold ml-2 tabular-nums ${label}`}>{pct}%</span>
-      </div>
-    </div>
-  )
-}
 
 function pctColor(pct: number) {
   if (pct >= 70) return '#22c55e'
@@ -130,18 +111,25 @@ function ProductivityTimeline({ intervals }: { intervals: IntervalPct[] | undefi
       <p className="text-xs font-medium text-muted-foreground">Productividad por intervalo</p>
 
       {/* Barra de colores */}
+      <TooltipProvider delayDuration={100}>
       <div className="relative w-full h-8 bg-muted rounded overflow-hidden">
         {sorted.map((iv, i) => (
-          <div
-            key={i}
-            title={`${fmt(iv.start)} – ${fmt(iv.end)}: ${iv.pct}%`}
-            className="absolute h-full cursor-help"
-            style={{
-              left:            `${toLeft(iv.start)}%`,
-              width:           `${toWidth(iv.start, iv.end)}%`,
-              backgroundColor: pctColor(iv.pct),
-            }}
-          />
+          <Tooltip key={i}>
+            <TooltipTrigger asChild>
+              <div
+                className="absolute h-full cursor-help"
+                style={{
+                  left:            `${toLeft(iv.start)}%`,
+                  width:           `${toWidth(iv.start, iv.end)}%`,
+                  backgroundColor: pctColor(iv.pct),
+                }}
+              />
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p className="text-xs font-medium">{fmt(iv.start)} – {fmt(iv.end)}</p>
+              <p className="text-xs">{iv.pct}% productividad</p>
+            </TooltipContent>
+          </Tooltip>
         ))}
         {/* Líneas de hora */}
         {hours.map(h => {
@@ -158,6 +146,7 @@ function ProductivityTimeline({ intervals }: { intervals: IntervalPct[] | undefi
           )
         })}
       </div>
+      </TooltipProvider>
 
       {/* Labels de hora */}
       <div className="relative w-full h-4">
@@ -245,21 +234,40 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
             return (
               <Card
                 key={file}
-                className="cursor-pointer hover:shadow-md transition-shadow"
+                className="cursor-pointer hover:shadow-md transition-shadow overflow-hidden"
                 onClick={() => setOpenIndex(i)}
               >
-                <CardContent>
-                  <Image
-                    src={`/api/screenshot/${machineName}/${file}`}
-                    loading="lazy"
-                    alt={parseDate(file)}
-                    width={800}
-                    height={450}
-                    className="rounded-md w-full object-contain h-36"
-                  />
-                  <div className="mt-2 px-0.5">
+                <CardContent className="p-0">
+                  <div className="relative">
+                    <Image
+                      src={`/api/screenshot/${machineName}/${file}`}
+                      loading="lazy"
+                      alt={parseDate(file)}
+                      width={800}
+                      height={450}
+                      className="w-full object-contain h-36"
+                    />
+                    {/* barra de productividad sobre la imagen */}
+                    {productivityIntervals === undefined ? (
+                      <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/20 animate-pulse" />
+                    ) : pct !== undefined ? (
+                      <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/30">
+                        <div
+                          className={`h-full ${pct >= 70 ? 'bg-green-500' : pct >= 40 ? 'bg-yellow-400' : 'bg-red-500'}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    ) : null}
+                    {/* badge de % sobre la esquina inferior derecha */}
+                    {pct !== undefined && (
+                      <span className={`absolute bottom-2 right-1.5 text-[10px] font-bold px-1 py-0.5 rounded leading-none text-white
+                        ${pct >= 70 ? 'bg-green-600/90' : pct >= 40 ? 'bg-yellow-500/90' : 'bg-red-600/90'}`}>
+                        {pct}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="px-2 py-1.5">
                     <span className="text-xs text-muted-foreground">{parseTime(file)}</span>
-                    <IntervalBar pct={pct} loading={productivityIntervals === undefined} />
                   </div>
                 </CardContent>
               </Card>
