@@ -60,6 +60,102 @@ function ProductivityBadge({ pct }: { pct: number | undefined }) {
   )
 }
 
+function pctColor(pct: number) {
+  if (pct >= 70) return '#22c55e'
+  if (pct >= 40) return '#eab308'
+  return '#ef4444'
+}
+
+function fmt(ms: number) {
+  return new Date(ms).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+}
+
+function ProductivityTimeline({ intervals }: { intervals: IntervalPct[] }) {
+  if (!intervals.length) return null
+
+  const sorted = [...intervals].sort((a, b) => a.start - b.start)
+  const minMs  = sorted[0].start
+  const maxMs  = sorted[sorted.length - 1].end
+  const range  = maxMs - minMs
+  if (range <= 0) return null
+
+  const toLeft  = (ms: number) => ((ms - minMs) / range) * 100
+  const toWidth = (s: number, e: number) => Math.max(0.3, ((e - s) / range) * 100)
+
+  // Etiquetas de hora sobre el rango visible
+  const startHour = new Date(minMs).getHours()
+  const endHour   = new Date(maxMs).getHours() + 1
+  const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i)
+
+  return (
+    <div className="space-y-1.5 pt-2">
+      <p className="text-xs font-medium text-muted-foreground">Productividad por intervalo</p>
+
+      {/* Barra de colores */}
+      <div className="relative w-full h-8 bg-muted rounded overflow-hidden">
+        {sorted.map((iv, i) => (
+          <div
+            key={i}
+            title={`${fmt(iv.start)} – ${fmt(iv.end)}: ${iv.pct}%`}
+            className="absolute h-full cursor-help"
+            style={{
+              left:            `${toLeft(iv.start)}%`,
+              width:           `${toWidth(iv.start, iv.end)}%`,
+              backgroundColor: pctColor(iv.pct),
+            }}
+          />
+        ))}
+        {/* Líneas de hora */}
+        {hours.map(h => {
+          const d = new Date(minMs)
+          d.setHours(h, 0, 0, 0)
+          const left = toLeft(d.getTime())
+          if (left < 0 || left > 100) return null
+          return (
+            <div
+              key={h}
+              className="absolute top-0 h-full border-l border-white/40 pointer-events-none"
+              style={{ left: `${left}%` }}
+            />
+          )
+        })}
+      </div>
+
+      {/* Labels de hora */}
+      <div className="relative w-full h-4">
+        {hours.map(h => {
+          const d = new Date(minMs)
+          d.setHours(h, 0, 0, 0)
+          const left = toLeft(d.getTime())
+          if (left < 0 || left > 100) return null
+          return (
+            <span
+              key={h}
+              className="absolute text-[10px] text-muted-foreground -translate-x-1/2 select-none"
+              style={{ left: `${left}%` }}
+            >
+              {h}:00
+            </span>
+          )
+        })}
+      </div>
+
+      {/* Leyenda */}
+      <div className="flex gap-4 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm inline-block bg-green-500" />≥ 70 %
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm inline-block bg-yellow-500" />40 – 69 %
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm inline-block bg-red-500" />&lt; 40 %
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export default function ReportScreenshotsList({ screenshots, machineName, productivityIntervals }: ScreenshotsListProps) {
   const [page, setPage] = useState(1)
   const [openIndex, setOpenIndex] = useState<number | null>(null)
@@ -133,6 +229,10 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
               Cargar más ({remaining} restantes)
             </Button>
           </div>
+        )}
+
+        {productivityIntervals && productivityIntervals.length > 0 && (
+          <ProductivityTimeline intervals={productivityIntervals} />
         )}
       </div>
 
