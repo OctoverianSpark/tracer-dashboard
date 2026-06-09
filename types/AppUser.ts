@@ -27,6 +27,8 @@ export interface AppUsageLog {
   interval_start: string
   interval_end: string
   apps: { app: string; seconds: number }[]
+  MouseClicks?: number
+  Keystrokes?: number
 }
 
 export interface FlatAppUsageLog {

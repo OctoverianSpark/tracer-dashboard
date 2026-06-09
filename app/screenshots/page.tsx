@@ -5,7 +5,6 @@ import { getMachineReport, findAsignedMachines } from '../computers/actions'
 import { getappuser } from '../app/actions'
 import { getGroups, getGroupVisibility } from '../app/groups/actions'
 import { getRawAppUsageLogs } from '../time/actions'
-import { getCategorizationApps } from '../supervisors/categorization-actions'
 import ReportScreenshotsList from '@/components/UserReporting/ReportScreenshots'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../_components/_ui/select'
 import { Machine, machineLabel } from '@/types/Machine'
@@ -76,12 +75,8 @@ export default function Page() {
   // Carga de productividad por intervalo (independiente, best-effort)
   useEffect(() => {
     if (!machine) return
-    setProductivityIntervals(undefined) // undefined = cargando
-    Promise.all([
-      getRawAppUsageLogs(date, machine.id),
-      getCategorizationApps(),
-    ]).then(([rawLogs, categorizationApps]) => {
-      const categoryMap = new Map(categorizationApps.map(a => [a.name.toLowerCase(), a.category]))
+    setProductivityIntervals(undefined)
+    getRawAppUsageLogs(date, machine.id).then(rawLogs => {
       const intervals: { start: number; end: number; pct: number }[] = []
 
       for (const log of rawLogs) {
@@ -89,17 +84,10 @@ export default function Page() {
         const endMs   = new Date(log.interval_end).getTime()
         if (!startMs || !endMs || endMs <= startMs) continue
 
-        let prod = 0, unprod = 0, uncat = 0
-        for (const a of log.apps ?? []) {
-          const cat = categoryMap.get(a.app.toLowerCase())
-          if (cat === 'ignore') continue
-          if (cat === 'productive')        prod   += a.seconds
-          else if (cat === 'unproductive') unprod += a.seconds
-          else                             uncat  += a.seconds
-        }
-        const durSecs   = Math.round((endMs - startMs) / 1000)
-        const effective = prod + uncat * 0.3
-        const pct       = Math.min(100, Math.round((effective / durSecs) * 100))
+        const durSecs  = Math.round((endMs - startMs) / 1000)
+        const activity = (log.MouseClicks ?? 0) + (log.Keystrokes ?? 0)
+        // 1 evento de entrada por segundo = 100 % de actividad
+        const pct = Math.min(100, Math.round((activity / durSecs) * 100))
         intervals.push({ start: startMs, end: endMs, pct })
       }
 
