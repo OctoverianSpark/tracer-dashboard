@@ -117,13 +117,17 @@ function ProductivityTimeline({ intervals }: { intervals: IntervalPct[] | undefi
           <Tooltip key={i}>
             <TooltipTrigger asChild>
               <div
-                className="absolute h-full cursor-help"
+                className="absolute h-full cursor-help transition-[filter] duration-100 hover:brightness-125 flex items-center justify-center overflow-hidden"
                 style={{
                   left:            `${toLeft(iv.start)}%`,
                   width:           `${toWidth(iv.start, iv.end)}%`,
                   backgroundColor: pctColor(iv.pct),
                 }}
-              />
+              >
+                <span className="text-[10px] font-bold text-white/90 select-none leading-none">
+                  {iv.pct}%
+                </span>
+              </div>
             </TooltipTrigger>
             <TooltipContent side="top">
               <p className="text-xs font-medium">{fmt(iv.start)} – {fmt(iv.end)}</p>
@@ -214,10 +218,15 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
     return productivityIntervals.find(iv => ms >= iv.start && ms < iv.end)?.pct
   }
 
+  const [imgLoaded, setImgLoaded] = useState(false)
+
   const currentFile = openIndex !== null ? screenshots[openIndex] : null
   const currentSrc  = currentFile ? `/api/screenshot/${machineName}/${currentFile}` : ''
   const currentDate = currentFile ? parseDate(currentFile) : ''
   const currentPct  = currentFile ? getPct(currentFile) : undefined
+
+  // Reinicia estado de carga cada vez que cambia la imagen
+  useEffect(() => { setImgLoaded(false) }, [currentSrc])
 
   return (
     <>
@@ -291,14 +300,22 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
             <ProductivityBadge pct={currentPct} />
           </DialogTitle>
 
-          <div className="w-full h-[75vh] flex items-center justify-center overflow-hidden">
+          <div className="relative w-full h-[75vh] flex items-center justify-center overflow-hidden">
+            {!imgLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="h-8 w-8 rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground animate-spin" />
+              </div>
+            )}
             {currentSrc && (
               <Image
                 src={currentSrc}
                 loading="eager"
+                decoding="async"
                 alt={currentFile ?? ''}
                 width={1920}
                 height={1080}
+                onLoad={() => setImgLoaded(true)}
+                className={`transition-opacity duration-200 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
                 style={{ width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '75vh' }}
               />
             )}
