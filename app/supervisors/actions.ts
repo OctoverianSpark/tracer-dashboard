@@ -12,38 +12,54 @@ const DAY_KEYS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'] as const
 
 export interface UserConnectionStatus {
   user: AppUser
-  isConnected: boolean
+  wsConnected: boolean      // WebSocket activo ahora mismo
+  isConnected: boolean      // wsConnected O tiene tiempo registrado hoy
   shouldBeConnected: boolean
   machine?: Machine
   programation?: Programation
   startTime?: string
   endTime?: string
+  todaySeconds: number      // segundos de uso de apps contados hoy
 }
 
 export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[]> => {
-  const [users, machines, schedules, programations] = await Promise.all([
+  const now = new Date()
+  const todayStr = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('-')
+
+  const [users, machines, schedules, programations, rawLogs] = await Promise.all([
     getappuser(),
     getMachines(),
     getSchedules(),
     getProgramations(),
+    getRawAppUsageLogs(todayStr),
   ])
 
-  // Máquinas por usuario usando el endpoint fiable (igual que getProductivityReport)
+  // Segundos de uso por machine_id para hoy
+  const secondsByMachine = new Map<number, number>()
+  for (const log of rawLogs) {
+    const cid  = Number(log.computer_id)
+    const secs = (log.apps ?? []).reduce((s, a) => s + a.seconds, 0)
+    secondsByMachine.set(cid, (secondsByMachine.get(cid) ?? 0) + secs)
+  }
+
+  // Máquinas por usuario
   const machinesPerUser = await Promise.all(
     users.map(u =>
       findAsignedMachines(Number(u.id))
         .then(ms => ({ userId: Number(u.id), machines: ms }))
-        .catch(() => {
-          // Fallback: buscar en la lista completa por appuser_id
-          const fallback = machines.filter(m => Number(m.appuser_id) === Number(u.id))
-          return { userId: Number(u.id), machines: fallback }
-        })
+        .catch(() => ({
+          userId: Number(u.id),
+          machines: machines.filter(m => Number(m.appuser_id) === Number(u.id)),
+        }))
     )
   )
   const machinesByUser = new Map(machinesPerUser.map(r => [r.userId, r.machines]))
 
-  const now = new Date()
-  const todayKey = DAY_KEYS[now.getDay()]
+  const todayKey    = DAY_KEYS[now.getDay()]
   const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
 
   return users.map(user => {
@@ -60,18 +76,20 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
       programation = programations.find(p => p.id === userScheduleToday.programation_id)
       if (programation) {
         startTime = programation.start_day
-        endTime = programation.end_day
+        endTime   = programation.end_day
         shouldBeConnected =
           currentTime >= programation.start_day &&
           (!programation.end_day || currentTime <= programation.end_day)
       }
     }
 
-    const userMachines = machinesByUser.get(Number(user.id)) ?? []
-    const machine = userMachines.find(m => m.isAlive || m.alive) ?? userMachines[0]
-    const isConnected = !!(machine && (machine.isAlive || machine.alive))
+    const userMachines  = machinesByUser.get(Number(user.id)) ?? []
+    const machine       = userMachines.find(m => m.isAlive || m.alive) ?? userMachines[0]
+    const wsConnected   = !!(machine && (machine.isAlive || machine.alive))
+    const todaySeconds  = userMachines.reduce((sum, m) => sum + (secondsByMachine.get(Number(m.id)) ?? 0), 0)
+    const isConnected   = wsConnected || todaySeconds > 0
 
-    return { user, isConnected, shouldBeConnected, machine, programation, startTime, endTime }
+    return { user, wsConnected, isConnected, shouldBeConnected, machine, programation, startTime, endTime, todaySeconds }
   })
 }
 

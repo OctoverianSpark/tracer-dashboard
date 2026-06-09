@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { getMachineReport, findAsignedMachines } from '../computers/actions'
 import { getappuser } from '../app/actions'
-import { getGroups } from '../app/groups/actions'
+import { getGroups, getGroupVisibility } from '../app/groups/actions'
 import { getRawAppUsageLogs } from '../time/actions'
 import { getCategorizationApps } from '../supervisors/categorization-actions'
 import ReportScreenshotsList from '@/components/UserReporting/ReportScreenshots'
@@ -27,17 +27,30 @@ export default function Page() {
   const [loading, setLoading]                     = useState(false)
   const [productivityIntervals, setProductivityIntervals] = useState<{ start: number; end: number; pct: number }[]>([])
 
-  const currentUserId    = Number(session?.appUser?.id)
-  const currentGroup     = groups.find(g => g.id === session?.appUser?.group_id)
-  const blockOwn         = currentGroup?.block_own_reports === true
-  const selectableUsers  = blockOwn
-    ? appusers.filter(u => Number(u.id) !== currentUserId)
+  const [visibleGroupIds, setVisibleGroupIds] = useState<number[]>([])
+
+  const currentUserId   = Number(session?.appUser?.id)
+  const currentGroup    = groups.find(g => g.id === session?.appUser?.group_id)
+  const blockOwn        = currentGroup?.block_own_reports === true
+
+  const visibilityFiltered = visibleGroupIds.length > 0
+    ? appusers.filter(u => u.group_id != null && visibleGroupIds.includes(Number(u.group_id)))
     : appusers
+  const selectableUsers = blockOwn
+    ? visibilityFiltered.filter(u => Number(u.id) !== currentUserId)
+    : visibilityFiltered
 
   useEffect(() => {
     getappuser().then(setAppusers)
     getGroups().then(setGroups)
   }, [])
+
+  useEffect(() => {
+    const groupId = session?.appUser?.group_id
+    if (groupId != null) {
+      getGroupVisibility(Number(groupId)).then(setVisibleGroupIds)
+    }
+  }, [session?.appUser?.group_id])
 
   useEffect(() => {
     if (!selectedUser) return

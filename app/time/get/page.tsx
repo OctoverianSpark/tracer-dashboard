@@ -8,7 +8,7 @@ import { UserSelect } from '@/components/UserSelect'
 import { Card, CardContent } from '@/app/_components/_ui/card'
 import { findAsignedMachines } from '@/app/computers/actions'
 import { getappuser } from '@/app/app/actions'
-import { getGroups } from '@/app/app/groups/actions'
+import { getGroups, getGroupVisibility } from '@/app/app/groups/actions'
 import { getScheduleByappuserId, getProgramationById, getStateLog, getAppUsageLogs } from '@/app/time/actions'
 import { getCategorizationApps } from '@/app/supervisors/categorization-actions'
 import { Timeline } from '@/components/TimeReporting/Timeline'
@@ -34,12 +34,18 @@ export default function Page() {
   const [programation, setProgramation] = useState<Programation | null>(null)
   const [ignoredApps, setIgnoredApps]   = useState<Set<string>>(new Set())
 
+  const [visibleGroupIds, setVisibleGroupIds] = useState<number[]>([])
+
   const currentUserId   = Number(session?.appUser?.id)
   const currentGroup    = groups.find(g => g.id === session?.appUser?.group_id)
   const blockOwn        = currentGroup?.block_own_reports === true
-  const selectableUsers = blockOwn
-    ? appuser.filter(u => Number(u.id) !== currentUserId)
+
+  const visibilityFiltered = visibleGroupIds.length > 0
+    ? appuser.filter(u => u.group_id != null && visibleGroupIds.includes(Number(u.group_id)))
     : appuser
+  const selectableUsers = blockOwn
+    ? visibilityFiltered.filter(u => Number(u.id) !== currentUserId)
+    : visibilityFiltered
 
   const filteredLogs = useMemo(
     () => date ? logs.filter(log => log.timestamp.startsWith(date)) : [],
@@ -53,6 +59,13 @@ export default function Page() {
       setIgnoredApps(new Set(apps.filter(a => a.category === 'ignore').map(a => a.name.toLowerCase())))
     })
   }, [])
+
+  useEffect(() => {
+    const groupId = session?.appUser?.group_id
+    if (groupId != null) {
+      getGroupVisibility(Number(groupId)).then(setVisibleGroupIds)
+    }
+  }, [session?.appUser?.group_id])
 
   useEffect(() => {
     if (!selectedAppUser) return

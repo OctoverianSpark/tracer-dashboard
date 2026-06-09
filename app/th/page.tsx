@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { getUserSchedules, UserScheduleRow } from './actions'
+import { getGroupVisibility } from '@/app/app/groups/actions'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
 import THScheduleView from '@/components/TH/THScheduleView'
 import THProductivityReport from '@/components/TH/THProductivityReport'
@@ -8,14 +10,27 @@ import LateArrivalsLog from '@/components/TH/LateArrivalsLog'
 import { Loader2 } from 'lucide-react'
 
 export default function THPage() {
-  const [rows, setRows] = useState<UserScheduleRow[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: session }                   = useSession()
+  const [rows, setRows]                     = useState<UserScheduleRow[]>([])
+  const [loading, setLoading]               = useState(true)
+  const [visibleGroupIds, setVisibleGroupIds] = useState<number[]>([])
 
   useEffect(() => {
     getUserSchedules()
       .then(({ rows }) => setRows(rows))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    const groupId = session?.appUser?.group_id
+    if (groupId != null) {
+      getGroupVisibility(Number(groupId)).then(setVisibleGroupIds)
+    }
+  }, [session?.appUser?.group_id])
+
+  const visibleRows = visibleGroupIds.length > 0
+    ? rows.filter(r => r.user.group_id != null && visibleGroupIds.includes(Number(r.user.group_id)))
+    : rows
 
   return (
     <div className="space-y-6">
@@ -34,7 +49,7 @@ export default function THPage() {
         <TabsContent value="schedule" className="mt-4">
           {loading
             ? <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-            : <THScheduleView rows={rows} />
+            : <THScheduleView rows={visibleRows} />
           }
         </TabsContent>
 
