@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Machine, machineLabel } from '@/types/Machine'
 import { AppUser, Group } from '@/types/AppUser'
 import { Input } from '../_components/_ui/input'
-import { Label } from '../_components/_ui/label'
 import { UserSelect } from '@/components/UserSelect'
 
 export default function Page() {
@@ -144,68 +143,68 @@ export default function Page() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
-        <div className="grid gap-1 w-full sm:min-w-48">
-          <Label>Usuario</Label>
-          <UserSelect
-            users={selectableUsers}
-            groups={groups}
-            value={selectedUser?.id?.toString()}
-            onValueChange={val => {
-              setSelectedUser(appusers.find(u => u.id === Number(val)))
-              setActualMonitor(null)
-            }}
-            placeholder="Selecciona un usuario"
-          />
-        </div>
 
-        <div className="grid gap-1 w-full sm:min-w-48">
-          <Label>Equipo</Label>
-          <Select
-            disabled={!selectedUser}
-            value={machine?.serial_number}
-            onValueChange={val => {
-              setMachine(machines.find(m => m.serial_number === val))
-              setActualMonitor(null)
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={selectedUser ? 'Selecciona un equipo' : 'Primero selecciona un usuario'} />
-            </SelectTrigger>
-            <SelectContent>
-              {machines.map(m => (
-                <SelectItem key={m.serial_number} value={m.serial_number}>
-                  {machineLabel(m)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Barra de filtros compacta */}
+      <div className="flex items-center gap-2 flex-wrap rounded-xl border bg-card backdrop-blur-sm px-4 py-3">
+        <UserSelect
+          users={selectableUsers}
+          groups={groups}
+          value={selectedUser?.id?.toString()}
+          onValueChange={val => {
+            setSelectedUser(appusers.find(u => u.id === Number(val)))
+            setActualMonitor(null)
+          }}
+          placeholder="Usuario"
+          triggerClassName="h-8 text-sm flex-1 min-w-36"
+        />
 
-        <div className="grid gap-1">
-          <Label>Fecha de capturas</Label>
-          <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
-        </div>
-      </div>
+        <Select
+          disabled={!selectedUser}
+          value={machine?.serial_number}
+          onValueChange={val => {
+            setMachine(machines.find(m => m.serial_number === val))
+            setActualMonitor(null)
+          }}
+        >
+          <SelectTrigger className="h-8 text-sm flex-1 min-w-36">
+            <SelectValue placeholder={selectedUser ? 'Equipo' : 'Equipo'} />
+          </SelectTrigger>
+          <SelectContent>
+            {machines.map(m => (
+              <SelectItem key={m.serial_number} value={m.serial_number}>
+                {machineLabel(m)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-      {machine && date && (
-        <div className="space-y-4">
+        <Input
+          type="date"
+          value={date}
+          onChange={e => setDate(e.target.value)}
+          className="h-8 text-sm w-auto"
+        />
+
+        {machine && (
           <Select
             value={actualMonitor === null ? 'all' : `${actualMonitor}`}
             onValueChange={val => setActualMonitor(val === 'all' ? null : parseInt(val))}
           >
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="h-8 text-sm w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los monitores</SelectItem>
               {Array.from({ length: monitorCount }, (_, i) => (
-                <SelectItem key={i + 1} value={`${i + 1}`}>
-                  Monitor {i + 1}
-                </SelectItem>
+                <SelectItem key={i + 1} value={`${i + 1}`}>Monitor {i + 1}</SelectItem>
               ))}
             </SelectContent>
           </Select>
+        )}
+      </div>
+
+      {machine && date && (
+        <div className="space-y-4">
 
           {loading ? (
             <p className="text-sm text-muted-foreground py-4">Cargando capturas...</p>

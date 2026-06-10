@@ -69,7 +69,7 @@
   --accent-foreground: oklch(0.864 0.040 277.7);
   --destructive: oklch(0.762 0.161 10.4);
   --border: oklch(0.760 0.139 301.0 / 0.18);
-  --input: oklch(0.300 0.042 280.0 / 0.90);
+  --input: oklch(0.320 0.030 278);
   --ring: oklch(0.760 0.139 301.0);
   --chart-1: oklch(0.756 0.135 255.6);
   --chart-2: oklch(0.871 0.102 143.1);
@@ -177,12 +177,19 @@
   -webkit-backdrop-filter: blur(26px) saturate(180%);
 }
 
-/* inputs con backdrop-blur para distinguirse del fondo */
+/* inputs: fondo opaco y borde Mauve */
 input:not([type='checkbox']):not([type='radio']):not([type='range']),
 textarea,
 select {
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: oklch(0.380 0.030 278) !important;
+  border-color: oklch(0.760 0.139 301.0 / 0.35) !important;
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']):focus,
+textarea:focus,
+select:focus {
+  border-color: oklch(0.760 0.139 301.0 / 0.70) !important;
+  outline: none;
 }
 
 /* ── Base ─────────────────────────────────────────────── */
