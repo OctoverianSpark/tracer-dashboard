@@ -2,9 +2,8 @@
 import { Machine, machineLabel } from '@/types/Machine'
 import { AppUser } from '@/types/AppUser'
 import { Monitor, Wifi, WifiOff, User, Clock, Search, LayoutGrid, List, FileDown, TreePalm } from 'lucide-react'
-import { useState, useMemo, useEffect, useCallback, useTransition } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { getMachines } from '@/app/computers/actions'
-import { setUserVacation } from '@/app/app/actions'
 import { Card, CardContent, CardHeader } from '@/app/_components/_ui/card'
 import { Input } from '@/app/_components/_ui/input'
 import { Badge } from '@/app/_components/_ui/badge'
@@ -35,34 +34,7 @@ const StatCard = ({ label, value, sub }: { label: string; value: number; sub: st
   </Card>
 )
 
-function VacationToggle({ userId, isVacation, onToggle }: { userId: number | string; isVacation: boolean; onToggle: (id: number, val: boolean) => void }) {
-  const [pending, startTransition] = useTransition()
-
-  const toggle = () => {
-    startTransition(async () => {
-      await setUserVacation(Number(userId), !isVacation)
-      onToggle(Number(userId), !isVacation)
-    })
-  }
-
-  return (
-    <button
-      onClick={toggle}
-      disabled={pending}
-      title={isVacation ? 'Quitar vacaciones' : 'Marcar de vacaciones'}
-      className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border transition-colors cursor-pointer disabled:opacity-50
-        ${isVacation
-          ? 'bg-sky-500/10 border-sky-400 text-sky-600 hover:bg-sky-500/20'
-          : 'border-dashed border-muted-foreground/40 text-muted-foreground hover:border-sky-400 hover:text-sky-500'
-        }`}
-    >
-      <TreePalm className='size-3' />
-      {isVacation ? 'Vacaciones' : 'Vacaciones'}
-    </button>
-  )
-}
-
-function MachineCard({ machine, appuser, onVacationToggle }: { machine: Machine; appuser?: AppUser; onVacationToggle: (id: number, val: boolean) => void }) {
+function MachineCard({ machine, appuser }: { machine: Machine; appuser?: AppUser }) {
   const online = machine.alive || machine.isAlive
   const isVacation = appuser?.on_vacation ?? false
 
@@ -99,15 +71,6 @@ function MachineCard({ machine, appuser, onVacationToggle }: { machine: Machine;
           <Clock className='size-3' />
           <span>{formatDate(machine.last_seen)}</span>
         </div>
-        {!online && machine.appuser_id && (
-          <div className='pt-1 border-t'>
-            <VacationToggle
-              userId={machine.appuser_id}
-              isVacation={appuser?.on_vacation ?? false}
-              onToggle={onVacationToggle}
-            />
-          </div>
-        )}
       </CardContent>
     </Card>
   )
@@ -157,11 +120,6 @@ export default function ComputersDashboard({ machines: initial, appusers: initia
     const id = setInterval(refresh, POLL_INTERVAL)
     return () => clearInterval(id)
   }, [refresh])
-
-  // Actualización optimista del estado de vacaciones
-  const handleVacationToggle = (userId: number, val: boolean) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, on_vacation: val } : u))
-  }
 
   const getAppUser = (machine: Machine) =>
     users.find(u => String(u.id) === String(machine.appuser_id))
@@ -265,7 +223,6 @@ export default function ComputersDashboard({ machines: initial, appusers: initia
                 key={m.serial_number}
                 machine={m}
                 appuser={getAppUser(m)}
-                onVacationToggle={handleVacationToggle}
               />
             ))}
           </div>
@@ -283,7 +240,6 @@ export default function ComputersDashboard({ machines: initial, appusers: initia
                   <TableHead>Usuario</TableHead>
                   <TableHead>IP</TableHead>
                   <TableHead>Último visto</TableHead>
-                  <TableHead>Vacaciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

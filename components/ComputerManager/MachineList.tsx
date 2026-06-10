@@ -176,7 +176,7 @@ export default function MachineList({ machines, appusers }: MachineListProps) {
                       <TableCell className="text-sm text-muted-foreground">{formatDate(m.last_seen)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <MachineDialog machine={m} />
+                          <MachineDialog machine={m} appuser={appusers.find(u => String(u.id) === String(m.appuser_id))} />
                           <Button variant="ghost" size="icon" className="cursor-pointer" onClick={() => setConfirmSerial(m.serial_number)}>
                             <Trash2 className="size-4 text-destructive" />
                           </Button>

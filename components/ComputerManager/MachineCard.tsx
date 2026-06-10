@@ -5,13 +5,10 @@ import { Machine, machineLabel } from '@/types/Machine'
 import { AppUser } from '@/types/AppUser'
 import MachineDialog from './MachineDialog'
 import { Button } from '@/app/_components/_ui/button'
-import { Switch } from '@/app/_components/_ui/switch'
-import { Label } from '@/app/_components/_ui/label'
 import { Trash2, Wifi, WifiOff, TreePalm } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/app/_components/_ui/alert-dialog'
-import { useState, useTransition } from 'react'
-import { setUserVacation } from '@/app/app/actions'
+import { useState } from 'react'
 
 interface CardMachineProps {
   machine: Machine
@@ -21,18 +18,8 @@ interface CardMachineProps {
 
 export default function MachineCard({ machine, appuser, onDelete }: CardMachineProps) {
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [vacation, setVacation] = useState(appuser?.on_vacation ?? false)
-  const [pending, startTransition] = useTransition()
-
   const online = machine.alive || machine.isAlive
-
-  const handleVacationToggle = (value: boolean) => {
-    if (!appuser?.id) return
-    setVacation(value)
-    startTransition(async () => {
-      await setUserVacation(appuser.id!, value)
-    })
-  }
+  const vacation = appuser?.on_vacation ?? false
 
   const statusBadge = vacation
     ? <Badge className="text-xs bg-sky-500 hover:bg-sky-500 text-white gap-1"><TreePalm className="size-3" />Vacaciones</Badge>
@@ -78,26 +65,8 @@ export default function MachineCard({ machine, appuser, onDelete }: CardMachineP
 
       <CardContent className="flex flex-col items-center gap-3">
         <span className="text-md truncate">{machine.displayName}</span>
-
         {statusBadge}
-
-        <MachineDialog machine={machine} />
-
-        {/* Switch de vacaciones: solo visible cuando offline y hay usuario asignado */}
-        {!online && appuser && (
-          <div className="flex items-center gap-2 pt-1 border-t w-full justify-center">
-            <Switch
-              id={`vac-${machine.serial_number}`}
-              checked={vacation}
-              onCheckedChange={handleVacationToggle}
-              disabled={pending}
-              className="data-[state=checked]:bg-sky-500"
-            />
-            <Label htmlFor={`vac-${machine.serial_number}`} className="text-xs cursor-pointer text-muted-foreground">
-              De vacaciones
-            </Label>
-          </div>
-        )}
+        <MachineDialog machine={machine} appuser={appuser} />
       </CardContent>
     </Card>
   )
