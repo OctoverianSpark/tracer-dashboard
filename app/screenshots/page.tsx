@@ -91,8 +91,8 @@ export default function Page() {
         const MIN_CLICKS = 5
         const MIN_KEYS   = 15
 
-        const clicks     = log.MouseClicks ?? 0
-        const keystrokes = log.Keystrokes  ?? 0
+        const clicks     = log.mouse_clicks ?? 0
+        const keystrokes = log.keystrokes  ?? 0
         const clicksPct  = Math.min(100, Math.round((clicks     / MIN_CLICKS) * 100))
         const keysPct    = Math.min(100, Math.round((keystrokes / MIN_KEYS)   * 100))
         const pct        = Math.round((clicksPct + keysPct) / 2)
