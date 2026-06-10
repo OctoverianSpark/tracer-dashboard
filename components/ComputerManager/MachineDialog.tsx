@@ -33,7 +33,7 @@ export default function MachineDialog({ machine, appuser }: MachineDialogProps) 
   useEffect(() => {
     setVacation(appuser?.on_vacation ?? false)
   }, [appuser?.on_vacation])
-  console.log(machine)
+
   useEffect(() => {
     if (!open || !machine.ip_address || isPrivateIP(machine.ip_address)) return
     getIPInfo(machine.ip_address)

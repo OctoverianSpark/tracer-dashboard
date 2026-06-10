@@ -10,6 +10,13 @@ export const getMachines = async (): Promise<Machine[]> => {
   return data.machines
 }
 
+// Devuelve todas las máquinas del endpoint base, que sí incluye appuser_id
+export const getMachinesWithAppUser = async (): Promise<Pick<Machine, 'serial_number' | 'appuser_id'>[]> => {
+  const data = await (await fetch(`${API_URL}/machines`, { cache: 'no-store' })).json()
+  const list: Machine[] = Array.isArray(data) ? data : (data.machines ?? data.data ?? [])
+  return list.map(m => ({ serial_number: m.serial_number, appuser_id: m.appuser_id }))
+}
+
 export const findAsignedMachines = async (appuser_id: number): Promise<Machine[]> => {
   const data = await (await fetch(`${API_URL}/machines?appuser_id=${appuser_id}`)).json()
   const all: Machine[] = Array.isArray(data) ? data : (data.machines ?? data.data ?? [])
