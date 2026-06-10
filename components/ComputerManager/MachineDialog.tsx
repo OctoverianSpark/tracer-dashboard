@@ -49,7 +49,6 @@ export default function MachineDialog({ machine, appuser }: MachineDialogProps) 
 
   const toggleVacation = () => {
     const userId = Number(appuser?.id ?? machine.appuser_id)
-    console.log(userId);
     
     if (!userId) return
     const next = !vacation
@@ -60,6 +59,7 @@ export default function MachineDialog({ machine, appuser }: MachineDialogProps) 
   }
 
   const userId = appuser?.id ?? (machine.appuser_id ? Number(machine.appuser_id) : null)
+  console.log('MachineDialog render', { machine, appuser, userId, vacation })
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
