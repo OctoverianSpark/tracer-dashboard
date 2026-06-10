@@ -96,11 +96,11 @@ export default function Page() {
 
         const clicks     = log.mouse_clicks ?? 0
         const keystrokes = log.keystrokes   ?? 0
-        console.log(clicks,keystrokes);
         
         const clicksPct  = Math.min(100, Math.round((clicks     / TARGET_CLICKS) * 100))
         const keysPct    = Math.min(100, Math.round((keystrokes / TARGET_KEYS)   * 100))
         const pct        = Math.round((clicksPct + keysPct) / 2)
+        console.log(clicksPct,keysPct,pct);
 
 
         intervals.push({ start: startMs, end: endMs, pct })
