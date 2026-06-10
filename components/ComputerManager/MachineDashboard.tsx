@@ -100,10 +100,13 @@ function MachineCard({ machine, appuser, onVacationToggle }: { machine: Machine;
           <Clock className='size-3' />
           <span>{formatDate(machine.last_seen)}</span>
         </div>
-        {/* Toggle vacaciones — solo si hay usuario asignado y está offline */}
-        {appuser && !online && (
+        {/* Toggle vacaciones — solo si está offline */}
+        {!online && (
           <div className='pt-1 border-t'>
-            <VacationToggle appuser={appuser} onToggle={onVacationToggle} />
+            {appuser
+              ? <VacationToggle appuser={appuser} onToggle={onVacationToggle} />
+              : <span className='text-xs text-muted-foreground italic'>Sin usuario asignado</span>
+            }
           </div>
         )}
       </CardContent>
