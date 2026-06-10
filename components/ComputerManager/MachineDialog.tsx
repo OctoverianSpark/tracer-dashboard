@@ -84,8 +84,8 @@ export default function MachineDialog({ machine, appuser }: MachineDialogProps) 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className='cursor-pointer'>
-          Ver Datos <ArrowRight />
+        <Button variant='ghost' size='sm' className='cursor-pointer gap-1 text-xs h-7 px-2 text-muted-foreground hover:text-foreground'>
+          Ver datos <ArrowRight className='size-3' />
         </Button>
       </DialogTrigger>
 

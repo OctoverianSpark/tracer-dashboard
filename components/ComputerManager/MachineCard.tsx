@@ -1,14 +1,19 @@
 'use client'
-import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/_ui/card'
+import { Card, CardContent, CardHeader } from '@/app/_components/_ui/card'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Machine, machineLabel } from '@/types/Machine'
 import { AppUser } from '@/types/AppUser'
 import MachineDialog from './MachineDialog'
+import { Monitor, Wifi, WifiOff, TreePalm, Clock, User, Trash2 } from 'lucide-react'
 import { Button } from '@/app/_components/_ui/button'
-import { Trash2, Wifi, WifiOff, TreePalm } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/app/_components/_ui/alert-dialog'
 import { useState } from 'react'
+
+function formatDate(raw: string | undefined) {
+  if (!raw) return '—'
+  return new Date(raw).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })
+}
 
 interface CardMachineProps {
   machine: Machine
@@ -18,56 +23,87 @@ interface CardMachineProps {
 
 export default function MachineCard({ machine, appuser, onDelete }: CardMachineProps) {
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const online = machine.alive || machine.isAlive
+  const online  = machine.alive || machine.isAlive
   const vacation = appuser?.on_vacation ?? false
 
-  const statusBadge = vacation
-    ? <Badge className="text-xs bg-sky-500 hover:bg-sky-500 text-white gap-1"><TreePalm className="size-3" />Vacaciones</Badge>
-    : online
-      ? <Badge className="text-xs bg-green-500 hover:bg-green-500 gap-1"><Wifi className="size-3" />Online</Badge>
-      : <Badge variant="secondary" className="text-xs gap-1"><WifiOff className="size-3" />Offline</Badge>
-
   return (
-    <Card className={`relative flex flex-col border-2 transition-all duration-200 hover:shadow-lg hover:scale-105 cursor-pointer
-      ${vacation ? 'border-sky-400' : online ? 'border-green-500' : 'border-red-500'}`}
-    >
-      <CardHeader className="w-full text-center pb-2 relative">
-        <CardTitle className="text-xl truncate">{machine.hostname}</CardTitle>
-        <p className="text-sm text-muted-foreground">{machineLabel(machine)}</p>
-        <p className="text-xs text-muted-foreground">{machine.ip_address || 'Sin IP'}</p>
+    <Card className={`transition-all border-2 ${vacation ? 'border-sky-400/60' : online ? 'border-green-500/50' : 'border-border'}`}>
+      <CardHeader className='pb-2 flex flex-row items-center justify-between gap-2'>
+        <div className='flex items-center gap-2 min-w-0'>
+          <Monitor className='size-4 text-muted-foreground shrink-0' />
+          <div className='min-w-0'>
+            <span className='font-medium text-sm truncate block'>{machine.hostname}</span>
+            <p className='text-[11px] text-muted-foreground leading-none mt-0.5 truncate'>{machineLabel(machine)}</p>
+          </div>
+        </div>
 
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="cursor-pointer absolute -top-5 right-2" onClick={() => setConfirmOpen(true)}>
-                <Trash2 className="text-destructive" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Eliminar computadora</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div className='flex items-center gap-1 shrink-0'>
+          {vacation ? (
+            <Badge className='text-xs bg-sky-500 hover:bg-sky-500 text-white gap-1'>
+              <TreePalm className='size-3' />Vacaciones
+            </Badge>
+          ) : (
+            <Badge
+              variant={online ? 'default' : 'secondary'}
+              className={`text-xs ${online ? 'bg-green-500 hover:bg-green-500' : ''}`}
+            >
+              {online
+                ? <><Wifi className='size-3 mr-1' />Online</>
+                : <><WifiOff className='size-3 mr-1' />Offline</>}
+            </Badge>
+          )}
 
-        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Eliminar computadora?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Se eliminará <strong>{machineLabel(machine)}</strong> permanentemente. Esta acción no se puede deshacer.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={() => onDelete(machine.serial_number)}>Eliminar</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant='ghost'
+                  size='icon'
+                  className='size-6 text-muted-foreground hover:text-destructive cursor-pointer'
+                  onClick={() => setConfirmOpen(true)}
+                >
+                  <Trash2 className='size-3.5' />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Eliminar computadora</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </CardHeader>
 
-      <CardContent className="flex flex-col items-center gap-3">
-        <span className="text-md truncate">{machine.displayName}</span>
-        {statusBadge}
-        <MachineDialog machine={machine} appuser={appuser} />
+      <CardContent className='space-y-2 text-xs text-muted-foreground'>
+        <div className='flex items-center gap-2'>
+          <User className='size-3 shrink-0' />
+          <span className='truncate'>{machine.username || '—'}</span>
+        </div>
+        <div className='flex items-center gap-2'>
+          <span className='font-mono bg-muted px-1.5 py-0.5 rounded text-[11px]'>{machine.ip_address || '—'}</span>
+          <span className='text-[11px] opacity-60 truncate'>{machine.serial_number}</span>
+        </div>
+        <div className='flex items-center gap-2'>
+          <Clock className='size-3 shrink-0' />
+          <span className='truncate'>{formatDate(machine.last_seen)}</span>
+        </div>
+
+        <div className='flex justify-end pt-1'>
+          <MachineDialog machine={machine} appuser={appuser} />
+        </div>
       </CardContent>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar computadora?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará <strong>{machine.hostname}</strong> permanentemente. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => onDelete(machine.serial_number)}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }
