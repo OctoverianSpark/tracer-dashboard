@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/_components/_ui/
 import THScheduleView from '@/components/TH/THScheduleView'
 import THProductivityReport from '@/components/TH/THProductivityReport'
 import LateArrivalsLog from '@/components/TH/LateArrivalsLog'
-import { Loader2 } from 'lucide-react'
+import InfinitySpinner from '@/components/InfinitySpinner'
 
 export default function THPage() {
   const { data: session }                   = useSession()
@@ -48,7 +48,7 @@ export default function THPage() {
 
         <TabsContent value="schedule" className="mt-4">
           {loading
-            ? <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ? <div className="flex justify-center py-10"><InfinitySpinner size={56} /></div>
             : <THScheduleView rows={visibleRows} />
           }
         </TabsContent>

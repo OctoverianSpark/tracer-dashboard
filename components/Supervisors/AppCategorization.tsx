@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import InfinitySpinner from '@/components/InfinitySpinner'
 import {
   CategorizationApp,
   getCategorizationApps,
@@ -213,7 +214,7 @@ export default function AppCategorization() {
 
       {loading && (
         <div className="flex justify-center py-10">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <InfinitySpinner size={52} />
         </div>
       )}
 

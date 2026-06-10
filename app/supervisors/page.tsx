@@ -6,7 +6,8 @@ import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
 import ConnectedUsersTable from '@/components/Supervisors/ConnectedUsersTable'
 import ProductivityReport from '@/components/Supervisors/ProductivityReport'
-import { Loader2, RefreshCw, Wifi, WifiOff } from 'lucide-react'
+import { RefreshCw, Wifi, WifiOff, Loader2 } from 'lucide-react'
+import InfinitySpinner from '@/components/InfinitySpinner'
 
 export default function SupervisorsPage() {
   const [statuses, setStatuses] = useState<UserConnectionStatus[]>([])
@@ -61,14 +62,14 @@ export default function SupervisorsPage() {
 
         <TabsContent value="connected" className="mt-4">
           {loading
-            ? <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ? <div className="flex justify-center py-10"><InfinitySpinner size={56} /></div>
             : <ConnectedUsersTable statuses={statuses} mode="connected" />
           }
         </TabsContent>
 
         <TabsContent value="disconnected" className="mt-4">
           {loading
-            ? <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ? <div className="flex justify-center py-10"><InfinitySpinner size={56} /></div>
             : <ConnectedUsersTable statuses={statuses} mode="disconnected" />
           }
         </TabsContent>
