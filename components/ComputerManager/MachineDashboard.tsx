@@ -121,8 +121,11 @@ export default function ComputersDashboard({ machines: initial, appusers: initia
     return () => clearInterval(id)
   }, [refresh])
 
-  const getAppUser = (machine: Machine) =>
-    users.find(u => String(u.id) === String(machine.appuser_id))
+  const getAppUser = (machine: Machine) => {
+    const found = users.find(u => String(u.id) === String(machine.appuser_id))
+    console.log(`[getAppUser] ${machine.hostname} | appuser_id=${machine.appuser_id} | found=${found?.full_name ?? 'null'}`)
+    return found
+  }
 
   const online  = useMemo(() => machines.filter(m => m.alive || m.isAlive), [machines])
   const offline = useMemo(() => machines.filter(m => !m.alive && !m.isAlive), [machines])

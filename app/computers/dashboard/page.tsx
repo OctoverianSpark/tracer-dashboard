@@ -21,5 +21,10 @@ export default async function Page() {
     appuser_id: m.appuser_id ?? appuserIdBySerial.get(m.serial_number),
   }))
 
+  console.log('[Dashboard] appUserMap sample:', appUserMap.slice(0, 3))
+  console.log('[Dashboard] appuserIdBySerial size:', appuserIdBySerial.size)
+  console.log('[Dashboard] enriched sample:', enrichedMachines.slice(0, 3).map(m => ({ hostname: m.hostname, serial: m.serial_number, appuser_id: m.appuser_id })))
+  console.log('[Dashboard] appusers sample:', appusers.slice(0, 3).map(u => ({ id: u.id, name: u.full_name })))
+
   return <ComputersDashboard machines={enrichedMachines} appusers={appusers} />
 }
