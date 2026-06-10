@@ -5,6 +5,7 @@ export interface AppUser {
   email?: string
   role_id?: number
   group_id?: number
+  on_vacation?: boolean
 }
 
 export interface Group {

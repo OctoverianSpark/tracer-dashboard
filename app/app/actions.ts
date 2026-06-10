@@ -18,6 +18,14 @@ export const saveappuser = async (body: AppUser) => {
   revalidatePath('/app/users')
 }
 
+export const setUserVacation = async (userId: number, on_vacation: boolean) => {
+  await fetch(`${API_URL}/appuser/update/${userId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ on_vacation }),
+  })
+}
+
 export const deleteappuser = async (selected: number[]) => {
   if (selected.length === 0) return
 

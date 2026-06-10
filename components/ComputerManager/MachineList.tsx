@@ -1,5 +1,6 @@
 'use client'
 import { Machine, machineLabel } from '@/types/Machine'
+import { AppUser } from '@/types/AppUser'
 import MachineCard from './MachineCard'
 import MachineDialog from './MachineDialog'
 import Paginator from './Paginator'
@@ -15,6 +16,7 @@ import * as XLSX from 'xlsx'
 
 interface MachineListProps {
   machines: Machine[]
+  appusers: AppUser[]
 }
 
 const PAGE_SIZE_GRID  = 12
@@ -43,7 +45,7 @@ function exportXLSX(machines: Machine[]) {
   XLSX.writeFile(wb, `equipos_${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
-export default function MachineList({ machines }: MachineListProps) {
+export default function MachineList({ machines, appusers }: MachineListProps) {
   const [search, setSearch]             = useState('')
   const [view, setView]                 = useState<'grid' | 'table'>('grid')
   const [page, setPage]                 = useState(1)
@@ -130,7 +132,12 @@ export default function MachineList({ machines }: MachineListProps) {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {paged.map(pc => (
-              <MachineCard onDelete={serial => setConfirmSerial(serial)} machine={pc} key={pc.serial_number} />
+              <MachineCard
+                onDelete={serial => setConfirmSerial(serial)}
+                machine={pc}
+                key={pc.serial_number}
+                appuser={appusers.find(u => String(u.id) === String(pc.appuser_id))}
+              />
             ))}
           </div>
           <Paginator page={page} totalPages={totalPages} total={filtered.length} pageSize={pageSize} onPageChange={setPage} />
