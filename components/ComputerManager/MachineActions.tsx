@@ -98,7 +98,7 @@ export default function MachineActions({
           </Button>
         </DialogTrigger>
 
-        <DialogContent className="max-w-xs bg-card border border-border rounded-3xl">
+        <DialogContent className="max-w-xs border border-border rounded-3xl" style={{ background: 'oklch(0.240 0.032 278)' }}>
           <DialogTitle className="text-muted-foreground text-xs font-semibold tracking-widest uppercase mb-5">
             Acciones del equipo
           </DialogTitle>
@@ -141,7 +141,6 @@ export default function MachineActions({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              className={confirmAction === 'shutdown' ? 'bg-red-500 hover:bg-red-600' : 'bg-amber-500 hover:bg-amber-600'}
               onClick={() => {
                 if (confirmAction === 'shutdown') onShutdown()
                 else onRestart()
@@ -156,7 +155,7 @@ export default function MachineActions({
 
       {/* Notification sub-dialog */}
       <Dialog open={notifOpen} onOpenChange={setNotifOpen}>
-        <DialogContent className="max-w-xs bg-card border border-border rounded-3xl p-6 shadow-xl">
+        <DialogContent className="max-w-xs border border-border rounded-3xl p-6 shadow-xl" style={{ background: 'oklch(0.240 0.032 278)' }}>
           <DialogTitle className="text-muted-foreground text-xs font-semibold tracking-widest uppercase mb-4">
             Enviar notificación
           </DialogTitle>
