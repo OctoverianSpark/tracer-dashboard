@@ -15,7 +15,6 @@ import {
   LucideIcon,
   PlusIcon,
   Send,
-  Table,
   Table2,
   Table2Icon,
   TimerIcon,
@@ -158,14 +157,6 @@ const COMPUTERS: NavSection = {
       icon: FrameIcon,
       url: UriGenerator('computers', Actions.DASHBOARD),
       desc: 'Panel de computadoras',
-      perm: 'manage_computers'
-    },
-    {
-      title: 'Ver equipos',
-      type: NavTypes.LINK,
-      icon: Table,
-      url: UriGenerator('computers', Actions.CONTROL),
-      desc: 'Control de computadoras',
       perm: 'manage_computers'
     }
   ]
