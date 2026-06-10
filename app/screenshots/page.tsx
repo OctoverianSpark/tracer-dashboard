@@ -11,6 +11,7 @@ import { Machine, machineLabel } from '@/types/Machine'
 import { AppUser, Group } from '@/types/AppUser'
 import { Input } from '../_components/_ui/input'
 import { UserSelect } from '@/components/UserSelect'
+import InfinitySpinner from '@/components/InfinitySpinner'
 
 export default function Page() {
   const { data: session }                 = useSession()
@@ -207,7 +208,9 @@ export default function Page() {
         <div className="space-y-4">
 
           {loading ? (
-            <p className="text-sm text-muted-foreground py-4">Cargando capturas...</p>
+            <div className="flex justify-center py-12">
+              <InfinitySpinner size={64} />
+            </div>
           ) : (
             <ReportScreenshotsList
               machineName={machine.hostname}

@@ -166,6 +166,15 @@
   80%      { transform: translate(45px, -95px) scale(0.95); border-radius: 70% 30% 45% 55% / 50% 50% 60% 40%; }
 }
 
+/* ── Infinity spinner ── */
+@keyframes infinity-spin {
+  from { stroke-dashoffset: 0;    }
+  to   { stroke-dashoffset: -100; }
+}
+.infinity-dash {
+  animation: infinity-spin 1.8s linear infinite;
+}
+
 /* ── Glassmorphism (solo cards y popovers, no sidebar) ── */
 .bg-card {
   backdrop-filter: blur(18px) saturate(160%);
