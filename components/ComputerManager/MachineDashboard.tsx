@@ -35,14 +35,13 @@ const StatCard = ({ label, value, sub }: { label: string; value: number; sub: st
   </Card>
 )
 
-function VacationToggle({ appuser, onToggle }: { appuser: AppUser; onToggle: (id: number, val: boolean) => void }) {
+function VacationToggle({ userId, isVacation, onToggle }: { userId: number | string; isVacation: boolean; onToggle: (id: number, val: boolean) => void }) {
   const [pending, startTransition] = useTransition()
-  const isVacation = appuser.on_vacation ?? false
 
   const toggle = () => {
     startTransition(async () => {
-      await setUserVacation(appuser.id!, !isVacation)
-      onToggle(appuser.id!, !isVacation)
+      await setUserVacation(Number(userId), !isVacation)
+      onToggle(Number(userId), !isVacation)
     })
   }
 
@@ -100,13 +99,13 @@ function MachineCard({ machine, appuser, onVacationToggle }: { machine: Machine;
           <Clock className='size-3' />
           <span>{formatDate(machine.last_seen)}</span>
         </div>
-        {/* Toggle vacaciones — solo si está offline */}
-        {!online && (
+        {!online && machine.appuser_id && (
           <div className='pt-1 border-t'>
-            {appuser
-              ? <VacationToggle appuser={appuser} onToggle={onVacationToggle} />
-              : <span className='text-xs text-muted-foreground italic'>Sin usuario asignado</span>
-            }
+            <VacationToggle
+              userId={machine.appuser_id}
+              isVacation={appuser?.on_vacation ?? false}
+              onToggle={onVacationToggle}
+            />
           </div>
         )}
       </CardContent>
@@ -309,8 +308,12 @@ export default function ComputersDashboard({ machines: initial, appusers: initia
                       <TableCell className='font-mono text-xs'>{m.ip_address || '—'}</TableCell>
                       <TableCell className='text-sm text-muted-foreground'>{formatDate(m.last_seen)}</TableCell>
                       <TableCell>
-                        {appuser && !isOnline && (
-                          <VacationToggle appuser={appuser} onToggle={handleVacationToggle} />
+                        {!isOnline && m.appuser_id && (
+                          <VacationToggle
+                            userId={m.appuser_id}
+                            isVacation={appuser?.on_vacation ?? false}
+                            onToggle={handleVacationToggle}
+                          />
                         )}
                       </TableCell>
                     </TableRow>
