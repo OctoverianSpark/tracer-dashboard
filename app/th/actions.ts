@@ -77,7 +77,9 @@ const loadMachinesAndStateLogs = async (
       try {
         const raw = await getStateLog(userId, Number(machine.id))
         const logs: StateLog[] = (Array.isArray(raw) ? raw : [])
-          .filter((l: StateLog) => l.timestamp?.startsWith(date))
+          .filter((l: StateLog) => l.timestamp
+            ? new Date(l.timestamp).toLocaleDateString('sv', { timeZone: 'America/Bogota' }) === date
+            : false)
         return { machineId: Number(machine.id), logs }
       } catch {
         return { machineId: Number(machine.id), logs: [] as StateLog[] }
@@ -171,16 +173,25 @@ export const getLateArrivals = async (date: string): Promise<LateArrival[]> => {
     if (activeLogs.length === 0) return absent
 
     const firstTime = new Date(activeLogs[0].timestamp)
-    const [schedH, schedM] = scheduledStart.split(':').map(Number)
-    const scheduled = new Date(firstTime)
-    scheduled.setHours(schedH, schedM, 0, 0)
 
-    const minutesLate = Math.round((firstTime.getTime() - scheduled.getTime()) / 60000)
+    // Hora Colombia explícita, independiente del timezone del servidor
+    const firstColTime = firstTime.toLocaleTimeString('es-CO', {
+      hour: '2-digit', minute: '2-digit', hour12: false,
+      timeZone: 'America/Bogota',
+    })
+
+    // Comparar con hora programada usando minutos desde medianoche Colombia
+    const [schedH, schedM] = scheduledStart.split(':').map(Number)
+    const schedMinutes = schedH * 60 + schedM
+    const [colH, colM] = firstColTime.split(':').map(Number)
+    const firstMinutes = colH * 60 + colM
+
+    const minutesLate = firstMinutes - schedMinutes
 
     return {
       user,
       scheduledStart,
-      firstActivity: firstTime.toTimeString().slice(0, 5),
+      firstActivity: firstColTime,
       minutesLate:   Math.max(0, minutesLate),
       status:        minutesLate > 5 ? ('late' as const) : ('on_time' as const),
     }
