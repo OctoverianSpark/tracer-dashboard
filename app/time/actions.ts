@@ -67,19 +67,34 @@ export const deleteSchedule = async (id: number) => {
 
 export const getRawAppUsageLogs = async (date: string, computer_id?: number): Promise<AppUsageLog[]> => {
   const params = new URLSearchParams({
-    from: `${date}T00:00:00`,
-    to: `${date}T23:59:59`,
+    from: `${date} 00:00:00`,
+    to:   `${date} 23:59:59`,
   })
   if (computer_id != null) params.set('computer_id', String(computer_id))
-  const raw = await fetcher<any>(`${API}/app-usage-logs/by-date?${params}`)
+  const url = `${API}/app-usage-logs/by-date?${params}`
+  const raw = await fetcher<any>(url)
   const list: AppUsageLog[] = Array.isArray(raw) ? raw : (raw?.data ?? raw?.logs ?? [])
-  // Normaliza el separador fecha-hora y filtra al día pedido
+
   const normalized = list.map(log => ({
     ...log,
     interval_start: log.interval_start?.replace(' ', 'T') ?? log.interval_start,
     interval_end:   log.interval_end?.replace(' ', 'T')   ?? log.interval_end,
   }))
-  return normalized.filter(log => log.interval_start?.startsWith(date))
+
+  const filtered = normalized.filter(log => log.interval_start?.startsWith(date))
+
+  // Log servidor — visible en terminal de Next.js
+  const dates = filtered.map(l => l.interval_start?.slice(0, 10)).filter(Boolean)
+  const uniqueDates = [...new Set(dates)]
+  console.log(
+    `[getRawAppUsageLogs] date=${date} computer_id=${computer_id ?? 'ALL'}`,
+    `| raw=${list.length} → filtered=${filtered.length}`,
+    `| fechas en datos: ${uniqueDates.join(', ') || 'ninguna'}`,
+    `| primer intervalo: ${filtered[0]?.interval_start ?? 'N/A'}`,
+    `| último intervalo: ${filtered[filtered.length - 1]?.interval_start ?? 'N/A'}`,
+  )
+
+  return filtered
 }
 
 export const getAppUsageLogs = async (date: string, computer_id?: number): Promise<FlatAppUsageLog[]> => {

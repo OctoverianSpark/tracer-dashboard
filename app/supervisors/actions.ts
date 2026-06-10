@@ -244,23 +244,27 @@ export const getProductivityReport = async (date: string): Promise<UserProductiv
 
       const startMs = new Date(interval.interval_start).getTime()
       const endMs   = new Date(interval.interval_end).getTime()
-      totalIntervalSecs += endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
+      const intervalSecs = endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
+      totalIntervalSecs += intervalSecs
 
       for (const a of interval.apps ?? []) {
         const cat = categoryMap.get(a.app.toLowerCase())
         if (cat === 'ignore') continue
 
+        // Cap defensivo: los segundos de una app no pueden superar la duración del intervalo
+        const secs = Math.min(a.seconds, intervalSecs)
+
         const resolved: UserAppUsage['category'] = cat === 'productive' ? 'productive'
           : cat === 'unproductive' ? 'unproductive'
             : 'uncategorized'
 
-        if (resolved === 'productive') productive += a.seconds
-        else if (resolved === 'unproductive') unproductive += a.seconds
-        else uncategorized += a.seconds
+        if (resolved === 'productive') productive += secs
+        else if (resolved === 'unproductive') unproductive += secs
+        else uncategorized += secs
 
         const existing = appMap.get(a.app)
-        if (existing) existing.seconds += a.seconds
-        else appMap.set(a.app, { app: a.app, seconds: a.seconds, category: resolved })
+        if (existing) existing.seconds += secs
+        else appMap.set(a.app, { app: a.app, seconds: secs, category: resolved })
       }
     }
 
