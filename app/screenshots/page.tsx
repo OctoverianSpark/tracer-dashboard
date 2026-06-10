@@ -77,12 +77,22 @@ export default function Page() {
     if (!machine) return
     setProductivityIntervals(undefined)
     getRawAppUsageLogs(date, machine.id).then(rawLogs => {
-      console.groupCollapsed(`[ActiMetrics] Reportes recibidos: ${rawLogs.length} intervalos — ${machine.hostname} ${date}`)
-      console.log('[ActiMetrics] Raw body completo:', rawLogs)
+      // Diagnóstico
+      const uniqueIds = [...new Set(rawLogs.map(l => l.computer_id))]
+      console.log('[Prod] machine completo:', machine)
+      console.log(`[Prod] machine.id=${machine.id} | computer_ids en respuesta:`, uniqueIds)
+
+      // Filtro defensivo: si tenemos el ID del equipo, descartamos logs de otras máquinas
+      const logs = machine.id != null
+        ? rawLogs.filter(l => l.computer_id === machine.id)
+        : rawLogs
+
+      console.groupCollapsed(`[ActiMetrics] Reportes recibidos: ${logs.length} intervalos — ${machine.hostname} ${date}`)
+      console.log('[ActiMetrics] Raw body completo:', logs)
 
       const intervals: { start: number; end: number; pct: number }[] = []
 
-      for (const log of rawLogs) {
+      for (const log of logs) {
         const startMs = new Date(log.interval_start).getTime()
         const endMs   = new Date(log.interval_end).getTime()
         if (!startMs || !endMs || endMs <= startMs) continue
