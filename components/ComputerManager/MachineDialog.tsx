@@ -70,7 +70,7 @@ export default function MachineDialog({ machine, appuser }: MachineDialogProps) 
 
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center justify-between mb-1">
             <MachineActions
               onLock={() => lockMachine(machine.serial_number)}
               onSendFile={handleFileSelect}
@@ -79,6 +79,21 @@ export default function MachineDialog({ machine, appuser }: MachineDialogProps) 
               onRestart={() => {}}
               onShutdown={() => {}}
             />
+            {userId && (
+              <button
+                onClick={toggleVacation}
+                disabled={pending}
+                title={vacation ? 'Quitar vacaciones' : 'Marcar de vacaciones'}
+                className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer disabled:opacity-50
+                  ${vacation
+                    ? 'bg-sky-500/10 border-sky-400 text-sky-600 hover:bg-sky-500/20'
+                    : 'border-dashed border-muted-foreground/40 text-muted-foreground hover:border-sky-400 hover:text-sky-500'
+                  }`}
+              >
+                <TreePalm className="size-3.5" />
+                {vacation ? 'De vacaciones' : 'Vacaciones'}
+              </button>
+            )}
           </div>
           <DialogTitle>
             {machine.hostname}
@@ -113,26 +128,6 @@ export default function MachineDialog({ machine, appuser }: MachineDialogProps) 
             </div>
           </div>
 
-          {userId && (
-            <div className="flex items-center justify-between border-t pt-3">
-              <div>
-                <p className="text-sm font-medium">Vacaciones</p>
-                <p className="text-xs text-muted-foreground">Marcar al usuario como de vacaciones</p>
-              </div>
-              <button
-                onClick={toggleVacation}
-                disabled={pending}
-                className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border transition-colors cursor-pointer disabled:opacity-50
-                  ${vacation
-                    ? 'bg-sky-500/10 border-sky-400 text-sky-600 hover:bg-sky-500/20'
-                    : 'border-dashed border-muted-foreground/40 text-muted-foreground hover:border-sky-400 hover:text-sky-500'
-                  }`}
-              >
-                <TreePalm className="size-4" />
-                {vacation ? 'De vacaciones' : 'Sin vacaciones'}
-              </button>
-            </div>
-          )}
         </div>
       </DialogContent>
     </Dialog>
