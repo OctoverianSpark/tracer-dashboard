@@ -87,21 +87,21 @@ export default function Page() {
         const endMs   = new Date(log.interval_end).getTime()
         if (!startMs || !endMs || endMs <= startMs) continue
 
-        // Mínimos esperados por intervalo para considerar 100% activo
-        const MIN_CLICKS = 5
-        const MIN_KEYS   = 15
+        // Umbrales calibrados para intervalos de 1 min:
+        //   clicks  → promedio real ~60  → 60 clicks  = 100 %
+        //   keys    → rango real 20-80   → 80 teclas  = 100 %
+        // → usuario promedio (60 clicks, 50 keys) ≈ 81 %
+        const TARGET_CLICKS = 30
+        const TARGET_KEYS   = 40
 
         const clicks     = log.mouse_clicks ?? 0
-        const keystrokes = log.keystrokes  ?? 0
-        const clicksPct  = Math.min(100, Math.round((clicks     / MIN_CLICKS) * 100))
-        const keysPct    = Math.min(100, Math.round((keystrokes / MIN_KEYS)   * 100))
+        const keystrokes = log.keystrokes   ?? 0
+        console.log(clicks,keystrokes);
+        
+        const clicksPct  = Math.min(100, Math.round((clicks     / TARGET_CLICKS) * 100))
+        const keysPct    = Math.min(100, Math.round((keystrokes / TARGET_KEYS)   * 100))
         const pct        = Math.round((clicksPct + keysPct) / 2)
 
-        console.log(
-          `%c${new Date(startMs).toLocaleTimeString('es-CO')} – ${new Date(endMs).toLocaleTimeString('es-CO')}` +
-          `  🖱 ${clicks}(${clicksPct}%)  ⌨ ${keystrokes}(${keysPct}%)  →  ${pct}%`,
-          pct >= 70 ? 'color:#22c55e' : pct >= 40 ? 'color:#eab308' : 'color:#ef4444'
-        )
 
         intervals.push({ start: startMs, end: endMs, pct })
       }
