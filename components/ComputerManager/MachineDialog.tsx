@@ -49,6 +49,8 @@ export default function MachineDialog({ machine, appuser }: MachineDialogProps) 
 
   const toggleVacation = () => {
     const userId = Number(appuser?.id ?? machine.appuser_id)
+    console.log(userId);
+    
     if (!userId) return
     const next = !vacation
     setVacation(next)
