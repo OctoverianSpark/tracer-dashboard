@@ -4,6 +4,7 @@ import { AppUser } from '@/types/AppUser'
 import { Monitor, Wifi, WifiOff, User, Clock, Search, LayoutGrid, List, FileDown, TreePalm } from 'lucide-react'
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { getMachines } from '@/app/computers/actions'
+import MachineDialog from './MachineDialog'
 import { Card, CardContent, CardHeader } from '@/app/_components/_ui/card'
 import { Input } from '@/app/_components/_ui/input'
 import { Badge } from '@/app/_components/_ui/badge'
@@ -70,6 +71,9 @@ function MachineCard({ machine, appuser }: { machine: Machine; appuser?: AppUser
         <div className='flex items-center gap-2'>
           <Clock className='size-3' />
           <span>{formatDate(machine.last_seen)}</span>
+        </div>
+        <div className='pt-1'>
+          <MachineDialog machine={machine} appuser={appuser} />
         </div>
       </CardContent>
     </Card>

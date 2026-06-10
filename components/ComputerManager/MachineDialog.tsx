@@ -59,7 +59,6 @@ export default function MachineDialog({ machine, appuser }: MachineDialogProps) 
   }
 
   const userId = appuser?.id ?? (machine.appuser_id ? Number(machine.appuser_id) : null)
-  console.log('MachineDialog render', { machine, appuser, userId, vacation })
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
