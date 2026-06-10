@@ -7,7 +7,8 @@
       "Bash(xargs grep -l \"calculateProductivity\\\\|computeProductivity\\\\|calculateMetric\")",
       "Bash(xargs grep -l \"interval_start.*interval_end\")",
       "Bash(Get-ChildItem -Path . -Name)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(Remove-Item -Recurse -Force \"c:\\\\Users\\\\Jean.PR\\\\Projects\\\\tracer-dashboard\\\\.next\\\\cache\\\\images\" -ErrorAction SilentlyContinue)"
     ]
   }
 }

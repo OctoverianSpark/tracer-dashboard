@@ -20,11 +20,13 @@ export default function Home() {
   }, [session, router])
     
   return (
-    <div className='grid place-items-center min-h-screen bg-background'>
+    <div className='grid place-items-center min-h-screen'>
       <div className='w-full max-w-sm space-y-6 px-4'>
 
-        <div className='flex flex-col items-center gap-2 text-center'>
-          <Image src='/logo.png' alt='ActiMetrics' width={48} height={48} />
+        <div className='flex flex-col items-center gap-3 text-center'>
+          <span className='rounded-2xl overflow-hidden shadow-[0_0_28px_rgba(255,255,255,0.45)]'>
+            <Image src='/logo.png' alt='ActiMetrics' width={96} height={96} className='block' />
+          </span>
           <h1 className='text-2xl font-semibold tracking-tight'>ActiMetrics</h1>
           <p className='text-sm text-muted-foreground'>
             Monitoreo de actividad y productividad empresarial

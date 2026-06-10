@@ -95,7 +95,7 @@ export default function ComputersDashboard({ machines: initial, appusers }: Prop
           </div>
 
           {/* Polling indicator + status filter */}
-          <div className='flex items-center gap-3 flex-wrap'>
+          <div className='flex items-center gap-3 flex-wrap rounded-xl border bg-card backdrop-blur-sm px-4 py-3'>
             <div className='flex items-center gap-1.5 text-xs text-muted-foreground'>
               <span className={`size-2 rounded-full ${polling ? 'bg-yellow-400 animate-pulse' : 'bg-green-500 animate-pulse'}`} />
               {polling
@@ -103,15 +103,15 @@ export default function ComputersDashboard({ machines: initial, appusers }: Prop
                 : `Actualizado ${lastUpdated.toLocaleTimeString('es-CO', { timeStyle: 'short' })}`}
             </div>
 
-            <div className='flex gap-1 ml-auto'>
+            <div className='flex gap-0.5 bg-muted/50 rounded-lg p-0.5 ml-auto'>
               {(['all', 'online', 'offline'] as const).map(f => (
                 <button
                   key={f}
                   onClick={() => setStatusFilter(f)}
-                  className={`px-3 py-1.5 text-xs rounded-md border transition-colors cursor-pointer
+                  className={`px-3 py-1 text-xs rounded-md transition-colors cursor-pointer
                     ${statusFilter === f
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'border-border hover:bg-muted'}`}
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}
                 >
                   {f === 'all' ? 'Todos' : f === 'online' ? 'En línea' : 'Fuera de línea'}
                 </button>

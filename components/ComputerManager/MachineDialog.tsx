@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/app/_components/_ui/dialog'
-import { getIPInfo, lockMachine, sendFileToMachine, sendNotice } from '@/app/computers/actions'
+import { getIPInfo, lockMachine, restartMachine, shutdownMachine, sendFileToMachine, sendNotice } from '@/app/computers/actions'
 import { setUserVacation } from '@/app/app/actions'
 import { Machine, machineLabel } from '@/types/Machine'
 import { AppUser } from '@/types/AppUser'
@@ -122,9 +122,9 @@ export default function MachineDialog({ machine, appuser }: MachineDialogProps) 
             onLock={() => lockMachine(machine.serial_number)}
             onSendFile={handleFileSelect}
             onSendNotice={(title, message) => sendNotice(machine.serial_number, { title, message })}
+            onRestart={() => restartMachine(machine.serial_number)}
+            onShutdown={() => shutdownMachine(machine.serial_number)}
             onLogoff={() => {}}
-            onRestart={() => {}}
-            onShutdown={() => {}}
           />
           {machine.appuser_id && (
             <button

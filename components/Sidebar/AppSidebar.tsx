@@ -39,7 +39,9 @@ export function AppSidebar() {
               className='data-[slot=sidebar-menu-button]:p-1.5!'
             >
               <a href='/home'>
-                <Image width={28} height={28} alt='Tracer logo' src='/logo.png' />
+                <span className='rounded-lg overflow-hidden shrink-0 shadow-[0_0_8px_rgba(255,255,255,0.5)]'>
+                  <Image width={28} height={28} alt='Actimetrics logo' src='/logo.png' className='block' />
+                </span>
                 <span className='text-base font-semibold truncate flex-1'>
                   Actimetrics
                 </span>

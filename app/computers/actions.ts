@@ -38,6 +38,14 @@ export const lockMachine = async (machineId: string) => {
   await fetch(`${API_URL}/machines/${machineId}/lock`, { method: 'POST' })
 }
 
+export const shutdownMachine = async (machineId: string) => {
+  await fetch(`${API_URL}/machines/${machineId}/shutdown`, { method: 'POST' })
+}
+
+export const restartMachine = async (machineId: string) => {
+  await fetch(`${API_URL}/machines/${machineId}/restart`, { method: 'POST' })
+}
+
 export const sendFileToMachine = async (machineId: string, formData: FormData) => {
   await fetch(`${API_URL}/machines/${machineId}/send-file`, {
     method: 'POST',

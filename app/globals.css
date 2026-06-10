@@ -55,44 +55,151 @@
   --radius: 0.625rem;
   --background: oklch(0.178 0.032 277.7);
   --foreground: oklch(0.864 0.040 277.7);
-  --card: oklch(0.260 0.030 277.7);
+  --card: oklch(0.220 0.038 280.0 / 0.58);
   --card-foreground: oklch(0.864 0.040 277.7);
-  --popover: oklch(0.260 0.030 277.7);
+  --popover: oklch(0.200 0.036 280.0 / 0.88);
   --popover-foreground: oklch(0.864 0.040 277.7);
   --primary: oklch(0.760 0.139 301.0);
   --primary-foreground: oklch(0.107 0.024 277.7);
-  --secondary: oklch(0.260 0.030 277.7);
+  --secondary: oklch(0.260 0.030 277.7 / 0.70);
   --secondary-foreground: oklch(0.864 0.040 277.7);
-  --muted: oklch(0.260 0.030 277.7);
+  --muted: oklch(0.260 0.030 277.7 / 0.60);
   --muted-foreground: oklch(0.719 0.039 277.7);
-  --accent: oklch(0.340 0.031 277.7);
+  --accent: oklch(0.340 0.031 277.7 / 0.70);
   --accent-foreground: oklch(0.864 0.040 277.7);
   --destructive: oklch(0.762 0.161 10.4);
-  --border: oklch(0.340 0.031 277.7);
-  --input: oklch(0.340 0.031 277.7);
+  --border: oklch(0.760 0.139 301.0 / 0.18);
+  --input: oklch(0.300 0.042 280.0 / 0.90);
   --ring: oklch(0.760 0.139 301.0);
   --chart-1: oklch(0.756 0.135 255.6);
   --chart-2: oklch(0.871 0.102 143.1);
   --chart-3: oklch(0.803 0.127 56.9);
   --chart-4: oklch(0.760 0.139 301.0);
   --chart-5: oklch(0.857 0.073 179.2);
+  /* sidebar completamente opaco — cubre los blobs */
   --sidebar: oklch(0.143 0.029 277.7);
   --sidebar-foreground: oklch(0.864 0.040 277.7);
   --sidebar-primary: oklch(0.760 0.139 301.0);
   --sidebar-primary-foreground: oklch(0.107 0.024 277.7);
   --sidebar-accent: oklch(0.260 0.030 277.7);
   --sidebar-accent-foreground: oklch(0.864 0.040 277.7);
-  --sidebar-border: oklch(0.340 0.031 277.7);
+  --sidebar-border: oklch(0.280 0.030 277.7);
   --sidebar-ring: oklch(0.760 0.139 301.0);
 }
 
+/* ── Lava lamp blobs ──────────────────────────────── */
+.lava-container {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.lava-blob {
+  position: absolute;
+  filter: blur(16px);
+  opacity: 0.50;
+  will-change: transform, border-radius;
+}
+
+.lava-blob-1 {
+  width: 220px; height: 240px;
+  top: 8%; left: 10%;
+  background: oklch(0.760 0.139 301.0);
+  animation: lava-1 28s ease-in-out infinite;
+}
+.lava-blob-2 {
+  width: 180px; height: 200px;
+  top: 5%; right: 15%;
+  background: oklch(0.760 0.139 301.0);
+  animation: lava-2 22s ease-in-out infinite;
+}
+.lava-blob-3 {
+  width: 200px; height: 220px;
+  bottom: 20%; left: 18%;
+  background: oklch(0.760 0.139 301.0);
+  animation: lava-3 32s ease-in-out infinite;
+}
+.lava-blob-4 {
+  width: 170px; height: 190px;
+  bottom: 15%; right: 12%;
+  background: oklch(0.760 0.139 301.0);
+  animation: lava-4 25s ease-in-out infinite;
+}
+.lava-blob-5 {
+  width: 190px; height: 210px;
+  top: 45%; left: 40%;
+  background: oklch(0.760 0.139 301.0);
+  animation: lava-5 30s ease-in-out infinite;
+}
+
+@keyframes lava-1 {
+  0%,100% { transform: translate(0px,  0px)   scale(1);    border-radius: 60% 40% 55% 45% / 50% 60% 40% 50%; }
+  20%      { transform: translate(110px,-70px) scale(1.12); border-radius: 40% 60% 45% 55% / 65% 35% 55% 45%; }
+  40%      { transform: translate(-60px,140px) scale(0.92); border-radius: 70% 30% 60% 40% / 40% 70% 30% 60%; }
+  60%      { transform: translate(160px, 60px) scale(1.08); border-radius: 45% 55% 35% 65% / 55% 45% 65% 35%; }
+  80%      { transform: translate(-40px,-110px)scale(1.04); border-radius: 55% 45% 50% 50% / 60% 40% 60% 40%; }
+}
+@keyframes lava-2 {
+  0%,100% { transform: translate(0px,   0px)   scale(1);    border-radius: 45% 55% 60% 40% / 60% 45% 55% 40%; }
+  25%      { transform: translate(-140px,90px) scale(0.88); border-radius: 65% 35% 45% 55% / 40% 65% 35% 60%; }
+  50%      { transform: translate(80px,-130px) scale(1.18); border-radius: 35% 65% 55% 45% / 55% 35% 65% 45%; }
+  75%      { transform: translate(-90px, 60px) scale(0.94); border-radius: 55% 45% 40% 60% / 45% 55% 40% 60%; }
+}
+@keyframes lava-3 {
+  0%,100% { transform: translate(0px,  0px)    scale(1);    border-radius: 50% 50% 40% 60% / 55% 45% 60% 40%; }
+  30%      { transform: translate(130px,-90px) scale(1.10); border-radius: 40% 60% 60% 40% / 45% 55% 35% 65%; }
+  60%      { transform: translate(-80px,-60px) scale(0.90); border-radius: 60% 40% 50% 50% / 35% 65% 55% 45%; }
+  80%      { transform: translate(60px, 110px) scale(1.15); border-radius: 35% 65% 45% 55% / 60% 40% 50% 50%; }
+}
+@keyframes lava-4 {
+  0%,100% { transform: translate(0px,  0px)    scale(1);    border-radius: 55% 45% 50% 50% / 40% 60% 45% 55%; }
+  33%      { transform: translate(-90px,-80px) scale(1.20); border-radius: 40% 60% 65% 35% / 60% 40% 55% 45%; }
+  66%      { transform: translate(80px, -40px) scale(0.80); border-radius: 65% 35% 40% 60% / 50% 50% 40% 60%; }
+}
+@keyframes lava-5 {
+  0%,100% { transform: translate(0px,  0px)    scale(1);    border-radius: 50% 50% 55% 45% / 60% 40% 55% 45%; }
+  20%      { transform: translate(-60px, 90px) scale(1.08); border-radius: 35% 65% 40% 60% / 45% 55% 60% 40%; }
+  40%      { transform: translate(95px,  60px) scale(0.90); border-radius: 60% 40% 55% 45% / 55% 45% 35% 65%; }
+  60%      { transform: translate(-130px,-40px)scale(1.15); border-radius: 45% 55% 65% 35% / 40% 60% 45% 55%; }
+  80%      { transform: translate(45px, -95px) scale(0.95); border-radius: 70% 30% 45% 55% / 50% 50% 60% 40%; }
+}
+
+/* ── Glassmorphism (solo cards y popovers, no sidebar) ── */
+.bg-card {
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+}
+
+.bg-popover {
+  backdrop-filter: blur(26px) saturate(180%);
+  -webkit-backdrop-filter: blur(26px) saturate(180%);
+}
+
+/* inputs con backdrop-blur para distinguirse del fondo */
+input:not([type='checkbox']):not([type='radio']):not([type='range']),
+textarea,
+select {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* ── Base ─────────────────────────────────────────────── */
+html {
+  background: oklch(0.178 0.032 277.7);  /* Mocha base siempre opaco */
+}
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    /* Transparente con stacking context propio:
+       los blobs (z:-1) quedan entre el fondo del html y el contenido */
+    @apply text-foreground;
+    background: transparent;
+    isolation: isolate;
   }
 }
 

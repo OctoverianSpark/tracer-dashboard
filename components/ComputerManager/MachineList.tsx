@@ -85,43 +85,45 @@ export default function MachineList({ machines, appusers }: MachineListProps) {
     <div className="space-y-4">
 
       {/* Barra de herramientas */}
-      <div className="flex gap-2 items-center flex-wrap">
-        <div className="relative flex-1 min-w-0 w-full sm:w-auto">
-          <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+      <div className="flex gap-3 items-center flex-wrap rounded-xl border bg-card backdrop-blur-sm px-4 py-3">
+        <div className="relative flex-1 min-w-50">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
           <Input
             placeholder="Buscar hostname, marca, usuario, IP..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="pl-8"
+            className="pl-8 h-8 text-sm"
           />
         </div>
 
-        <div className="flex gap-1 border rounded-md p-0.5">
-          <button
-            onClick={() => setView('grid')}
-            className={`p-1.5 rounded cursor-pointer transition-colors ${view === 'grid' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
-            title="Vista de tarjetas"
-          >
-            <LayoutGrid className="size-4" />
-          </button>
-          <button
-            onClick={() => setView('table')}
-            className={`p-1.5 rounded cursor-pointer transition-colors ${view === 'table' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
-            title="Vista de tabla"
-          >
-            <List className="size-4" />
-          </button>
-        </div>
+        <div className="flex items-center gap-2 ml-auto shrink-0">
+          {filtered.length > 0 && (
+            <button
+              onClick={() => exportXLSX(filtered)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer"
+            >
+              <FileDown className="size-3.5" />
+              Exportar
+            </button>
+          )}
 
-        {filtered.length > 0 && (
-          <button
-            onClick={() => exportXLSX(filtered)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border border-border hover:bg-muted transition-colors cursor-pointer"
-          >
-            <FileDown className="size-4" />
-            Exportar Excel
-          </button>
-        )}
+          <div className="flex gap-0.5 bg-muted/50 rounded-lg p-0.5">
+            <button
+              onClick={() => setView('grid')}
+              className={`p-1.5 rounded-md cursor-pointer transition-colors ${view === 'grid' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}
+              title="Vista de tarjetas"
+            >
+              <LayoutGrid className="size-4" />
+            </button>
+            <button
+              onClick={() => setView('table')}
+              className={`p-1.5 rounded-md cursor-pointer transition-colors ${view === 'table' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}
+              title="Vista de tabla"
+            >
+              <List className="size-4" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {filtered.length === 0 ? (

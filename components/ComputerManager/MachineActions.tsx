@@ -1,10 +1,8 @@
 import { Button } from '@/app/_components/_ui/button'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/app/_components/_ui/dialog'
-import {
-  LayoutDashboard, LockIcon, Power, LogOut,
-  RefreshCw, Camera, Send, Bell
-} from 'lucide-react'
-import React, { EventHandler, useState } from 'react'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/app/_components/_ui/alert-dialog'
+import { LayoutDashboard, LockIcon, Power, RefreshCw, Send, Bell } from 'lucide-react'
+import React, { useState } from 'react'
 
 interface MachineActionsProps {
   onLock: () => void
@@ -32,9 +30,10 @@ export default function MachineActions({
   onSendFile,
   onSendNotice,
 }: MachineActionsProps) {
-  const [notifOpen, setNotifOpen] = useState(false)
-  const [title, setTitle] = useState('')
-  const [message, setMessage] = useState('')
+  const [notifOpen, setNotifOpen]       = useState(false)
+  const [confirmAction, setConfirmAction] = useState<'shutdown' | 'restart' | null>(null)
+  const [title, setTitle]               = useState('')
+  const [message, setMessage]           = useState('')
   const fileRef = React.useRef<HTMLInputElement>(null)
 
   const actions: ActionItem[] = [
@@ -60,6 +59,22 @@ export default function MachineActions({
       onClick: () => setNotifOpen(true),
       bg: 'bg-sky-500/15 hover:bg-sky-500/25',
       iconColor: 'text-sky-400',
+      shadow: 'shadow-black/20',
+    },
+    {
+      icon: <RefreshCw size={26} />,
+      label: 'Reiniciar',
+      onClick: () => setConfirmAction('restart'),
+      bg: 'bg-amber-500/15 hover:bg-amber-500/25',
+      iconColor: 'text-amber-400',
+      shadow: 'shadow-black/20',
+    },
+    {
+      icon: <Power size={26} />,
+      label: 'Apagar',
+      onClick: () => setConfirmAction('shutdown'),
+      bg: 'bg-red-500/15 hover:bg-red-500/25',
+      iconColor: 'text-red-400',
       shadow: 'shadow-black/20',
     },
   ]
@@ -101,7 +116,7 @@ export default function MachineActions({
                 `}
               >
                 <span className={action.iconColor}>{action.icon}</span>
-                <span className={`text-[11px] font-semibold text-muted-foreground text-center leading-tight`}>
+                <span className="text-[11px] font-semibold text-muted-foreground text-center leading-tight">
                   {action.label}
                 </span>
               </button>
@@ -109,6 +124,35 @@ export default function MachineActions({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Confirm shutdown / restart */}
+      <AlertDialog open={!!confirmAction} onOpenChange={open => { if (!open) setConfirmAction(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction === 'shutdown' ? '¿Apagar equipo?' : '¿Reiniciar equipo?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction === 'shutdown'
+                ? 'El equipo se apagará de forma remota. Esta acción no se puede deshacer.'
+                : 'El equipo se reiniciará de forma remota. Las sesiones activas se cerrarán.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className={confirmAction === 'shutdown' ? 'bg-red-500 hover:bg-red-600' : 'bg-amber-500 hover:bg-amber-600'}
+              onClick={() => {
+                if (confirmAction === 'shutdown') onShutdown()
+                else onRestart()
+                setConfirmAction(null)
+              }}
+            >
+              {confirmAction === 'shutdown' ? 'Apagar' : 'Reiniciar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Notification sub-dialog */}
       <Dialog open={notifOpen} onOpenChange={setNotifOpen}>

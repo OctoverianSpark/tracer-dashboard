@@ -6,6 +6,7 @@ import { Toaster } from 'sonner'
 import { AppHeader } from './_components/AppHeader'
 import Providers from './_components/providers'
 import { getServerSession } from 'next-auth'
+import LavaLamp from '@/components/LavaLamp'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
@@ -21,12 +22,13 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang='en'>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <LavaLamp />
         <Toaster position='top-right' />
         <Providers>
           {session && <AppSidebar />}
           <div className='flex flex-col flex-1 min-w-0 h-full min-h-screen'>
             {session && <AppHeader />}
-            <main className='flex-1 p-4 sm:p-6 w-full relative z-0'>{children}</main>
+            <main className='flex-1 p-4 sm:p-6 w-full'>{children}</main>
           </div>
         </Providers>
       </body>
