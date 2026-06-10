@@ -29,6 +29,8 @@ export interface AppUsageLog {
   apps: { app: string; seconds: number }[]
   mouse_clicks?: number
   keystrokes?: number
+  active_seconds?: number
+  idle_seconds?: number
 }
 
 export interface FlatAppUsageLog {

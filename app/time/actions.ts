@@ -73,7 +73,13 @@ export const getRawAppUsageLogs = async (date: string, computer_id?: number): Pr
   if (computer_id != null) params.set('computer_id', String(computer_id))
   const raw = await fetcher<any>(`${API}/app-usage-logs/by-date?${params}`)
   const list: AppUsageLog[] = Array.isArray(raw) ? raw : (raw?.data ?? raw?.logs ?? [])
-  return list
+  // Normaliza el separador fecha-hora y filtra al día pedido
+  const normalized = list.map(log => ({
+    ...log,
+    interval_start: log.interval_start?.replace(' ', 'T') ?? log.interval_start,
+    interval_end:   log.interval_end?.replace(' ', 'T')   ?? log.interval_end,
+  }))
+  return normalized.filter(log => log.interval_start?.startsWith(date))
 }
 
 export const getAppUsageLogs = async (date: string, computer_id?: number): Promise<FlatAppUsageLog[]> => {
@@ -88,7 +94,10 @@ export const getAppUsageLogs = async (date: string, computer_id?: number): Promi
   if (!Array.isArray(raw)) return []
 
   const byKey = new Map<string, FlatAppUsageLog>()
-  for (const log of raw) {
+  for (const log of raw
+    .map(l => ({ ...l, interval_start: l.interval_start?.replace(' ', 'T') ?? l.interval_start }))
+    .filter(l => l.interval_start?.startsWith(date))
+  ) {
     for (const a of log.apps ?? []) {
       const key = `${log.computer_id}__${a.app}`
       const existing = byKey.get(key)
