@@ -58,7 +58,6 @@ export default function MachineDialog({ machine, appuser }: MachineDialogProps) 
     })
   }
 
-  const userId = appuser?.id ?? (machine.appuser_id ? Number(machine.appuser_id) : null)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -79,7 +78,7 @@ export default function MachineDialog({ machine, appuser }: MachineDialogProps) 
               onRestart={() => {}}
               onShutdown={() => {}}
             />
-            {userId && (
+            {machine.appuser_id && (
               <button
                 onClick={toggleVacation}
                 disabled={pending}
