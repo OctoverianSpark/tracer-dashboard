@@ -2,7 +2,6 @@
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -16,7 +15,6 @@ import { useSession } from 'next-auth/react'
 import Image from 'next/image'
 import { NavItemRenderer, SECTIONS } from './NavItems'
 import NavGroups from './NavGroups'
-import { LatestRelease } from './LatestRelease'
 
 export function AppSidebar() {
   const { setOpen } = useSidebar()
@@ -69,9 +67,6 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
-        <LatestRelease />
-      </SidebarFooter>
     </Sidebar>
   )
 }
