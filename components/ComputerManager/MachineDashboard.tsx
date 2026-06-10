@@ -98,7 +98,7 @@ const POLL_INTERVAL = 30_000
 
 export default function ComputersDashboard({ machines: initial, appusers: initialUsers }: Props) {
   const [machines, setMachines] = useState<Machine[]>(initial)
-  const [users, setUsers] = useState<AppUser[]>(initialUsers)
+  const [users] = useState<AppUser[]>(initialUsers)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [polling, setPolling] = useState(false)
   const [search, setSearch] = useState('')
@@ -263,15 +263,6 @@ export default function ComputersDashboard({ machines: initial, appusers: initia
                       <TableCell className='text-sm'>{m.username || '—'}</TableCell>
                       <TableCell className='font-mono text-xs'>{m.ip_address || '—'}</TableCell>
                       <TableCell className='text-sm text-muted-foreground'>{formatDate(m.last_seen)}</TableCell>
-                      <TableCell>
-                        {!isOnline && m.appuser_id && (
-                          <VacationToggle
-                            userId={m.appuser_id}
-                            isVacation={appuser?.on_vacation ?? false}
-                            onToggle={handleVacationToggle}
-                          />
-                        )}
-                      </TableCell>
                     </TableRow>
                   )
                 })}
