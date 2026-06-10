@@ -1,8 +1,8 @@
-// app/computers/dashboard/page.tsx
 import ComputersDashboard from '@/components/ComputerManager/MachineDashboard'
 import { getMachines } from '../actions'
+import { getappuser } from '@/app/app/actions'
 
 export default async function Page() {
-  const machines = await getMachines()
-  return <ComputersDashboard machines={machines} />
+  const [machines, appusers] = await Promise.all([getMachines(), getappuser()])
+  return <ComputersDashboard machines={machines} appusers={appusers} />
 }

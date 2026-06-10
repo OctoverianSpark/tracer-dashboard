@@ -1,8 +1,10 @@
 'use client'
 import { Machine, machineLabel } from '@/types/Machine'
-import { Monitor, Wifi, WifiOff, User, Clock, Search, LayoutGrid, List, FileDown } from 'lucide-react'
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { AppUser } from '@/types/AppUser'
+import { Monitor, Wifi, WifiOff, User, Clock, Search, LayoutGrid, List, FileDown, TreePalm } from 'lucide-react'
+import { useState, useMemo, useEffect, useCallback, useTransition } from 'react'
 import { getMachines } from '@/app/computers/actions'
+import { setUserVacation } from '@/app/app/actions'
 import { Card, CardContent, CardHeader } from '@/app/_components/_ui/card'
 import { Input } from '@/app/_components/_ui/input'
 import { Badge } from '@/app/_components/_ui/badge'
@@ -12,6 +14,7 @@ import * as XLSX from 'xlsx'
 
 interface Props {
   machines: Machine[]
+  appusers: AppUser[]
 }
 
 const PAGE_SIZE_GRID  = 12
@@ -32,10 +35,40 @@ const StatCard = ({ label, value, sub }: { label: string; value: number; sub: st
   </Card>
 )
 
-const MachineCard = ({ machine }: { machine: Machine }) => {
-  const online = machine.alive || machine.isAlive
+function VacationToggle({ appuser, onToggle }: { appuser: AppUser; onToggle: (id: number, val: boolean) => void }) {
+  const [pending, startTransition] = useTransition()
+  const isVacation = appuser.on_vacation ?? false
+
+  const toggle = () => {
+    startTransition(async () => {
+      await setUserVacation(appuser.id!, !isVacation)
+      onToggle(appuser.id!, !isVacation)
+    })
+  }
+
   return (
-    <Card className={`transition-all border ${online ? 'border-green-500/50' : ''}`}>
+    <button
+      onClick={toggle}
+      disabled={pending}
+      title={isVacation ? 'Quitar vacaciones' : 'Marcar de vacaciones'}
+      className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border transition-colors cursor-pointer disabled:opacity-50
+        ${isVacation
+          ? 'bg-sky-500/10 border-sky-400 text-sky-600 hover:bg-sky-500/20'
+          : 'border-dashed border-muted-foreground/40 text-muted-foreground hover:border-sky-400 hover:text-sky-500'
+        }`}
+    >
+      <TreePalm className='size-3' />
+      {isVacation ? 'Vacaciones' : 'Vacaciones'}
+    </button>
+  )
+}
+
+function MachineCard({ machine, appuser, onVacationToggle }: { machine: Machine; appuser?: AppUser; onVacationToggle: (id: number, val: boolean) => void }) {
+  const online = machine.alive || machine.isAlive
+  const isVacation = appuser?.on_vacation ?? false
+
+  return (
+    <Card className={`transition-all border-2 ${isVacation ? 'border-sky-400/60' : online ? 'border-green-500/50' : 'border-border'}`}>
       <CardHeader className='pb-2 flex flex-row items-center justify-between'>
         <div className='flex items-center gap-2'>
           <Monitor className='size-4 text-muted-foreground' />
@@ -44,9 +77,15 @@ const MachineCard = ({ machine }: { machine: Machine }) => {
             <p className='text-[11px] text-muted-foreground leading-none mt-0.5'>{machineLabel(machine)}</p>
           </div>
         </div>
-        <Badge variant={online ? 'default' : 'secondary'} className={`text-xs ${online ? 'bg-green-500 hover:bg-green-500' : ''}`}>
-          {online ? <><Wifi className='size-3 mr-1' />Online</> : <><WifiOff className='size-3 mr-1' />Offline</>}
-        </Badge>
+        {isVacation ? (
+          <Badge className='text-xs bg-sky-500 hover:bg-sky-500 text-white gap-1'>
+            <TreePalm className='size-3' />Vacaciones
+          </Badge>
+        ) : (
+          <Badge variant={online ? 'default' : 'secondary'} className={`text-xs ${online ? 'bg-green-500 hover:bg-green-500' : ''}`}>
+            {online ? <><Wifi className='size-3 mr-1' />Online</> : <><WifiOff className='size-3 mr-1' />Offline</>}
+          </Badge>
+        )}
       </CardHeader>
       <CardContent className='space-y-2 text-xs text-muted-foreground'>
         <div className='flex items-center gap-2'>
@@ -61,6 +100,12 @@ const MachineCard = ({ machine }: { machine: Machine }) => {
           <Clock className='size-3' />
           <span>{formatDate(machine.last_seen)}</span>
         </div>
+        {/* Toggle vacaciones — solo si hay usuario asignado y está offline */}
+        {appuser && !online && (
+          <div className='pt-1 border-t'>
+            <VacationToggle appuser={appuser} onToggle={onVacationToggle} />
+          </div>
+        )}
       </CardContent>
     </Card>
   )
@@ -86,8 +131,9 @@ function exportXLSX(machines: Machine[]) {
 
 const POLL_INTERVAL = 30_000
 
-export default function ComputersDashboard({ machines: initial }: Props) {
+export default function ComputersDashboard({ machines: initial, appusers: initialUsers }: Props) {
   const [machines, setMachines] = useState<Machine[]>(initial)
+  const [users, setUsers] = useState<AppUser[]>(initialUsers)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [polling, setPolling] = useState(false)
   const [search, setSearch] = useState('')
@@ -109,6 +155,14 @@ export default function ComputersDashboard({ machines: initial }: Props) {
     const id = setInterval(refresh, POLL_INTERVAL)
     return () => clearInterval(id)
   }, [refresh])
+
+  // Actualización optimista del estado de vacaciones
+  const handleVacationToggle = (userId: number, val: boolean) => {
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, on_vacation: val } : u))
+  }
+
+  const getAppUser = (machine: Machine) =>
+    users.find(u => String(u.id) === String(machine.appuser_id))
 
   const online  = useMemo(() => machines.filter(m => m.alive || m.isAlive), [machines])
   const offline = useMemo(() => machines.filter(m => !m.alive && !m.isAlive), [machines])
@@ -204,7 +258,14 @@ export default function ComputersDashboard({ machines: initial }: Props) {
       ) : view === 'grid' ? (
         <>
           <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'>
-            {paged.map(m => <MachineCard key={m.serial_number} machine={m} />)}
+            {paged.map(m => (
+              <MachineCard
+                key={m.serial_number}
+                machine={m}
+                appuser={getAppUser(m)}
+                onVacationToggle={handleVacationToggle}
+              />
+            ))}
           </div>
           <Paginator page={page} totalPages={totalPages} total={filtered.length} pageSize={pageSize} onPageChange={setPage} />
         </>
@@ -219,26 +280,36 @@ export default function ComputersDashboard({ machines: initial }: Props) {
                   <TableHead>Estado</TableHead>
                   <TableHead>Usuario</TableHead>
                   <TableHead>IP</TableHead>
-                  <TableHead>Número de serie</TableHead>
                   <TableHead>Último visto</TableHead>
+                  <TableHead>Vacaciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paged.map(m => {
-                  const online = m.alive || m.isAlive
+                  const isOnline = m.alive || m.isAlive
+                  const appuser  = getAppUser(m)
+                  const isVacation = appuser?.on_vacation ?? false
                   return (
                     <TableRow key={m.serial_number}>
                       <TableCell className='font-medium'>{m.hostname}</TableCell>
                       <TableCell className='text-muted-foreground text-sm'>{machineLabel(m) || '—'}</TableCell>
                       <TableCell>
-                        <Badge variant={online ? 'default' : 'secondary'} className={`text-xs ${online ? 'bg-green-500 hover:bg-green-500' : ''}`}>
-                          {online ? <><Wifi className='size-3 mr-1' />Online</> : <><WifiOff className='size-3 mr-1' />Offline</>}
-                        </Badge>
+                        {isVacation ? (
+                          <Badge className='text-xs bg-sky-500 hover:bg-sky-500 gap-1'><TreePalm className='size-3' />Vacaciones</Badge>
+                        ) : (
+                          <Badge variant={isOnline ? 'default' : 'secondary'} className={`text-xs ${isOnline ? 'bg-green-500 hover:bg-green-500' : ''}`}>
+                            {isOnline ? <><Wifi className='size-3 mr-1' />Online</> : <><WifiOff className='size-3 mr-1' />Offline</>}
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell className='text-sm'>{m.username || '—'}</TableCell>
                       <TableCell className='font-mono text-xs'>{m.ip_address || '—'}</TableCell>
-                      <TableCell className='font-mono text-xs text-muted-foreground'>{m.serial_number}</TableCell>
                       <TableCell className='text-sm text-muted-foreground'>{formatDate(m.last_seen)}</TableCell>
+                      <TableCell>
+                        {appuser && !isOnline && (
+                          <VacationToggle appuser={appuser} onToggle={handleVacationToggle} />
+                        )}
+                      </TableCell>
                     </TableRow>
                   )
                 })}
