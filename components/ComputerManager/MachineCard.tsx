@@ -86,7 +86,7 @@ export default function MachineCard({ machine, appuser, onDelete }: CardMachineP
         </div>
 
         <div className='flex justify-end pt-1'>
-          <MachineDialog machine={machine} appuser={appuser} />
+          <MachineDialog machine={machine} />
         </div>
       </CardContent>
 

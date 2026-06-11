@@ -1,6 +1,7 @@
 import { Button } from '@/app/_components/_ui/button'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/app/_components/_ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/app/_components/_ui/alert-dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { LayoutDashboard, LockIcon, Power, RefreshCw, Send, Bell } from 'lucide-react'
 import React, { useState } from 'react'
 
@@ -92,11 +93,22 @@ export default function MachineActions({
       />
 
       <Dialog>
-        <DialogTrigger asChild>
-          <Button variant="ghost" size="icon-sm">
-            <LayoutDashboard />
-          </Button>
-        </DialogTrigger>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DialogTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="icon-sm"
+                  className="border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+                >
+                  <LayoutDashboard />
+                </Button>
+              </DialogTrigger>
+            </TooltipTrigger>
+            <TooltipContent>Acciones del equipo</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         <DialogContent className="max-w-xs border border-border rounded-3xl" style={{ background: 'oklch(0.240 0.032 278)' }}>
           <DialogTitle className="text-muted-foreground text-xs font-semibold tracking-widest uppercase mb-5">

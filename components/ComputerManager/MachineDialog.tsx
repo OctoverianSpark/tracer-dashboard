@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect, useTransition } from 'react'
-import { ArrowRight, TreePalm, Wifi, WifiOff } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ArrowRight, Wifi, WifiOff } from 'lucide-react'
 import { Button } from '@/app/_components/_ui/button'
 import { Badge } from '@/app/_components/_ui/badge'
 import {
@@ -11,9 +11,7 @@ import {
   DialogTrigger,
 } from '@/app/_components/_ui/dialog'
 import { getIPInfo, lockMachine, restartMachine, shutdownMachine, sendFileToMachine, sendNotice } from '@/app/computers/actions'
-import { setUserVacation } from '@/app/app/actions'
 import { Machine, machineLabel } from '@/types/Machine'
-import { AppUser } from '@/types/AppUser'
 import MachineActions from './MachineActions'
 
 function isPrivateIP(ip: string): boolean {
@@ -36,21 +34,13 @@ function InfoField({ label, value, mono }: { label: string; value: string; mono?
 
 interface MachineDialogProps {
   machine: Machine
-  appuser?: AppUser
 }
 
-export default function MachineDialog({ machine, appuser }: MachineDialogProps) {
-  const [open, setOpen]       = useState(false)
-  const [ip, setIp]           = useState<Record<string, string>>()
-  const [vacation, setVacation] = useState(appuser?.on_vacation ?? false)
-  const [pending, startTransition] = useTransition()
+export default function MachineDialog({ machine }: MachineDialogProps) {
+  const [open, setOpen] = useState(false)
+  const [ip, setIp]     = useState<Record<string, string>>()
 
-  const online     = machine.alive || machine.isAlive
-  const isVacation = vacation
-
-  useEffect(() => {
-    setVacation(appuser?.on_vacation ?? false)
-  }, [appuser?.on_vacation])
+  const online = machine.alive || machine.isAlive
 
   useEffect(() => {
     if (!open || !machine.ip_address || isPrivateIP(machine.ip_address)) return
@@ -63,14 +53,6 @@ export default function MachineDialog({ machine, appuser }: MachineDialogProps) 
     const formData = new FormData()
     formData.append('file', file)
     sendFileToMachine(machine.serial_number, formData)
-  }
-
-  const toggleVacation = () => {
-    const userId = Number(appuser?.id ?? machine.appuser_id)
-    if (!userId) return
-    const next = !vacation
-    setVacation(next)
-    startTransition(async () => { await setUserVacation(userId, next) })
   }
 
   const locationValue = !machine.ip_address
@@ -100,11 +82,7 @@ export default function MachineDialog({ machine, appuser }: MachineDialogProps) 
                 <span className='font-mono text-xs'>{machine.serial_number}</span>
               </p>
             </div>
-            {isVacation ? (
-              <Badge className='bg-sky-500 hover:bg-sky-500 gap-1 shrink-0'>
-                <TreePalm className='size-3' />Vacaciones
-              </Badge>
-            ) : online ? (
+            {online ? (
               <Badge className='bg-green-500 hover:bg-green-500 gap-1 shrink-0'>
                 <Wifi className='size-3' />Online
               </Badge>
@@ -117,7 +95,7 @@ export default function MachineDialog({ machine, appuser }: MachineDialogProps) 
         </DialogHeader>
 
         {/* Actions row */}
-        <div className='flex items-center justify-between border rounded-lg px-3 py-2 bg-muted/30'>
+        <div className='flex items-center border rounded-lg px-3 py-2 bg-muted/30'>
           <MachineActions
             onLock={() => lockMachine(machine.serial_number)}
             onSendFile={handleFileSelect}
@@ -126,21 +104,6 @@ export default function MachineDialog({ machine, appuser }: MachineDialogProps) 
             onShutdown={() => shutdownMachine(machine.serial_number)}
             onLogoff={() => {}}
           />
-          {machine.appuser_id && (
-            <button
-              onClick={toggleVacation}
-              disabled={pending}
-              title={vacation ? 'Quitar vacaciones' : 'Marcar de vacaciones'}
-              className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors cursor-pointer disabled:opacity-50
-                ${vacation
-                  ? 'bg-sky-500/10 border-sky-400 text-sky-600 hover:bg-sky-500/20'
-                  : 'border-dashed border-muted-foreground/40 text-muted-foreground hover:border-sky-400 hover:text-sky-500'
-                }`}
-            >
-              <TreePalm className='size-3.5' />
-              {vacation ? 'De vacaciones' : 'Vacaciones'}
-            </button>
-          )}
         </div>
 
         {/* Info grid */}
