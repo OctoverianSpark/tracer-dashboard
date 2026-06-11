@@ -23,12 +23,9 @@ export interface UserConnectionStatus {
 }
 
 export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[]> => {
-  const now = new Date()
-  const todayStr = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-  ].join('-')
+  // All time logic uses Bogotá (UTC-5) — the server may run in a different timezone
+  const bogota   = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+  const todayStr = bogota.toLocaleDateString('sv')   // YYYY-MM-DD
 
   const [users, machines, schedules, programations, rawLogs] = await Promise.all([
     getappuser(),
@@ -59,8 +56,8 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
   )
   const machinesByUser = new Map(machinesPerUser.map(r => [r.userId, r.machines]))
 
-  const todayKey    = DAY_KEYS[now.getDay()]
-  const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+  const todayKey    = DAY_KEYS[bogota.getDay()]
+  const currentTime = `${bogota.getHours().toString().padStart(2, '0')}:${bogota.getMinutes().toString().padStart(2, '0')}`
 
   return users.map(user => {
     const userScheduleToday = schedules.find(
@@ -78,6 +75,7 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
         startTime = programation.start_day
         endTime   = programation.end_day
         shouldBeConnected =
+          !user.on_vacation &&
           currentTime >= programation.start_day &&
           (!programation.end_day || currentTime <= programation.end_day)
       }
