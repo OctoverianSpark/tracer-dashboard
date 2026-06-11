@@ -38,6 +38,21 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/', req.url))
   }
 
+  // Dev tunnels add x-forwarded-host that mismatches the browser origin.
+  // Rewrite it to match origin so Next.js Server Actions CSRF check passes.
+  const origin = req.headers.get('origin')
+  const xfh = req.headers.get('x-forwarded-host')
+  if (origin && xfh) {
+    try {
+      const originHost = new URL(origin).host
+      if (originHost !== xfh) {
+        const headers = new Headers(req.headers)
+        headers.set('x-forwarded-host', originHost)
+        return NextResponse.next({ request: { headers } })
+      }
+    } catch {}
+  }
+
   return NextResponse.next()
 }
 

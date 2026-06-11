@@ -1,14 +1,30 @@
 'use client'
 import { useState } from 'react'
-import { UserScheduleRow } from '@/app/th/actions'
+import { UserScheduleRow, setAbsenceStatus } from '@/app/th/actions'
+import { AbsenceStatus } from '@/types/AppUser'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
 
 const DAY_LABELS: Record<string, string> = {
   D: 'Dom', L: 'Lun', M: 'Mar', X: 'Mié', J: 'Jue', V: 'Vie', S: 'Sáb',
 }
 const DAY_KEYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+
+const ABSENCE_LABELS: Record<string, string> = {
+  VACACIONES:     'Vacaciones',
+  INACTIVIDAD:    'Inactividad',
+  AUSENCIA_MEDICA:'Ausencia médica',
+  PERMISO:        'Permiso',
+}
+
+const ABSENCE_STYLES: Record<string, string> = {
+  VACACIONES:      'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  INACTIVIDAD:     'bg-gray-500/15 text-gray-400 border-gray-500/30',
+  AUSENCIA_MEDICA: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+  PERMISO:         'bg-amber-500/15 text-amber-400 border-amber-500/30',
+}
 
 type FilterType = 'all' | 'assigned' | 'unassigned'
 
@@ -22,6 +38,20 @@ function hasSchedule(row: UserScheduleRow): boolean {
 
 export default function THScheduleView({ rows }: Props) {
   const [filter, setFilter] = useState<FilterType>('all')
+  // Overrides optimistas: userId → ausencia actual (puede diferir del prop inicial)
+  const [overrides, setOverrides] = useState<Map<number, AbsenceStatus>>(() => {
+    const m = new Map<number, AbsenceStatus>()
+    for (const { user } of rows) {
+      if (user.id != null) m.set(user.id, user.absence_status ?? null)
+    }
+    return m
+  })
+
+  const handleStatusChange = async (userId: number, value: string) => {
+    const status: AbsenceStatus = value === 'ACTIVO' ? null : (value as AbsenceStatus)
+    setOverrides(prev => new Map(prev).set(userId, status))
+    await setAbsenceStatus(userId, status)
+  }
 
   if (rows.length === 0) {
     return (
@@ -43,25 +73,13 @@ export default function THScheduleView({ rows }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex gap-2 flex-wrap">
-        <Button
-          size="sm"
-          variant={filter === 'all' ? 'default' : 'outline'}
-          onClick={() => setFilter('all')}
-        >
+        <Button size="sm" variant={filter === 'all'        ? 'default' : 'outline'} onClick={() => setFilter('all')}>
           Todos ({rows.length})
         </Button>
-        <Button
-          size="sm"
-          variant={filter === 'assigned' ? 'default' : 'outline'}
-          onClick={() => setFilter('assigned')}
-        >
+        <Button size="sm" variant={filter === 'assigned'   ? 'default' : 'outline'} onClick={() => setFilter('assigned')}>
           Asignados ({assignedCount})
         </Button>
-        <Button
-          size="sm"
-          variant={filter === 'unassigned' ? 'default' : 'outline'}
-          onClick={() => setFilter('unassigned')}
-        >
+        <Button size="sm" variant={filter === 'unassigned' ? 'default' : 'outline'} onClick={() => setFilter('unassigned')}>
           Sin asignar ({unassignedCount})
         </Button>
       </div>
@@ -75,37 +93,69 @@ export default function THScheduleView({ rows }: Props) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="sticky left-0 bg-background">Usuario</TableHead>
+                <TableHead className="sticky left-0 bg-background min-w-40">Usuario</TableHead>
+                <TableHead className="min-w-44">Estado</TableHead>
                 {DAY_KEYS.map(k => (
-                  <TableHead key={k} className="text-center min-w-24">
-                    {DAY_LABELS[k]}
-                  </TableHead>
+                  <TableHead key={k} className="text-center min-w-24">{DAY_LABELS[k]}</TableHead>
                 ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map(({ user, days }) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium sticky left-0 bg-background">{user.full_name}</TableCell>
-                  {DAY_KEYS.map(k => {
-                    const entry = days[k]
-                    return (
-                      <TableCell key={k} className="text-center">
-                        {entry ? (
-                          <div className="space-y-0.5">
-                            <Badge variant="secondary" className="text-xs font-normal">
-                              {entry.programation.start_day} – {entry.programation.end_day ?? '—'}
-                            </Badge>
-                            <p className="text-xs text-muted-foreground">{entry.programation.name}</p>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
+              {filtered.map(({ user, days }) => {
+                const uid    = user.id!
+                const status = overrides.get(uid) ?? null
+
+                return (
+                  <TableRow key={uid}>
+                    <TableCell className="font-medium sticky left-0 bg-background">
+                      <div className="flex flex-col gap-0.5">
+                        <span>{user.full_name}</span>
+                        {status && (
+                          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 w-fit ${ABSENCE_STYLES[status]}`}>
+                            {ABSENCE_LABELS[status]}
+                          </Badge>
                         )}
-                      </TableCell>
-                    )
-                  })}
-                </TableRow>
-              ))}
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <Select
+                        value={status ?? 'ACTIVO'}
+                        onValueChange={(v) => handleStatusChange(uid, v)}
+                      >
+                        <SelectTrigger className="h-7 text-xs w-40">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ACTIVO">Activo</SelectItem>
+                          <SelectItem value="VACACIONES">Vacaciones</SelectItem>
+                          <SelectItem value="INACTIVIDAD">Inactividad</SelectItem>
+                          <SelectItem value="AUSENCIA_MEDICA">Ausencia médica</SelectItem>
+                          <SelectItem value="PERMISO">Permiso</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+
+                    {DAY_KEYS.map(k => {
+                      const entry = days[k]
+                      return (
+                        <TableCell key={k} className="text-center">
+                          {entry ? (
+                            <div className="space-y-0.5">
+                              <Badge variant="secondary" className="text-xs font-normal">
+                                {entry.programation.start_day} – {entry.programation.end_day ?? '—'}
+                              </Badge>
+                              <p className="text-xs text-muted-foreground">{entry.programation.name}</p>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+                      )
+                    })}
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

@@ -1,5 +1,17 @@
 'use server'
+import { AbsenceStatus } from '@/types/AppUser'
 import { getappuser } from '../app/actions'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL
+
+export const setAbsenceStatus = async (userId: number, status: AbsenceStatus): Promise<void> => {
+  await fetch(`${API_URL}/appuser/update/${userId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ absence_status: status }),
+  })
+}
+
 import { findAsignedMachines } from '../computers/actions'
 import { getSchedules, getProgramations, getStateLog, getRawAppUsageLogs } from '../time/actions'
 import { getCategorizationApps } from '../supervisors/categorization-actions'

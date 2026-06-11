@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Outfit, Space_Grotesk } from 'next/font/google'
 import './globals.css'
 import { AppSidebar } from '@/components/Sidebar/AppSidebar'
 import { Toaster } from 'sonner'
@@ -8,8 +8,8 @@ import Providers from './_components/providers'
 import { getServerSession } from 'next-auth'
 import LavaLamp from '@/components/LavaLamp'
 
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
-const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
+const outfit = Outfit({ variable: '--font-outfit', subsets: ['latin'] })
+const spaceGrotesk = Space_Grotesk({ variable: '--font-space-grotesk', subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'ActiMetrics',
@@ -21,7 +21,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   
   return (
     <html lang='en'>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${outfit.variable} ${spaceGrotesk.variable} antialiased`}>
         <LavaLamp />
         <Toaster position='top-right' />
         <Providers>

@@ -5,8 +5,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-outfit);
+  --font-mono: var(--font-space-grotesk);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -45,46 +45,46 @@
   --radius-4xl: calc(var(--radius) + 16px);
 }
 
-/* Catppuccin Mocha
-   Base:#1e1e2e Mantle:#181825 Crust:#11111b
-   Surface0:#313244 Surface1:#45475a Surface2:#585b70
-   Text:#cdd6f4 Subtext0:#a6adc8 Overlay0:#6c7086
-   Mauve:#cba6f7 Blue:#89b4fa Green:#a6e3a1
-   Red:#f38ba8 Peach:#fab387 Yellow:#f9e2af Teal:#94e2d5 */
+/* Tracer brand palette
+   Primary violet: #5D43FF  Deep purple: #6633CA  Hot pink: #FD2A9E
+   Lavender:       #E0DEFE  Mint:        #D9F0DD
+   Fonts: Outfit · Space Grotesk */
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.178 0.032 277.7);
-  --foreground: oklch(0.864 0.040 277.7);
-  --card: oklch(0.220 0.038 280.0 / 0.58);
-  --card-foreground: oklch(0.864 0.040 277.7);
-  --popover: oklch(0.200 0.036 280.0 / 0.88);
-  --popover-foreground: oklch(0.864 0.040 277.7);
-  --primary: oklch(0.760 0.139 301.0);
-  --primary-foreground: oklch(0.107 0.024 277.7);
-  --secondary: oklch(0.260 0.030 277.7 / 0.70);
-  --secondary-foreground: oklch(0.864 0.040 277.7);
-  --muted: oklch(0.260 0.030 277.7 / 0.60);
-  --muted-foreground: oklch(0.719 0.039 277.7);
-  --accent: oklch(0.340 0.031 277.7 / 0.70);
-  --accent-foreground: oklch(0.864 0.040 277.7);
+  --background: oklch(0.155 0.030 285);
+  --foreground: oklch(0.898 0.062 278);
+  --card: oklch(0.210 0.038 285 / 0.58);
+  --card-foreground: oklch(0.898 0.062 278);
+  --popover: oklch(0.190 0.035 285 / 0.88);
+  --popover-foreground: oklch(0.898 0.062 278);
+  /* #5D43FF */
+  --primary: oklch(0.527 0.262 268);
+  --primary-foreground: oklch(0.980 0.010 285);
+  --secondary: oklch(0.255 0.035 280 / 0.70);
+  --secondary-foreground: oklch(0.898 0.062 278);
+  --muted: oklch(0.255 0.030 280 / 0.60);
+  --muted-foreground: oklch(0.700 0.045 278);
+  /* #FD2A9E accent pink */
+  --accent: oklch(0.598 0.281 336 / 0.20);
+  --accent-foreground: oklch(0.898 0.062 278);
   --destructive: oklch(0.762 0.161 10.4);
-  --border: oklch(0.760 0.139 301.0 / 0.18);
-  --input: oklch(0.320 0.030 278);
-  --ring: oklch(0.760 0.139 301.0);
-  --chart-1: oklch(0.756 0.135 255.6);
-  --chart-2: oklch(0.871 0.102 143.1);
-  --chart-3: oklch(0.803 0.127 56.9);
-  --chart-4: oklch(0.760 0.139 301.0);
-  --chart-5: oklch(0.857 0.073 179.2);
+  --border: oklch(0.527 0.262 268 / 0.20);
+  --input: oklch(0.320 0.030 280);
+  --ring: oklch(0.527 0.262 268);
+  --chart-1: oklch(0.527 0.262 268);
+  --chart-2: oklch(0.598 0.281 336);
+  --chart-3: oklch(0.428 0.224 284);
+  --chart-4: oklch(0.930 0.040 148);
+  --chart-5: oklch(0.898 0.062 278);
   /* sidebar completamente opaco — cubre los blobs */
-  --sidebar: oklch(0.143 0.029 277.7);
-  --sidebar-foreground: oklch(0.864 0.040 277.7);
-  --sidebar-primary: oklch(0.760 0.139 301.0);
-  --sidebar-primary-foreground: oklch(0.107 0.024 277.7);
-  --sidebar-accent: oklch(0.260 0.030 277.7);
-  --sidebar-accent-foreground: oklch(0.864 0.040 277.7);
-  --sidebar-border: oklch(0.280 0.030 277.7);
-  --sidebar-ring: oklch(0.760 0.139 301.0);
+  --sidebar: oklch(0.120 0.025 285);
+  --sidebar-foreground: oklch(0.898 0.062 278);
+  --sidebar-primary: oklch(0.527 0.262 268);
+  --sidebar-primary-foreground: oklch(0.980 0.010 285);
+  --sidebar-accent: oklch(0.255 0.035 280);
+  --sidebar-accent-foreground: oklch(0.898 0.062 278);
+  --sidebar-border: oklch(0.270 0.030 280);
+  --sidebar-ring: oklch(0.527 0.262 268);
 }
 
 /* ── Lava lamp blobs ──────────────────────────────── */
@@ -106,31 +106,31 @@
 .lava-blob-1 {
   width: 220px; height: 240px;
   top: 8%; left: 10%;
-  background: oklch(0.760 0.139 301.0);
+  background: oklch(0.527 0.262 268);
   animation: lava-1 28s ease-in-out infinite;
 }
 .lava-blob-2 {
   width: 180px; height: 200px;
   top: 5%; right: 15%;
-  background: oklch(0.760 0.139 301.0);
+  background: oklch(0.598 0.281 336);
   animation: lava-2 22s ease-in-out infinite;
 }
 .lava-blob-3 {
   width: 200px; height: 220px;
   bottom: 20%; left: 18%;
-  background: oklch(0.760 0.139 301.0);
+  background: oklch(0.527 0.262 268);
   animation: lava-3 32s ease-in-out infinite;
 }
 .lava-blob-4 {
   width: 170px; height: 190px;
   bottom: 15%; right: 12%;
-  background: oklch(0.760 0.139 301.0);
+  background: oklch(0.598 0.281 336);
   animation: lava-4 25s ease-in-out infinite;
 }
 .lava-blob-5 {
   width: 190px; height: 210px;
   top: 45%; left: 40%;
-  background: oklch(0.760 0.139 301.0);
+  background: oklch(0.428 0.224 284);
   animation: lava-5 30s ease-in-out infinite;
 }
 
@@ -186,24 +186,24 @@
   -webkit-backdrop-filter: blur(26px) saturate(180%);
 }
 
-/* inputs: fondo opaco y borde Mauve */
+/* inputs */
 input:not([type='checkbox']):not([type='radio']):not([type='range']),
 textarea,
 select {
-  background: oklch(0.380 0.030 278) !important;
-  border-color: oklch(0.760 0.139 301.0 / 0.35) !important;
+  background: oklch(0.380 0.030 280) !important;
+  border-color: oklch(0.527 0.262 268 / 0.35) !important;
 }
 
 input:not([type='checkbox']):not([type='radio']):not([type='range']):focus,
 textarea:focus,
 select:focus {
-  border-color: oklch(0.760 0.139 301.0 / 0.70) !important;
+  border-color: oklch(0.527 0.262 268 / 0.70) !important;
   outline: none;
 }
 
 /* ── Base ─────────────────────────────────────────────── */
 html {
-  background: oklch(0.178 0.032 277.7);  /* Mocha base siempre opaco */
+  background: oklch(0.155 0.030 285);
 }
 
 @layer base {
@@ -227,7 +227,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: oklch(0.340 0.031 277.7) transparent;
+  scrollbar-color: oklch(0.340 0.040 280) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -240,10 +240,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 *::-webkit-scrollbar-thumb {
-  background-color: oklch(0.340 0.031 277.7);
+  background-color: oklch(0.340 0.040 280);
   border-radius: 9999px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background-color: oklch(0.440 0.035 277.7);
+  background-color: oklch(0.440 0.050 280);
 }

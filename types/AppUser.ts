@@ -1,4 +1,6 @@
 
+export type AbsenceStatus = 'VACACIONES' | 'INACTIVIDAD' | 'AUSENCIA_MEDICA' | 'PERMISO' | null
+
 export interface AppUser {
   id?: number
   full_name: string
@@ -6,6 +8,7 @@ export interface AppUser {
   role_id?: number
   group_id?: number
   on_vacation?: boolean
+  absence_status?: AbsenceStatus
 }
 
 export interface Group {

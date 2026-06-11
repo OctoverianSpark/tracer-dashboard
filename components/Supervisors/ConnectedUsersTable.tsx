@@ -18,16 +18,20 @@ function formatSeconds(s: number): string {
 }
 
 export default function ConnectedUsersTable({ statuses, mode }: Props) {
+  // Conectados = socket activo ahora mismo (wsConnected)
+  // No conectados = deben estar trabajando pero no tienen socket activo
   const filtered = statuses.filter(s =>
     mode === 'connected'
-      ? s.isConnected
-      : s.shouldBeConnected && !s.isConnected
+      ? s.wsConnected
+      : s.shouldBeConnected && !s.wsConnected
   )
 
   if (filtered.length === 0) {
     return (
       <p className="text-center text-sm text-muted-foreground py-10">
-        {mode === 'connected' ? 'No hay usuarios conectados hoy.' : 'Todos los usuarios están conectados.'}
+        {mode === 'connected'
+          ? 'No hay usuarios conectados en este momento.'
+          : 'Todos los usuarios que deben estar conectados lo están.'}
       </p>
     )
   }
@@ -64,18 +68,17 @@ export default function ConnectedUsersTable({ statuses, mode }: Props) {
               </TableCell>
               <TableCell>
                 {mode === 'connected' ? (
-                  wsConnected ? (
-                    <Badge variant="default" className="gap-1 bg-green-600 text-white">
-                      <Wifi className="h-3 w-3" /> Conectado
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="gap-1 border-amber-400 text-amber-600">
-                      <Activity className="h-3 w-3" /> Activo hoy
-                    </Badge>
-                  )
+                  <Badge variant="default" className="gap-1 bg-green-600 text-white">
+                    <Wifi className="h-3 w-3" /> Conectado
+                  </Badge>
+                ) : todaySeconds > 0 ? (
+                  // Estuvo activo hoy pero actualmente sin socket
+                  <Badge variant="outline" className="gap-1 border-amber-400 text-amber-500">
+                    <Activity className="h-3 w-3" /> Desconectado
+                  </Badge>
                 ) : (
                   <Badge variant="destructive" className="gap-1">
-                    <WifiOff className="h-3 w-3" /> Sin conexión
+                    <WifiOff className="h-3 w-3" /> Sin actividad
                   </Badge>
                 )}
               </TableCell>

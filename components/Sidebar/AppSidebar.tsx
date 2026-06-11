@@ -12,7 +12,7 @@ import {
 } from '@/app/_components/_ui/sidebar'
 import { generateId } from '@/app/_components/_lib/utils'
 import { useSession } from 'next-auth/react'
-import Image from 'next/image'
+import { AnimatedInfinityLogo } from '@/components/AnimatedLogo'
 import { NavItemRenderer, SECTIONS } from './NavItems'
 import NavGroups from './NavGroups'
 
@@ -36,12 +36,13 @@ export function AppSidebar() {
           <SidebarMenuItem className='flex gap-2'>
             <SidebarMenuButton
               asChild
+              size="lg"
               className='data-[slot=sidebar-menu-button]:p-1.5!'
             >
               <a href='/home'>
-                <Image width={28} height={28} alt='Actimetrics logo' src='/logo.png' style={{ filter: 'drop-shadow(0 0 6px rgba(255,255,255,0.55))' }} />
+                <AnimatedInfinityLogo height={28} speed={3} />
                 <span className='text-base font-semibold truncate flex-1'>
-                  Actimetrics
+                  Tracer
                 </span>
               </a>
             </SidebarMenuButton>
