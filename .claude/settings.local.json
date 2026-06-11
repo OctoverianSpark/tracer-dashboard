@@ -11,7 +11,8 @@
       "Bash(Remove-Item -Recurse -Force \"c:\\\\Users\\\\Jean.PR\\\\Projects\\\\tracer-dashboard\\\\.next\\\\cache\\\\images\" -ErrorAction SilentlyContinue)",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Jean.PR\\\\Projects\\\\tracer-dashboard\" -Name)",
       "Bash(grep -r \"isAlive\\\\|alive\" \"c:\\\\Users\\\\Jean.PR\\\\Projects\\\\tracer-dashboard\" --include=\"*.ts\" --include=\"*.tsx\" ! -path \"*/node_modules/*\" ! -path \"*/.next/*\" -n)",
-      "Bash(grep -r \"NEXT_PUBLIC_API_URL\" \"c:\\\\Users\\\\Jean.PR\\\\Projects\\\\tracer-dashboard\" --include=\"*.ts\" --include=\"*.tsx\" ! -path \"*/node_modules/*\" ! -path \"*/.next/*\")"
+      "Bash(grep -r \"NEXT_PUBLIC_API_URL\" \"c:\\\\Users\\\\Jean.PR\\\\Projects\\\\tracer-dashboard\" --include=\"*.ts\" --include=\"*.tsx\" ! -path \"*/node_modules/*\" ! -path \"*/.next/*\")",
+      "Bash(del \"c:\\\\Users\\\\Jean.PR\\\\Projects\\\\tracer-dashboard\\\\app\\\\_components\\\\FaviconSwitcher.tsx\")"
     ]
   }
 }

@@ -6,9 +6,12 @@ export function FaviconSwitcher() {
   const { resolvedTheme } = useTheme()
 
   useEffect(() => {
-    const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
-    if (!link) return
-    link.href = resolvedTheme === 'light' ? '/favicon-light.ico' : '/favicon-dark.ico'
+    if (!resolvedTheme) return
+    const href = resolvedTheme === 'light' ? '/favicon-light.ico' : '/favicon-dark.ico'
+    // Next.js can render "icon", "shortcut icon", or both — update all of them
+    document.querySelectorAll<HTMLLinkElement>('link[rel*="icon"]').forEach(link => {
+      link.href = href
+    })
   }, [resolvedTheme])
 
   return null
