@@ -19,12 +19,7 @@ export function TracerLogo({ height = 64 }: Props) {
         { duration: 0.45, ease: [0.22, 1, 0.36, 1] }
       )
 
-      // Phase 2: dot flies + light pulse sweeps through the text simultaneously
-      animate(
-        '.text-sweep',
-        { x: ['-110%', '210%'] },
-        { duration: 0.52, ease: [0.16, 1, 0.3, 1] }
-      )
+      // Phase 2: dot flies through with smear — stretch during travel, squash on landing
       await animate(
         '.dot-ball',
         {
@@ -58,42 +53,23 @@ export function TracerLogo({ height = 64 }: Props) {
 
       <AnimatedInfinityLogo height={height} speed={3} />
 
-      {/* Text wrapper — overflow:hidden clips the sweep to letter bounds */}
-      <div
-        className="relative overflow-hidden inline-flex"
-        style={{ marginLeft: height * 0.02 }}
+      <span
+        className="tracer-text font-sans font-bold leading-none select-none text-[#6633CA]"
+        style={{ opacity: 0, fontSize: height * 0.68, marginLeft: height * 0.02 }}
       >
-        <span
-          className="tracer-text font-sans font-bold leading-none select-none text-[#6633CA]"
-          style={{ opacity: 0, fontSize: height * 0.68 }}
-        >
-          tracer
-        </span>
-
-        {/* Light beam that sweeps through the text as the dot passes */}
-        <motion.div
-          className="text-sweep absolute inset-0 pointer-events-none"
-          initial={{ x: '-110%' }}
-          style={{
-            background:
-              'linear-gradient(90deg, transparent 0%, rgba(253,42,158,0.35) 25%, rgba(255,255,255,0.92) 50%, rgba(253,42,158,0.35) 75%, transparent 100%)',
-            mixBlendMode: 'overlay',
-          }}
-        />
-      </div>
+        tracer
+      </span>
 
       <div
         className="relative flex items-center justify-center flex-shrink-0"
         style={{ width: dotR * 10, height: dotR * 10, marginLeft: height * 0.005 }}
       >
-        {/* One-time big pulse on arrival */}
         <motion.div
           className="dot-pulse absolute rounded-full border-2 border-[#FD2A9E]"
           style={{ width: dotR * 2, height: dotR * 2 }}
           initial={{ scale: 1, opacity: 0 }}
         />
 
-        {/* Small repeating ripples — mount after entrance */}
         {showRipples && [0, 0.85, 1.7].map((delay, i) => (
           <motion.div
             key={i}
@@ -110,7 +86,6 @@ export function TracerLogo({ height = 64 }: Props) {
           />
         ))}
 
-        {/* Solid dot — starts far left, flies in after text appears */}
         <motion.div
           className="dot-ball relative z-10 rounded-full bg-[#FD2A9E]"
           style={{ width: dotR * 2, height: dotR * 2 }}
