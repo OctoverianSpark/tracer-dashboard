@@ -12,14 +12,19 @@ export function TracerLogo({ height = 64 }: Props) {
 
   useEffect(() => {
     const run = async () => {
-      // Phase 1: "tracer" text slides up and fades in
+      // Phase 1: text slides up and fades in
       await animate(
         '.tracer-text',
         { opacity: [0, 1], y: [10, 0] },
         { duration: 0.45, ease: [0.22, 1, 0.36, 1] }
       )
 
-      // Phase 2: dot flies through with smear — stretch during travel, squash on landing
+      // Phase 2: dot flies + light pulse sweeps through the text simultaneously
+      animate(
+        '.text-sweep',
+        { x: ['-110%', '210%'] },
+        { duration: 0.52, ease: [0.16, 1, 0.3, 1] }
+      )
       await animate(
         '.dot-ball',
         {
@@ -53,13 +58,29 @@ export function TracerLogo({ height = 64 }: Props) {
 
       <AnimatedInfinityLogo height={height} speed={3} />
 
-      {/* Text starts hidden — animated in first */}
-      <span
-        className="tracer-text font-sans font-bold leading-none select-none text-[#6633CA]"
-        style={{ opacity: 0, fontSize: height * 0.68, marginLeft: height * 0.02 }}
+      {/* Text wrapper — overflow:hidden clips the sweep to letter bounds */}
+      <div
+        className="relative overflow-hidden inline-flex"
+        style={{ marginLeft: height * 0.02 }}
       >
-        tracer
-      </span>
+        <span
+          className="tracer-text font-sans font-bold leading-none select-none text-[#6633CA]"
+          style={{ opacity: 0, fontSize: height * 0.68 }}
+        >
+          tracer
+        </span>
+
+        {/* Light beam that sweeps through the text as the dot passes */}
+        <motion.div
+          className="text-sweep absolute inset-0 pointer-events-none"
+          initial={{ x: '-110%' }}
+          style={{
+            background:
+              'linear-gradient(90deg, transparent 0%, rgba(253,42,158,0.35) 25%, rgba(255,255,255,0.92) 50%, rgba(253,42,158,0.35) 75%, transparent 100%)',
+            mixBlendMode: 'overlay',
+          }}
+        />
+      </div>
 
       <div
         className="relative flex items-center justify-center flex-shrink-0"

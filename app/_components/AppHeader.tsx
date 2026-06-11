@@ -6,6 +6,7 @@ import { SECTIONS } from '@/components/Sidebar/NavItems'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { LogOut } from 'lucide-react'
+import { ThemeToggle } from './ThemeToggle'
 
 export function AppHeader () {
   const [scrolled, setScrolled] = useState(false)
@@ -34,6 +35,7 @@ export function AppHeader () {
         </h1>
         <h3 className='flex items-center text-sm sm:text-base font-semibold gap-1 sm:gap-2 shrink-0 ml-2'>
           <span className='hidden sm:block'>{session?.user?.name}</span>
+          <ThemeToggle />
           <Button onClick={()=>signOut({callbackUrl: '/'})} variant='ghost' size='icon' className='cursor-pointer'>
             <LogOut />
           </Button>

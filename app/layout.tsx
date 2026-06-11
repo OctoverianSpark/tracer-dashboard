@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import { Outfit, Space_Grotesk } from 'next/font/google'
 import './globals.css'
 import { AppSidebar } from '@/components/Sidebar/AppSidebar'
-import { Toaster } from 'sonner'
 import { AppHeader } from './_components/AppHeader'
+import { SonnerToaster } from './_components/SonnerToaster'
 import Providers from './_components/providers'
 import { getServerSession } from 'next-auth'
 import LavaLamp from '@/components/LavaLamp'
@@ -20,10 +20,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const session = await getServerSession()
   
   return (
-    <html lang='en'>
+    <html lang='en' suppressHydrationWarning>
       <body className={`${outfit.variable} ${spaceGrotesk.variable} antialiased`}>
         <LavaLamp />
-        <Toaster position='top-right' />
+        <SonnerToaster />
         <Providers>
           {session && <AppSidebar />}
           <div className='flex flex-col flex-1 min-w-0 h-full min-h-screen'>

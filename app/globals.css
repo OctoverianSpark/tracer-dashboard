@@ -87,6 +87,62 @@
   --sidebar-ring: oklch(0.527 0.262 268);
 }
 
+/* ── Light mode overrides ────────────────────────── */
+html.light {
+  --background: oklch(0.975 0.008 285);
+  --foreground: oklch(0.165 0.035 285);
+  --card: oklch(0.960 0.015 285 / 0.72);
+  --card-foreground: oklch(0.165 0.035 285);
+  --popover: oklch(0.968 0.012 285 / 0.94);
+  --popover-foreground: oklch(0.165 0.035 285);
+  --primary: oklch(0.527 0.262 268);
+  --primary-foreground: oklch(0.980 0.010 285);
+  --secondary: oklch(0.918 0.022 280 / 0.80);
+  --secondary-foreground: oklch(0.215 0.040 280);
+  --muted: oklch(0.930 0.015 280 / 0.65);
+  --muted-foreground: oklch(0.510 0.040 278);
+  --accent: oklch(0.598 0.281 336 / 0.12);
+  --accent-foreground: oklch(0.215 0.030 285);
+  --destructive: oklch(0.577 0.245 27.3);
+  --border: oklch(0.527 0.262 268 / 0.15);
+  --input: oklch(0.948 0.012 280);
+  --ring: oklch(0.527 0.262 268);
+  --chart-1: oklch(0.527 0.262 268);
+  --chart-2: oklch(0.598 0.281 336);
+  --chart-3: oklch(0.428 0.224 284);
+  --chart-4: oklch(0.540 0.155 148);
+  --chart-5: oklch(0.280 0.055 280);
+  --sidebar: oklch(0.956 0.018 285);
+  --sidebar-foreground: oklch(0.215 0.035 280);
+  --sidebar-primary: oklch(0.527 0.262 268);
+  --sidebar-primary-foreground: oklch(0.980 0.010 285);
+  --sidebar-accent: oklch(0.916 0.022 280);
+  --sidebar-accent-foreground: oklch(0.215 0.035 280);
+  --sidebar-border: oklch(0.860 0.020 280);
+  --sidebar-ring: oklch(0.527 0.262 268);
+}
+
+html.light {
+  background: oklch(0.975 0.008 285);
+}
+
+html.light .lava-blob {
+  opacity: 0.12;
+}
+
+html.light input:not([type='checkbox']):not([type='radio']):not([type='range']),
+html.light textarea,
+html.light select {
+  background: oklch(0.948 0.012 280) !important;
+  border-color: oklch(0.527 0.262 268 / 0.25) !important;
+}
+
+html.light input:not([type='checkbox']):not([type='radio']):not([type='range']):focus,
+html.light textarea:focus,
+html.light select:focus {
+  border-color: oklch(0.527 0.262 268 / 0.60) !important;
+}
+
 /* ── Lava lamp blobs ──────────────────────────────── */
 .lava-container {
   position: fixed;
