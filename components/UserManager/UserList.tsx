@@ -23,9 +23,10 @@ import {
   InputGroupAddon,
   InputGroupInput
 } from '@/app/_components/_ui/input-group'
-import { Search, Trash2, X } from 'lucide-react'
+import { Search, Trash2, X, FileDown } from 'lucide-react'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/app/_components/_ui/alert-dialog'
 import { AppUser, Group, Role } from '@/types/AppUser'
+import * as XLSX from 'xlsx'
 import { saveappuser } from '@/app/app/actions'
 import AppUserForm from './UserForm'
 import { getGroups } from '@/app/app/groups/actions'
@@ -38,6 +39,19 @@ interface AppUserListProps {
 }
 
 type FilterColumn = 'full_name' | 'all'
+
+function exportXLSX(users: AppUser[], groups: Group[], roles: Role[]) {
+  const rows = users.map(u => ({
+    'Nombre completo': u.full_name,
+    'Grupo': groups.find(g => g.id === u.group_id)?.name ?? 'Sin grupo',
+    'Rol': roles.find(r => r.id === u.role_id)?.name ?? 'Sin rol',
+  }))
+  const ws = XLSX.utils.json_to_sheet(rows)
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: 2 } }) }
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Empleados')
+  XLSX.writeFile(wb, `empleados_${new Date().toISOString().slice(0, 10)}.xlsx`)
+}
 
 
 
@@ -161,30 +175,41 @@ export default function AppUserList ({
           </div>
         </div>
 
-        {selected.length > 0 && (
-          <div className='flex items-center gap-2'>
-            <span className='text-sm text-muted-foreground'>
-              {selected.length} seleccionado(s)
-            </span>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant='destructive' size='sm'>Eliminar</Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>¿Eliminar usuarios?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Se eliminarán <strong>{selected.length} usuario(s)</strong> seleccionado(s). Esta acción no se puede deshacer.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => onDelete(selected)}>Eliminar</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        )}
+        <div className='flex items-center gap-2 shrink-0'>
+          {filteredAppUsers.length > 0 && (
+            <button
+              onClick={() => exportXLSX(filteredAppUsers, groups, roles)}
+              className='flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer'
+            >
+              <FileDown className='size-3.5' />
+              Exportar
+            </button>
+          )}
+          {selected.length > 0 && (
+            <>
+              <span className='text-sm text-muted-foreground'>
+                {selected.length} seleccionado(s)
+              </span>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant='destructive' size='sm'>Eliminar</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Eliminar usuarios?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Se eliminarán <strong>{selected.length} usuario(s)</strong> seleccionado(s). Esta acción no se puede deshacer.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => onDelete(selected)}>Eliminar</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          )}
+        </div>
       </div>
 
       <div className='rounded-md border overflow-x-auto'>

@@ -10,12 +10,28 @@ import {
   TableRow
 } from '@/app/_components/_ui/table'
 import { Button } from '@/app/_components/_ui/button';
-import { Trash2 } from 'lucide-react';
+import { Trash2, FileDown } from 'lucide-react';
+import * as XLSX from 'xlsx'
 import { deleteProgramation } from '@/app/time/actions';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/app/_components/_ui/alert-dialog';
 
 interface Props {
   programations: Programation[]
+}
+
+function exportXLSX(programations: Programation[]) {
+  const rows = programations.map(p => ({
+    'Nombre':           p.name,
+    'Entrada':          p.start_day,
+    'Inicio Almuerzo':  p.start_lunch,
+    'Fin Almuerzo':     p.end_lunch ?? '—',
+    'Fin':              p.end_day ?? '—',
+  }))
+  const ws = XLSX.utils.json_to_sheet(rows)
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: 4 } }) }
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Horarios')
+  XLSX.writeFile(wb, `horarios_${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
 export default function ProgramationTable({ programations }: Props) {
@@ -25,6 +41,18 @@ export default function ProgramationTable({ programations }: Props) {
   }
 
   return (
+    <div className='space-y-2'>
+      {programations.length > 0 && (
+        <div className='flex justify-end'>
+          <button
+            onClick={() => exportXLSX(programations)}
+            className='flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer'
+          >
+            <FileDown className='size-3.5' />
+            Exportar
+          </button>
+        </div>
+      )}
     <Table>
       <TableHeader>
         <TableRow>
@@ -78,5 +106,6 @@ export default function ProgramationTable({ programations }: Props) {
         ))}
       </TableBody>
     </Table>
+    </div>
   )
 }

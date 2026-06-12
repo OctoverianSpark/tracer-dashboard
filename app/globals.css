@@ -130,17 +130,26 @@ html.light .lava-blob {
   opacity: 0.12;
 }
 
-html.light input:not([type='checkbox']):not([type='radio']):not([type='range']),
+html.light input:not([type='checkbox']):not([type='radio']):not([type='range']):not([data-slot='input-group-control']),
 html.light textarea,
 html.light select {
   background: oklch(0.948 0.012 280) !important;
-  border-color: oklch(0.527 0.262 268 / 0.25) !important;
+  border-color: oklch(0.527 0.262 268 / 0.38) !important;
 }
 
-html.light input:not([type='checkbox']):not([type='radio']):not([type='range']):focus,
+html.light input:not([type='checkbox']):not([type='radio']):not([type='range']):not([data-slot='input-group-control']):focus,
 html.light textarea:focus,
 html.light select:focus {
-  border-color: oklch(0.527 0.262 268 / 0.60) !important;
+  border-color: oklch(0.527 0.262 268 / 0.65) !important;
+}
+
+html.light input[type="radio"] {
+  outline: 1.5px solid oklch(0.527 0.262 268 / 0.32);
+  outline-offset: 2px;
+}
+
+html.light input[type="radio"]:checked {
+  outline-color: oklch(0.527 0.262 268 / 0.60);
 }
 
 /* ── Lava lamp blobs ──────────────────────────────── */
@@ -189,6 +198,7 @@ html.light select:focus {
   background: oklch(0.428 0.224 284);
   animation: lava-5 30s ease-in-out infinite;
 }
+
 
 @keyframes lava-1 {
   0%,100% { transform: translate(0px,  0px)   scale(1);    border-radius: 60% 40% 55% 45% / 50% 60% 40% 50%; }
@@ -243,18 +253,31 @@ html.light select:focus {
 }
 
 /* inputs */
-input:not([type='checkbox']):not([type='radio']):not([type='range']),
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([data-slot='input-group-control']),
 textarea,
 select {
   background: oklch(0.380 0.030 280) !important;
-  border-color: oklch(0.527 0.262 268 / 0.35) !important;
+  border-color: oklch(0.527 0.262 268 / 0.48) !important;
 }
 
-input:not([type='checkbox']):not([type='radio']):not([type='range']):focus,
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([data-slot='input-group-control']):focus,
 textarea:focus,
 select:focus {
-  border-color: oklch(0.527 0.262 268 / 0.70) !important;
+  border-color: oklch(0.527 0.262 268 / 0.78) !important;
   outline: none;
+}
+
+/* radio */
+input[type="radio"] {
+  accent-color: oklch(0.527 0.262 268);
+  outline: 1.5px solid oklch(0.527 0.262 268 / 0.42);
+  outline-offset: 2px;
+  cursor: pointer;
+  transition: outline-color 0.15s;
+}
+
+input[type="radio"]:checked {
+  outline-color: oklch(0.527 0.262 268 / 0.72);
 }
 
 /* ── Base ─────────────────────────────────────────────── */

@@ -1,9 +1,24 @@
 'use client'
 import { FlatAppUsageLog } from '@/types/AppUser'
+import { FileDown } from 'lucide-react'
+import * as XLSX from 'xlsx'
 
 interface Props {
   logs: FlatAppUsageLog[]
   ignoredApps?: Set<string>
+}
+
+function exportXLSX(logs: FlatAppUsageLog[]) {
+  const rows = logs.map(l => ({
+    'Aplicación': l.app,
+    'Duración':   fmtSecs(l.seconds),
+    'Segundos':   l.seconds,
+  }))
+  const ws = XLSX.utils.json_to_sheet(rows)
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: 2 } }) }
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Uso de apps')
+  XLSX.writeFile(wb, `uso_apps_${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
 const fmtSecs = (s: number) => {
@@ -32,6 +47,15 @@ export default function AppUsageList({ logs, ignoredApps }: Props) {
 
   return (
     <div className='space-y-2'>
+      <div className='flex justify-end'>
+        <button
+          onClick={() => exportXLSX(sorted)}
+          className='flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer'
+        >
+          <FileDown className='size-3.5' />
+          Exportar
+        </button>
+      </div>
       {sorted.map(l => {
         const pct = total > 0 ? (l.seconds / total) * 100 : 0
         return (

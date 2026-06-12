@@ -2,11 +2,27 @@
 import { UserConnectionStatus } from '@/app/supervisors/actions'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
-import { Wifi, WifiOff, Clock, Activity } from 'lucide-react'
+import { Wifi, WifiOff, Clock, Activity, FileDown } from 'lucide-react'
+import * as XLSX from 'xlsx'
 
 interface Props {
   statuses: UserConnectionStatus[]
   mode: 'connected' | 'disconnected'
+}
+
+function exportXLSX(data: UserConnectionStatus[], mode: 'connected' | 'disconnected') {
+  const rows = data.map(({ user, machine, startTime, endTime, todaySeconds }) => ({
+    'Usuario':     user.full_name,
+    'Equipo':      machine?.hostname ?? '—',
+    'Horario':     startTime ? `${startTime}${endTime ? ` – ${endTime}` : ''}` : '—',
+    'Tiempo hoy':  formatSeconds(todaySeconds),
+    'Estado':      mode === 'connected' ? 'Conectado' : todaySeconds > 0 ? 'Desconectado' : 'Sin actividad',
+  }))
+  const ws = XLSX.utils.json_to_sheet(rows)
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: 4 } }) }
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, mode === 'connected' ? 'Conectados' : 'Desconectados')
+  XLSX.writeFile(wb, `usuarios_${mode}_${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
 function formatSeconds(s: number): string {
@@ -37,7 +53,17 @@ export default function ConnectedUsersTable({ statuses, mode }: Props) {
   }
 
   return (
-    <div className='overflow-x-auto'>
+    <div className='space-y-2'>
+      <div className='flex justify-end'>
+        <button
+          onClick={() => exportXLSX(filtered, mode)}
+          className='flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer'
+        >
+          <FileDown className='size-3.5' />
+          Exportar
+        </button>
+      </div>
+      <div className='overflow-x-auto'>
       <Table>
         <TableHeader>
           <TableRow>
@@ -86,6 +112,7 @@ export default function ConnectedUsersTable({ statuses, mode }: Props) {
           ))}
         </TableBody>
       </Table>
+      </div>
     </div>
   )
 }

@@ -6,7 +6,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
-import { Trash2 } from 'lucide-react'
+import { Trash2, FileDown } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { useState } from 'react'
 import { deleteSchedule } from '@/app/time/actions'
 import { DIAS } from './shared'
@@ -47,6 +48,21 @@ function DayChip({ entry }: { entry: DayEntry }) {
 
 const MAX_INLINE = 4
 
+function exportXLSX(grouped: { user: AppUser; rows: Schedule[] }[], programations: Programation[]) {
+  const rows = grouped.map(({ user, rows: schedRows }) => {
+    const entries = buildDayEntries(schedRows, programations)
+    return {
+      'Empleado':        user.full_name,
+      'Días y horarios': entries.map(e => `${DAY_ABBR[e.dayKey] ?? e.dayKey}: ${e.progName}`).join(', '),
+    }
+  })
+  const ws = XLSX.utils.json_to_sheet(rows)
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: 1 } }) }
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Asignaciones')
+  XLSX.writeFile(wb, `asignaciones_${new Date().toISOString().slice(0, 10)}.xlsx`)
+}
+
 export default function ScheduleTable({ schedules, appuser, programations }: Props) {
   const [confirmUserId, setConfirmUserId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
@@ -71,7 +87,19 @@ export default function ScheduleTable({ schedules, appuser, programations }: Pro
 
   return (
     <TooltipProvider>
-      <div className='overflow-x-auto'>
+      <div className='space-y-2'>
+        {grouped.length > 0 && (
+          <div className='flex justify-end'>
+            <button
+              onClick={() => exportXLSX(grouped, programations)}
+              className='flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer'
+            >
+              <FileDown className='size-3.5' />
+              Exportar
+            </button>
+          </div>
+        )}
+        <div className='overflow-x-auto'>
         <Table>
           <TableHeader>
             <TableRow>
@@ -140,6 +168,7 @@ export default function ScheduleTable({ schedules, appuser, programations }: Pro
             })}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       <AlertDialog open={!!confirmUserId} onOpenChange={open => { if (!open) setConfirmUserId(null) }}>

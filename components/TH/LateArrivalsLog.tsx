@@ -6,7 +6,24 @@ import { Button } from '@/app/_components/_ui/button'
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
-import { Loader2, CheckCircle2, AlertCircle, XCircle } from 'lucide-react'
+import { Loader2, CheckCircle2, AlertCircle, XCircle, FileDown } from 'lucide-react'
+import * as XLSX from 'xlsx'
+
+function exportXLSX(data: LateArrival[], date: string) {
+  const statusLabel = (s: LateArrival['status'], min: number) =>
+    s === 'on_time' ? 'A tiempo' : s === 'late' ? `Tarde (${min} min)` : 'Ausente'
+  const rows = data.map(d => ({
+    'Usuario':           d.user.full_name,
+    'Hora programada':   d.scheduledStart,
+    'Primera actividad': d.firstActivity ?? '—',
+    'Estado':            statusLabel(d.status, d.minutesLate),
+  }))
+  const ws = XLSX.utils.json_to_sheet(rows)
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: 3 } }) }
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Llegadas')
+  XLSX.writeFile(wb, `llegadas_${date}.xlsx`)
+}
 
 const today = () => {
   const d = new Date()
@@ -76,10 +93,17 @@ export default function LateArrivalsLog() {
 
       {data !== null && data.length > 0 && (
         <>
-          <div className="flex gap-4 text-sm">
+          <div className="flex flex-wrap items-center gap-4 text-sm">
             <span className="text-green-600 font-medium">{onTime} a tiempo</span>
             <span className="text-yellow-600 font-medium">{late} tarde</span>
             <span className="text-red-500 font-medium">{absent} ausentes</span>
+            <button
+              onClick={() => exportXLSX(data!, date)}
+              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer"
+            >
+              <FileDown className="size-3.5" />
+              Exportar
+            </button>
           </div>
 
           <Table>

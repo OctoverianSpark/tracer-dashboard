@@ -35,8 +35,23 @@ import {
   DialogTrigger,
 } from '@/app/_components/_ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/app/_components/_ui/alert-dialog'
-import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Loader2, Pencil, Plus, Trash2, FileDown } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { toast } from 'sonner'
+
+function exportXLSX(apps: CategorizationApp[]) {
+  const catLabel = (c: CategorizationApp['category']) =>
+    c === 'productive' ? 'Productiva' : c === 'unproductive' ? 'Improductiva' : 'Ignorar'
+  const rows = apps.map(a => ({
+    'Aplicación': a.name,
+    'Categoría':  catLabel(a.category),
+  }))
+  const ws = XLSX.utils.json_to_sheet(rows)
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: 1 } }) }
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Aplicaciones')
+  XLSX.writeFile(wb, `aplicaciones_${new Date().toISOString().slice(0, 10)}.xlsx`)
+}
 
 const EMPTY: CategorizationApp = { name: '', category: 'productive' }
 
@@ -209,7 +224,18 @@ export default function AppCategorization() {
             {ignored > 0 && <>{' · '}<span className="font-medium">{ignored} ignoradas</span></>}
           </span>
         </div>
-        <AppForm onSaved={load} />
+        <div className="flex items-center gap-2">
+          {filtered.length > 0 && (
+            <button
+              onClick={() => exportXLSX(filtered)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer"
+            >
+              <FileDown className="size-3.5" />
+              Exportar
+            </button>
+          )}
+          <AppForm onSaved={load} />
+        </div>
       </div>
 
       {loading && (
