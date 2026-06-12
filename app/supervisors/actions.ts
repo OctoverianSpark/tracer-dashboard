@@ -213,9 +213,7 @@ export const getProductivityReport = async (date: string): Promise<UserProductiv
       try {
         const raw = await getStateLog(userId, Number(machine.id))
         const logs: StateLog[] = (Array.isArray(raw) ? raw : [])
-          .filter((l: StateLog) => l.timestamp
-            ? new Date(l.timestamp).toLocaleDateString('sv', { timeZone: 'America/Bogota' }) === date
-            : false)
+          .filter((l: StateLog) => l.timestamp?.slice(0, 10) === date)
         return { machineId: Number(machine.id), logs }
       } catch {
         return { machineId: Number(machine.id), logs: [] as StateLog[] }
