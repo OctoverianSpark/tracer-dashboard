@@ -251,14 +251,23 @@ export const getProductivityReport = async (date: string): Promise<UserProductiv
     }
     if (!allIntervals.length) return empty
 
+    // Ventana de jornada laboral — descarta intervalos fuera del horario programado
+    const schedWinStart = programation?.start_day
+      ? new Date(`${date}T${programation.start_day}:00`).getTime()
+      : new Date(`${date}T06:00:00`).getTime()
+    const schedWinEnd = programation?.end_day
+      ? new Date(`${date}T${programation.end_day}:00`).getTime()
+      : new Date(`${date}T23:00:00`).getTime()
+
     let productive = 0, unproductive = 0, uncategorized = 0, totalIntervalSecs = 0
     const appMap = new Map<string, UserAppUsage>()
 
     for (const interval of allIntervals) {
-      if (!isIntervalActive(interval, allActiveWindows)) continue
-
       const startMs = new Date(interval.interval_start).getTime()
       const endMs   = new Date(interval.interval_end).getTime()
+      if (startMs < schedWinStart || startMs >= schedWinEnd) continue
+      if (!isIntervalActive(interval, allActiveWindows)) continue
+
       const intervalSecs = endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
       totalIntervalSecs += intervalSecs
 
