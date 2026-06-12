@@ -56,6 +56,17 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
   )
   const machinesByUser = new Map(machinesPerUser.map(r => [r.userId, r.machines]))
 
+  // getMachines() (/machines/list) devuelve isAlive/alive correctamente.
+  // findAsignedMachines() (/machines?appuser_id=...) puede no incluirlos.
+  // Construimos un mapa de alive status por id y por serial para enriquecer.
+  const aliveById     = new Map<number, boolean>()
+  const aliveBySerial = new Map<string, boolean>()
+  for (const m of machines) {
+    const live = !!(m.isAlive || m.alive)
+    if (m.id != null) aliveById.set(Number(m.id), live)
+    aliveBySerial.set(m.serial_number, live)
+  }
+
   const todayKey    = DAY_KEYS[bogota.getDay()]
   const currentTime = `${bogota.getHours().toString().padStart(2, '0')}:${bogota.getMinutes().toString().padStart(2, '0')}`
 
@@ -81,11 +92,17 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
       }
     }
 
-    const userMachines  = machinesByUser.get(Number(user.id)) ?? []
-    const machine       = userMachines.find(m => m.isAlive || m.alive) ?? userMachines[0]
-    const wsConnected   = !!(machine && (machine.isAlive || machine.alive))
-    const todaySeconds  = userMachines.reduce((sum, m) => sum + (secondsByMachine.get(Number(m.id)) ?? 0), 0)
-    const isConnected   = wsConnected || todaySeconds > 0
+    const userMachines = machinesByUser.get(Number(user.id)) ?? []
+    // Enriquecer con alive status del endpoint autoritativo (/machines/list)
+    const enriched = userMachines.map(m => {
+      const live = aliveById.get(Number(m.id)) ?? aliveBySerial.get(m.serial_number) ?? !!(m.isAlive || m.alive)
+      return { ...m, isAlive: live, alive: live }
+    })
+
+    const machine      = enriched.find(m => m.isAlive || m.alive) ?? enriched[0]
+    const wsConnected  = !!(machine && (machine.isAlive || machine.alive))
+    const todaySeconds = enriched.reduce((sum, m) => sum + (secondsByMachine.get(Number(m.id)) ?? 0), 0)
+    const isConnected  = wsConnected || todaySeconds > 0
 
     return { user, wsConnected, isConnected, shouldBeConnected, machine, programation, startTime, endTime, todaySeconds }
   })

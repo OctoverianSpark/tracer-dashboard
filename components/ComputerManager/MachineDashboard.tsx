@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/app/_components/_ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
 import MachineList from './MachineList'
 import AppCategorization from '@/components/Supervisors/AppCategorization'
+import UncategorizedApps from '@/components/Supervisors/UncategorizedApps'
 
 interface Props {
   machines: Machine[]
@@ -71,6 +72,7 @@ export default function ComputersDashboard({ machines: initial, appusers }: Prop
         <TabsList>
           <TabsTrigger value='equipos'>Equipos</TabsTrigger>
           <TabsTrigger value='categorization'>Categorización de apps</TabsTrigger>
+          <TabsTrigger value='uncategorized'>Apps sin categorizar</TabsTrigger>
         </TabsList>
 
         <TabsContent value='equipos' className='mt-6 space-y-5'>
@@ -125,6 +127,9 @@ export default function ComputersDashboard({ machines: initial, appusers }: Prop
 
         <TabsContent value='categorization' className='mt-4'>
           <AppCategorization />
+        </TabsContent>
+        <TabsContent value='uncategorized' className='mt-4'>
+          <UncategorizedApps />
         </TabsContent>
       </Tabs>
     </div>
