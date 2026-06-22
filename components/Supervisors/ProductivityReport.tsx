@@ -9,8 +9,10 @@ import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
 import { Switch } from '@/app/_components/_ui/switch'
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table, TableCell, TableHead, TableHeader, TableRow,
 } from '@/app/_components/_ui/table'
+import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
+import { staggerContainer, staggerItem } from '@/lib/motion'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/app/_components/_ui/collapsible'
 import { Loader2, ChevronDown, Download } from 'lucide-react'
@@ -243,9 +245,9 @@ export default function ProductivityReport() {
                 <TableHead className='text-right'>Sin categ.</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
               {filtered.flatMap(d => [
-                <TableRow key={d.user.id ?? d.user.full_name}>
+                <MotionTableRow key={d.user.id ?? d.user.full_name} variants={staggerItem}>
                   <TableCell className='font-medium whitespace-nowrap'>{d.user.full_name}</TableCell>
 
                   <TableCell className='text-right text-muted-foreground text-sm'>
@@ -282,10 +284,10 @@ export default function ProductivityReport() {
                   <TableCell className='text-right text-muted-foreground text-sm'>
                     {d.uncategorizedSeconds > 0 ? fmtSecs(d.uncategorizedSeconds) : '—'}
                   </TableCell>
-                </TableRow>,
+                </MotionTableRow>,
                 <TopAppsRow key={`apps-${d.user.id ?? d.user.full_name}`} data={d} />,
               ])}
-            </TableBody>
+            </MotionTableBody>
           </Table>
         </div>
       )}

@@ -5,7 +5,9 @@ import { AbsenceStatus } from '@/types/AppUser'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
+import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
+import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
+import { staggerContainer, staggerItem } from '@/lib/motion'
 
 const DAY_LABELS: Record<string, string> = {
   D: 'Dom', L: 'Lun', M: 'Mar', X: 'Mié', J: 'Jue', V: 'Vie', S: 'Sáb',
@@ -100,13 +102,13 @@ export default function THScheduleView({ rows }: Props) {
                 ))}
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
               {filtered.map(({ user, days }) => {
                 const uid    = user.id!
                 const status = overrides.get(uid) ?? null
 
                 return (
-                  <TableRow key={uid}>
+                  <MotionTableRow key={uid} variants={staggerItem}>
                     <TableCell className="font-medium sticky left-0 bg-background">
                       <div className="flex flex-col gap-0.5">
                         <span>{user.full_name}</span>
@@ -153,10 +155,10 @@ export default function THScheduleView({ rows }: Props) {
                         </TableCell>
                       )
                     })}
-                  </TableRow>
+                  </MotionTableRow>
                 )
               })}
-            </TableBody>
+            </MotionTableBody>
           </Table>
         </div>
       )}

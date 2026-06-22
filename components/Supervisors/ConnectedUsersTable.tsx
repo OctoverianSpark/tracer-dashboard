@@ -1,7 +1,9 @@
 'use client'
 import { UserConnectionStatus } from '@/app/supervisors/actions'
 import { Badge } from '@/app/_components/_ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
+import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
+import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
+import { staggerContainer, staggerItem } from '@/lib/motion'
 import { Wifi, WifiOff, Clock, Activity, FileDown } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
@@ -74,9 +76,9 @@ export default function ConnectedUsersTable({ statuses, mode }: Props) {
             <TableHead>Estado</TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
+        <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
           {filtered.map(({ user, machine, startTime, endTime, wsConnected, todaySeconds }) => (
-            <TableRow key={user.id}>
+            <MotionTableRow key={user.id} variants={staggerItem}>
               <TableCell className="font-medium">{user.full_name}</TableCell>
               <TableCell className="text-muted-foreground text-sm font-mono">
                 {machine?.hostname ?? '—'}
@@ -108,9 +110,9 @@ export default function ConnectedUsersTable({ statuses, mode }: Props) {
                   </Badge>
                 )}
               </TableCell>
-            </TableRow>
+            </MotionTableRow>
           ))}
-        </TableBody>
+        </MotionTableBody>
       </Table>
       </div>
     </div>

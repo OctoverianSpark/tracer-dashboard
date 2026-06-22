@@ -1,4 +1,5 @@
 'use client'
+import { motion } from 'framer-motion'
 import { Machine } from '@/types/Machine'
 import { AppUser } from '@/types/AppUser'
 import { useState, useMemo, useEffect, useCallback } from 'react'
@@ -8,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/_components/_ui/
 import MachineList from './MachineList'
 import AppCategorization from '@/components/Supervisors/AppCategorization'
 import UncategorizedApps from '@/components/Supervisors/UncategorizedApps'
+import { staggerContainer, staggerItem } from '@/lib/motion'
 
 interface Props {
   machines: Machine[]
@@ -78,23 +80,34 @@ export default function ComputersDashboard({ machines: initial, appusers }: Prop
         <TabsContent value='equipos' className='mt-6 space-y-5'>
 
           {/* Stats */}
-          <div className='grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4'>
-            <StatCard
-              label='Total equipos'
-              value={machines.length}
-              sub='registrados'
-            />
-            <StatCard
-              label='En línea'
-              value={online.length}
-              sub={`${Math.round(online.length / (machines.length || 1) * 100)}% del total`}
-            />
-            <StatCard
-              label='Fuera de línea'
-              value={offline.length}
-              sub='sin conexión activa'
-            />
-          </div>
+          <motion.div
+            className='grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4'
+            variants={staggerContainer}
+            initial='initial'
+            animate='animate'
+          >
+            <motion.div variants={staggerItem}>
+              <StatCard
+                label='Total equipos'
+                value={machines.length}
+                sub='registrados'
+              />
+            </motion.div>
+            <motion.div variants={staggerItem}>
+              <StatCard
+                label='En línea'
+                value={online.length}
+                sub={`${Math.round(online.length / (machines.length || 1) * 100)}% del total`}
+              />
+            </motion.div>
+            <motion.div variants={staggerItem}>
+              <StatCard
+                label='Fuera de línea'
+                value={offline.length}
+                sub='sin conexión activa'
+              />
+            </motion.div>
+          </motion.div>
 
           {/* Polling indicator + status filter */}
           <div className='flex items-center gap-3 flex-wrap rounded-xl border bg-card backdrop-blur-sm px-4 py-3'>

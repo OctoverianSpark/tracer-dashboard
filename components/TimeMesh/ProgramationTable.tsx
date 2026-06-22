@@ -3,12 +3,13 @@ import { Programation } from '@/types/Schedules'
 import { MallaHoraria } from './shared'
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow
 } from '@/app/_components/_ui/table'
+import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
+import { staggerContainer, staggerItem } from '@/lib/motion'
 import { Button } from '@/app/_components/_ui/button';
 import { Trash2, FileDown } from 'lucide-react';
 import * as XLSX from 'xlsx'
@@ -64,9 +65,9 @@ export default function ProgramationTable({ programations }: Props) {
           <TableHead>Malla</TableHead>
         </TableRow>
       </TableHeader>
-      <TableBody>
+      <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
         {programations?.map(p => (
-          <TableRow key={p.id}>
+          <MotionTableRow key={p.id} variants={staggerItem}>
             <TableCell>{p.name}</TableCell>
             <TableCell>{p.start_day}</TableCell>
             <TableCell>{p.start_lunch}</TableCell>
@@ -102,9 +103,9 @@ export default function ProgramationTable({ programations }: Props) {
                 </AlertDialogContent>
               </AlertDialog>
             </TableCell>
-          </TableRow>
+          </MotionTableRow>
         ))}
-      </TableBody>
+      </MotionTableBody>
     </Table>
     </div>
   )

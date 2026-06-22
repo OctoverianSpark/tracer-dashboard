@@ -1,4 +1,5 @@
 'use client'
+import { motion } from 'framer-motion'
 import { Machine, machineLabel } from '@/types/Machine'
 import { AppUser } from '@/types/AppUser'
 import MachineCard from './MachineCard'
@@ -9,7 +10,9 @@ import { useState, useMemo, useEffect } from 'react'
 import { Search, LayoutGrid, List, FileDown, Trash2 } from 'lucide-react'
 import { Input } from '@/app/_components/_ui/input'
 import { Badge } from '@/app/_components/_ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
+import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
+import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
+import { staggerContainer, staggerItem } from '@/lib/motion'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/app/_components/_ui/alert-dialog'
 import { Button } from '@/app/_components/_ui/button'
 import * as XLSX from 'xlsx'
@@ -132,16 +135,23 @@ export default function MachineList({ machines, appusers }: MachineListProps) {
         </p>
       ) : view === 'grid' ? (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <motion.div
+            key={page}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+            variants={staggerContainer}
+            initial="initial"
+            animate="animate"
+          >
             {paged.map(pc => (
-              <MachineCard
-                onDelete={serial => setConfirmSerial(serial)}
-                machine={pc}
-                key={pc.serial_number}
-                appuser={appusers.find(u => String(u.id) === String(pc.appuser_id))}
-              />
+              <motion.div key={pc.serial_number} variants={staggerItem}>
+                <MachineCard
+                  onDelete={serial => setConfirmSerial(serial)}
+                  machine={pc}
+                  appuser={appusers.find(u => String(u.id) === String(pc.appuser_id))}
+                />
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
           <Paginator page={page} totalPages={totalPages} total={filtered.length} pageSize={pageSize} onPageChange={setPage} />
         </>
       ) : (
@@ -160,11 +170,11 @@ export default function MachineList({ machines, appusers }: MachineListProps) {
                   <TableHead />
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <MotionTableBody key={page} variants={staggerContainer} initial="initial" animate="animate">
                 {paged.map(m => {
                   const online = m.alive || m.isAlive
                   return (
-                    <TableRow key={m.serial_number}>
+                    <MotionTableRow key={m.serial_number} variants={staggerItem}>
                       <TableCell className="font-medium">{m.hostname}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">{machineLabel(m) || '—'}</TableCell>
                       <TableCell>
@@ -184,10 +194,10 @@ export default function MachineList({ machines, appusers }: MachineListProps) {
                           </Button>
                         </div>
                       </TableCell>
-                    </TableRow>
+                    </MotionTableRow>
                   )
                 })}
-              </TableBody>
+              </MotionTableBody>
             </Table>
           </div>
           <Paginator page={page} totalPages={totalPages} total={filtered.length} pageSize={pageSize} onPageChange={setPage} />

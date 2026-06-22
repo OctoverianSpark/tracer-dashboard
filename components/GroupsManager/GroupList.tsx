@@ -18,9 +18,11 @@ import {
   useDraggable
 } from '@dnd-kit/core'
 import React, { useState } from 'react'
+import { motion } from 'framer-motion'
 import GroupForm from './GroupForm'
 import { Search, Trash2 } from 'lucide-react'
 import { Input } from '@/app/_components/_ui/input'
+import { staggerContainer, staggerItem } from '@/lib/motion'
 
 const UNGROUPED_ID = 0
 
@@ -184,12 +186,21 @@ export default function GroupList({ groups, users }: GroupTableProps) {
 
   return (
     <DndContext sensors={sensors} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
-      <div className="flex gap-4 items-start flex-wrap">
-        <DroppableUngrouped users={localUsers} />
+      <motion.div
+        className="flex gap-4 items-start flex-wrap"
+        variants={staggerContainer}
+        initial="initial"
+        animate="animate"
+      >
+        <motion.div variants={staggerItem}>
+          <DroppableUngrouped users={localUsers} />
+        </motion.div>
         {groups.map(g => (
-          <DroppableGroup onDelete={handleDeleteGroup} key={g.id} group={g} users={localUsers} allGroups={groups} />
+          <motion.div key={g.id} variants={staggerItem}>
+            <DroppableGroup onDelete={handleDeleteGroup} group={g} users={localUsers} allGroups={groups} />
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       <DragOverlay>
         {activeUser && (

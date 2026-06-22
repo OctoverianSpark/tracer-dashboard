@@ -8,8 +8,10 @@ import { Button } from '@/app/_components/_ui/button'
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table, TableCell, TableHead, TableHeader, TableRow,
 } from '@/app/_components/_ui/table'
+import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
+import { staggerContainer, staggerItem } from '@/lib/motion'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { Loader2, Download } from 'lucide-react'
 import * as XLSX from 'xlsx'
@@ -175,11 +177,11 @@ export default function THProductivityReport() {
                 <TableHead>Sin categoría</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
               {withActivity
                 .sort((a, b) => b.overallProductivityPercent - a.overallProductivityPercent)
                 .map(d => (
-                  <TableRow key={d.user.id ?? d.user.full_name}>
+                  <MotionTableRow key={d.user.id ?? d.user.full_name} variants={staggerItem}>
                     <TableCell className="font-medium">{d.user.full_name}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {d.scheduledMinutes > 0 ? fmtMin(d.scheduledMinutes) : '—'}
@@ -196,9 +198,9 @@ export default function THProductivityReport() {
                     <TableCell className="text-green-600 text-sm">{fmtSecs(d.productiveSeconds)}</TableCell>
                     <TableCell className="text-red-500 text-sm">{fmtSecs(d.unproductiveSeconds)}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{fmtSecs(d.uncategorizedSeconds)}</TableCell>
-                  </TableRow>
+                  </MotionTableRow>
                 ))}
-            </TableBody>
+            </MotionTableBody>
           </Table>
         </>
       )}

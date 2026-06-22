@@ -1,11 +1,13 @@
 'use client'
 import { Clock, Monitor, TrendingUp, Users } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { Card, CardContent } from '../_components/_ui/card'
 import StatCard from '@/components/Home/StatCard'
 import { getStats, getUserSchedule } from './actions'
 import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import { Programation, Schedule } from '@/types/Schedules'
+import { fadeUp, staggerContainer, staggerItem } from '@/lib/motion'
 
 const STAT_CONFIG = [
   { key: 'active_users'  as const, label: 'Usuarios activos',       icon: Users       },
@@ -41,55 +43,68 @@ export default function Page() {
 
   return (
     <div className='space-y-6'>
-      <div>
+      <motion.div initial='initial' animate='animate' variants={fadeUp}>
         <h1 className='text-2xl font-semibold'>
           Bienvenido, {session?.appUser?.full_name?.split(' ')[0]}
         </h1>
         <p className='text-muted-foreground text-sm'>Aquí tienes un resumen de hoy</p>
-      </div>
+      </motion.div>
 
-      <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+      <motion.div
+        className='grid grid-cols-2 md:grid-cols-4 gap-4'
+        variants={staggerContainer}
+        initial='initial'
+        animate='animate'
+      >
         {STAT_CONFIG.map(({ key, label, icon }) => (
-          <StatCard key={key} label={label} value={stats?.[key] ?? '—'} icon={icon} />
+          <motion.div key={key} variants={staggerItem}>
+            <StatCard label={label} value={stats?.[key] ?? '—'} icon={icon} />
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       <div>
         <h2 className='text-lg font-semibold mb-3'>Tu horario</h2>
         {schedules.length === 0 ? (
           <p className='text-sm text-muted-foreground'>No tienes horario asignado.</p>
         ) : (
-          <div className='grid grid-cols-4 sm:grid-cols-7 gap-2'>
+          <motion.div
+            className='grid grid-cols-4 sm:grid-cols-7 gap-2'
+            variants={staggerContainer}
+            initial='initial'
+            animate='animate'
+          >
             {DAY_ORDER.map(day => {
               const sched = schedules.find(s => s.day_of_week === day)
               const prog  = sched ? progs.find(p => p.id === sched.programation_id) : null
               const isToday = day === todayKey
 
               return (
-                <Card
-                  key={day}
-                  className={`text-center transition-colors ${isToday ? 'border-primary bg-primary/5' : ''} ${!sched ? 'opacity-40' : ''}`}
-                >
-                  <CardContent className='p-3 space-y-1'>
-                    <p className={`text-xs font-semibold uppercase tracking-wide ${isToday ? 'text-primary' : 'text-muted-foreground'}`}>
-                      {DAY_LABEL[day]}
-                      {isToday && <span className='ml-1 text-[9px] bg-primary text-primary-foreground rounded px-1'>Hoy</span>}
-                    </p>
-                    {prog ? (
-                      <>
-                        <p className='text-sm font-medium leading-tight'>{prog.name}</p>
-                        <p className='text-[11px] text-muted-foreground tabular-nums'>
-                          {prog.start_day}{prog.end_day ? ` – ${prog.end_day}` : ''}
-                        </p>
-                      </>
-                    ) : (
-                      <p className='text-xs text-muted-foreground'>—</p>
-                    )}
-                  </CardContent>
-                </Card>
+                <motion.div key={day} variants={staggerItem}>
+                  <Card
+                    className={`text-center transition-colors ${isToday ? 'border-primary bg-primary/5' : ''} ${!sched ? 'opacity-40' : ''}`}
+                  >
+                    <CardContent className='p-3 space-y-1'>
+                      <p className={`text-xs font-semibold uppercase tracking-wide ${isToday ? 'text-primary' : 'text-muted-foreground'}`}>
+                        {DAY_LABEL[day]}
+                        {isToday && <span className='ml-1 text-[9px] bg-primary text-primary-foreground rounded px-1'>Hoy</span>}
+                      </p>
+                      {prog ? (
+                        <>
+                          <p className='text-sm font-medium leading-tight'>{prog.name}</p>
+                          <p className='text-[11px] text-muted-foreground tabular-nums'>
+                            {prog.start_day}{prog.end_day ? ` – ${prog.end_day}` : ''}
+                          </p>
+                        </>
+                      ) : (
+                        <p className='text-xs text-muted-foreground'>—</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
               )
             })}
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

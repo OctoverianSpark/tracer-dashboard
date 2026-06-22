@@ -29,15 +29,17 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   )
 }
 
-function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
-  return (
+const TableBody = React.forwardRef<HTMLTableSectionElement, React.ComponentProps<"tbody">>(
+  ({ className, ...props }, ref) => (
     <tbody
+      ref={ref}
       data-slot="table-body"
       className={cn("[&_tr:last-child]:border-0", className)}
       {...props}
     />
   )
-}
+)
+TableBody.displayName = "TableBody"
 
 function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
   return (
@@ -52,9 +54,10 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
   )
 }
 
-function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
-  return (
+const TableRow = React.forwardRef<HTMLTableRowElement, React.ComponentProps<"tr">>(
+  ({ className, ...props }, ref) => (
     <tr
+      ref={ref}
       data-slot="table-row"
       className={cn(
         "hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors",
@@ -63,7 +66,8 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
       {...props}
     />
   )
-}
+)
+TableRow.displayName = "TableRow"
 
 function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (

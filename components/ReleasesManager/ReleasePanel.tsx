@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
+import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/_components/_ui/card'
 import { Button } from '@/app/_components/_ui/button'
 import { Badge } from '@/app/_components/_ui/badge'
@@ -9,6 +10,7 @@ import { Label } from '@/app/_components/_ui/label'
 import { type ReleaseInfo } from '@/app/app/releases/actions'
 import { UploadCloud, Download, PackageCheck, PackageX, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
+import { staggerContainer, staggerItem } from '@/lib/motion'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -106,7 +108,13 @@ export default function ReleasePanel({ initialInfo }: Props) {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 items-start">
+    <motion.div
+      className="grid gap-4 md:grid-cols-2 items-start"
+      variants={staggerContainer}
+      initial="initial"
+      animate="animate"
+    >
+      <motion.div variants={staggerItem}>
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -149,7 +157,9 @@ export default function ReleasePanel({ initialInfo }: Props) {
           )}
         </CardContent>
       </Card>
+      </motion.div>
 
+      <motion.div variants={staggerItem}>
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Publicar nueva versión</CardTitle>
@@ -229,6 +239,7 @@ export default function ReleasePanel({ initialInfo }: Props) {
           </Button>
         </CardContent>
       </Card>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 }

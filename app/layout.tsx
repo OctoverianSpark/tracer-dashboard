@@ -7,6 +7,7 @@ import { SonnerToaster } from './_components/SonnerToaster'
 import Providers from './_components/providers'
 import { getServerSession } from 'next-auth'
 import LavaLamp from '@/components/LavaLamp'
+import { PageTransition } from './_components/PageTransition'
 
 const outfit = Outfit({ variable: '--font-outfit', subsets: ['latin'] })
 const spaceGrotesk = Space_Grotesk({ variable: '--font-space-grotesk', subsets: ['latin'] })
@@ -28,7 +29,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           {session && <AppSidebar />}
           <div className='flex flex-col flex-1 min-w-0 h-full min-h-screen'>
             {session && <AppHeader />}
-            <main className='flex-1 p-4 sm:p-6 w-full'>{children}</main>
+            <main className='flex-1 p-4 sm:p-6 w-full'>
+              <PageTransition>{children}</PageTransition>
+            </main>
           </div>
         </Providers>
       </body>

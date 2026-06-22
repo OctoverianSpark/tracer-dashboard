@@ -1,7 +1,9 @@
 'use client'
+import { motion } from 'framer-motion'
 import { FlatAppUsageLog } from '@/types/AppUser'
 import { FileDown } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import { staggerContainer, staggerItem } from '@/lib/motion'
 
 interface Props {
   logs: FlatAppUsageLog[]
@@ -56,20 +58,22 @@ export default function AppUsageList({ logs, ignoredApps }: Props) {
           Exportar
         </button>
       </div>
-      {sorted.map(l => {
-        const pct = total > 0 ? (l.seconds / total) * 100 : 0
-        return (
-          <div key={crypto.randomUUID()} className='space-y-1'>
-            <div className='flex items-center justify-between gap-2'>
-              <span className='font-mono text-sm truncate min-w-0'>{l.app}</span>
-              <span className='text-sm text-muted-foreground shrink-0'>{fmtSecs(l.seconds)}</span>
-            </div>
-            <div className='h-1.5 rounded-full bg-secondary overflow-hidden'>
-              <div className='h-full rounded-full bg-primary/50' style={{ width: `${pct}%` }} />
-            </div>
-          </div>
-        )
-      })}
+      <motion.div className='space-y-2' variants={staggerContainer} initial='initial' animate='animate'>
+        {sorted.map(l => {
+          const pct = total > 0 ? (l.seconds / total) * 100 : 0
+          return (
+            <motion.div key={l.app} variants={staggerItem} className='space-y-1'>
+              <div className='flex items-center justify-between gap-2'>
+                <span className='font-mono text-sm truncate min-w-0'>{l.app}</span>
+                <span className='text-sm text-muted-foreground shrink-0'>{fmtSecs(l.seconds)}</span>
+              </div>
+              <div className='h-1.5 rounded-full bg-secondary overflow-hidden'>
+                <div className='h-full rounded-full bg-primary/50' style={{ width: `${pct}%` }} />
+              </div>
+            </motion.div>
+          )
+        })}
+      </motion.div>
     </div>
   )
 }

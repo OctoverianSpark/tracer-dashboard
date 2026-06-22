@@ -5,7 +5,9 @@ import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
+import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
+import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
+import { staggerContainer, staggerItem } from '@/lib/motion'
 import { Loader2, CheckCircle2, AlertCircle, XCircle, FileDown } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
@@ -115,23 +117,23 @@ export default function LateArrivalsLog() {
                 <TableHead>Estado</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
               {data
                 .sort((a, b) => {
                   const order = { late: 0, absent: 1, on_time: 2 }
                   return order[a.status] - order[b.status]
                 })
                 .map(({ user, scheduledStart, firstActivity, status, minutesLate }) => (
-                  <TableRow key={user.id ?? user.full_name}>
+                  <MotionTableRow key={user.id ?? user.full_name} variants={staggerItem}>
                     <TableCell className="font-medium">{user.full_name}</TableCell>
                     <TableCell className="text-muted-foreground">{scheduledStart}</TableCell>
                     <TableCell className="text-muted-foreground">{firstActivity ?? '—'}</TableCell>
                     <TableCell>
                       <StatusBadge status={status} minutesLate={minutesLate} />
                     </TableCell>
-                  </TableRow>
+                  </MotionTableRow>
                 ))}
-            </TableBody>
+            </MotionTableBody>
           </Table>
         </>
       )}

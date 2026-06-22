@@ -21,12 +21,13 @@ import {
 } from '@/app/_components/_ui/select'
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/app/_components/_ui/table'
+import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
+import { staggerContainer, staggerItem } from '@/lib/motion'
 import {
   Dialog,
   DialogContent,
@@ -260,9 +261,9 @@ export default function AppCategorization() {
               <TableHead className="w-20" />
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
             {filtered.map(app => (
-              <TableRow key={app.id}>
+              <MotionTableRow key={app.id} variants={staggerItem}>
                 <TableCell className="font-medium font-mono text-sm">{app.name}</TableCell>
                 <TableCell><CategoryBadge category={app.category} /></TableCell>
                 <TableCell>
@@ -271,9 +272,9 @@ export default function AppCategorization() {
                     <DeleteButton id={app.id!} onDeleted={load} />
                   </div>
                 </TableCell>
-              </TableRow>
+              </MotionTableRow>
             ))}
-          </TableBody>
+          </MotionTableBody>
         </Table>
         </div>
       )}

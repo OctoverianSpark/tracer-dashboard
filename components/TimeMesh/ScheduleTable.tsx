@@ -1,7 +1,9 @@
 'use client'
 import { Schedule, Programation } from '@/types/Schedules'
 import { AppUser } from '@/types/AppUser'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
+import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
+import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
+import { staggerContainer, staggerItem } from '@/lib/motion'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/app/_components/_ui/alert-dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { Badge } from '@/app/_components/_ui/badge'
@@ -108,7 +110,7 @@ export default function ScheduleTable({ schedules, appuser, programations }: Pro
               <TableHead />
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
             {grouped.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={3} className='text-center h-24 text-muted-foreground text-sm'>
@@ -121,7 +123,7 @@ export default function ScheduleTable({ schedules, appuser, programations }: Pro
               const hidden  = entries.slice(MAX_INLINE)
 
               return (
-                <TableRow key={user.id}>
+                <MotionTableRow key={user.id} variants={staggerItem}>
                   <TableCell className='font-medium'>{user.full_name}</TableCell>
 
                   <TableCell>
@@ -163,10 +165,10 @@ export default function ScheduleTable({ schedules, appuser, programations }: Pro
                       <Trash2 className='size-4 text-destructive' />
                     </Button>
                   </TableCell>
-                </TableRow>
+                </MotionTableRow>
               )
             })}
-          </TableBody>
+          </MotionTableBody>
         </Table>
         </div>
       </div>

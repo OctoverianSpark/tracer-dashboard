@@ -1,5 +1,6 @@
 'use client'
 
+import { motion } from 'framer-motion'
 import { Button } from '@/app/_components/_ui/button'
 import { Card, CardContent } from '@/app/_components/_ui/card'
 import { Dialog, DialogContent, DialogTitle } from '@/app/_components/_ui/dialog'
@@ -7,6 +8,7 @@ import { zip } from 'fflate'
 import { Archive, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { staggerContainer, staggerItem } from '@/lib/motion'
 
 async function downloadOne(url: string, filename: string) {
   const res = await fetch(url)
@@ -176,15 +178,20 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
           </Button>
         </div>
 
-<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <motion.div
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
+          variants={staggerContainer}
+          initial="initial"
+          animate="animate"
+        >
           {visible.map((file, i) => {
             const pct = getPct(file)
             return (
-              <Card
-                key={file}
-                className="group cursor-pointer hover:shadow-md transition-shadow overflow-hidden"
-                onClick={() => setOpenIndex(i)}
-              >
+              <motion.div key={file} variants={staggerItem}>
+                <Card
+                  className="group cursor-pointer hover:shadow-md transition-shadow overflow-hidden"
+                  onClick={() => setOpenIndex(i)}
+                >
                 <CardContent className="p-0">
                   <div className="relative">
                     <Image
@@ -225,10 +232,11 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
                     <span className="text-xs text-muted-foreground">{parseTime(file)}</span>
                   </div>
                 </CardContent>
-              </Card>
+                </Card>
+              </motion.div>
             )
           })}
-        </div>
+        </motion.div>
         {remaining > 0 && (
           <div className="flex justify-center">
             <Button variant="outline" onClick={() => setPage(p => p + 1)}>

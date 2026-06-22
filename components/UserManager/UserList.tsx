@@ -5,12 +5,13 @@ import { Button } from '@/app/_components/_ui/button'
 import { Input } from '@/app/_components/_ui/input'
 import {
   Table,
-  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow
 } from '@/app/_components/_ui/table'
+import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
+import { staggerContainer, staggerItem } from '@/lib/motion'
 import {
   Select,
   SelectContent,
@@ -229,7 +230,12 @@ export default function AppUserList ({
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <MotionTableBody
+            key={page}
+            variants={staggerContainer}
+            initial='initial'
+            animate='animate'
+          >
             {filteredAppUsers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className='text-center h-24'>
@@ -238,7 +244,7 @@ export default function AppUserList ({
               </TableRow>
             ) : (
               pagedUsers.map(appuser => (
-                <TableRow key={appuser.id}>
+                <MotionTableRow key={appuser.id} variants={staggerItem}>
                   <TableCell>
                     <Checkbox
                       checked={selected.includes(appuser.id!)}
@@ -263,10 +269,10 @@ export default function AppUserList ({
                       appUser={appuser}
                     />
                   </TableCell>
-                </TableRow>
+                </MotionTableRow>
               ))
             )}
-          </TableBody>
+          </MotionTableBody>
         </Table>
       </div>
 
