@@ -26,6 +26,7 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
   // All time logic uses Bogotá (UTC-5) — the server may run in a different timezone
   const bogota   = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
   const todayStr = bogota.toLocaleDateString('sv')   // YYYY-MM-DD
+  const nowMs    = bogota.getTime()
 
   const [users, machines, schedules, programations, rawLogs] = await Promise.all([
     getappuser(),
@@ -35,9 +36,13 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
     getRawAppUsageLogs(todayStr),
   ])
 
-  // Segundos de uso por machine_id para hoy
+  // Segundos de uso por machine_id para hoy.
+  // Se descartan intervalos con interval_start posterior al momento actual: si el reloj del
+  // equipo monitoreado está desincronizado, puede registrar timestamps "futuros" dentro del
+  // mismo día, inflando el contador por encima del tiempo real transcurrido.
   const secondsByMachine = new Map<number, number>()
   for (const log of rawLogs) {
+    if (new Date(log.interval_start).getTime() > nowMs) continue
     const cid  = Number(log.computer_id)
     const secs = (log.apps ?? []).reduce((s, a) => s + a.seconds, 0)
     secondsByMachine.set(cid, (secondsByMachine.get(cid) ?? 0) + secs)
@@ -172,6 +177,12 @@ const isIntervalActive = (log: AppUsageLog, windows: Array<{ start: number; end:
 export const getProductivityReport = async (date: string): Promise<UserProductivity[]> => {
   const dayKey = DAY_KEYS[new Date(`${date}T12:00:00`).getDay()]
 
+  // Si la fecha consultada es "hoy", la ventana de jornada no puede extenderse más allá del
+  // momento actual: evita contar intervalos con timestamp futuro (ej. por desincronización de
+  // reloj en el equipo monitoreado).
+  const bogotaNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+  const nowMs     = date === bogotaNow.toLocaleDateString('sv') ? bogotaNow.getTime() : Infinity
+
   // Ronda 1: datos globales que no dependen del usuario
   const [users, schedules, programations, rawLogs, categorizationApps] = await Promise.all([
     getappuser(),
@@ -255,9 +266,12 @@ export const getProductivityReport = async (date: string): Promise<UserProductiv
     const schedWinStart = programation?.start_day
       ? new Date(`${date}T${programation.start_day}:00`).getTime()
       : new Date(`${date}T06:00:00`).getTime()
-    const schedWinEnd = programation?.end_day
-      ? new Date(`${date}T${programation.end_day}:00`).getTime()
-      : new Date(`${date}T23:00:00`).getTime()
+    const schedWinEnd = Math.min(
+      programation?.end_day
+        ? new Date(`${date}T${programation.end_day}:00`).getTime()
+        : new Date(`${date}T23:00:00`).getTime(),
+      nowMs,
+    )
 
     let productive = 0, unproductive = 0, uncategorized = 0, totalIntervalSecs = 0
     const appMap = new Map<string, UserAppUsage>()

@@ -226,6 +226,12 @@ export interface THProductivity {
 export const getTHProductivityReport = async (date: string): Promise<THProductivity[]> => {
   const dayKey = DAY_KEYS[new Date(`${date}T12:00:00`).getDay()]
 
+  // Si la fecha consultada es "hoy", la ventana de jornada no puede extenderse más allá del
+  // momento actual: evita contar intervalos con timestamp futuro (ej. por desincronización de
+  // reloj en el equipo monitoreado).
+  const bogotaNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+  const nowMs     = date === bogotaNow.toLocaleDateString('sv') ? bogotaNow.getTime() : Infinity
+
   const [users, schedules, programations, rawLogs, categorizationApps] = await Promise.all([
     getappuser(),
     getSchedules(),
@@ -274,9 +280,12 @@ export const getTHProductivityReport = async (date: string): Promise<THProductiv
     const schedWinStart = programation?.start_day
       ? new Date(`${date}T${programation.start_day}:00`).getTime()
       : new Date(`${date}T06:00:00`).getTime()
-    const schedWinEnd = programation?.end_day
-      ? new Date(`${date}T${programation.end_day}:00`).getTime()
-      : new Date(`${date}T23:00:00`).getTime()
+    const schedWinEnd = Math.min(
+      programation?.end_day
+        ? new Date(`${date}T${programation.end_day}:00`).getTime()
+        : new Date(`${date}T23:00:00`).getTime(),
+      nowMs,
+    )
 
     let productive = 0, unproductive = 0, uncategorized = 0, totalIntervalSecs = 0
     for (const interval of allIntervals) {
@@ -285,14 +294,19 @@ export const getTHProductivityReport = async (date: string): Promise<THProductiv
       if (startMs < schedWinStart || startMs >= schedWinEnd) continue
       if (!isIntervalActive(interval, allActiveWindows)) continue
 
-      totalIntervalSecs += endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
+      const intervalSecs = endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
+      totalIntervalSecs += intervalSecs
 
       for (const a of interval.apps ?? []) {
         const cat = categoryMap.get(a.app.toLowerCase())
         if (cat === 'ignore') continue
-        if (cat === 'productive')        productive    += a.seconds
-        else if (cat === 'unproductive') unproductive  += a.seconds
-        else                             uncategorized += a.seconds
+
+        // Cap defensivo: los segundos de una app no pueden superar la duración del intervalo
+        const secs = Math.min(a.seconds, intervalSecs)
+
+        if (cat === 'productive')        productive    += secs
+        else if (cat === 'unproductive') unproductive  += secs
+        else                             uncategorized += secs
       }
     }
 
