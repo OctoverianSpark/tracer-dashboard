@@ -36,15 +36,19 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
     getRawAppUsageLogs(todayStr),
   ])
 
-  // Segundos de uso por machine_id para hoy.
-  // Se descartan intervalos con interval_start posterior al momento actual: si el reloj del
-  // equipo monitoreado está desincronizado, puede registrar timestamps "futuros" dentro del
-  // mismo día, inflando el contador por encima del tiempo real transcurrido.
+  // Segundos de uso por machine_id para hoy: se suma la duración real de cada intervalo
+  // (interval_end - interval_start), no los `seconds` reportados por app dentro del log —
+  // ese campo no está acotado a la duración del intervalo y si se registran varias apps en
+  // el mismo bloque de tiempo, sumarlas directamente multiplica el total muy por encima del
+  // tiempo realmente transcurrido. Se descartan además intervalos con interval_start posterior
+  // al momento actual (reloj desincronizado en el equipo monitoreado).
   const secondsByMachine = new Map<number, number>()
   for (const log of rawLogs) {
-    if (new Date(log.interval_start).getTime() > nowMs) continue
-    const cid  = Number(log.computer_id)
-    const secs = (log.apps ?? []).reduce((s, a) => s + a.seconds, 0)
+    const startMs = new Date(log.interval_start).getTime()
+    if (startMs > nowMs) continue
+    const endMs = new Date(log.interval_end).getTime()
+    const secs  = endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
+    const cid   = Number(log.computer_id)
     secondsByMachine.set(cid, (secondsByMachine.get(cid) ?? 0) + secs)
   }
 
