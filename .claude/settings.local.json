@@ -12,7 +12,9 @@
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Jean.PR\\\\Projects\\\\tracer-dashboard\" -Name)",
       "Bash(grep -r \"isAlive\\\\|alive\" \"c:\\\\Users\\\\Jean.PR\\\\Projects\\\\tracer-dashboard\" --include=\"*.ts\" --include=\"*.tsx\" ! -path \"*/node_modules/*\" ! -path \"*/.next/*\" -n)",
       "Bash(grep -r \"NEXT_PUBLIC_API_URL\" \"c:\\\\Users\\\\Jean.PR\\\\Projects\\\\tracer-dashboard\" --include=\"*.ts\" --include=\"*.tsx\" ! -path \"*/node_modules/*\" ! -path \"*/.next/*\")",
-      "Bash(del \"c:\\\\Users\\\\Jean.PR\\\\Projects\\\\tracer-dashboard\\\\app\\\\_components\\\\FaviconSwitcher.tsx\")"
+      "Bash(del \"c:\\\\Users\\\\Jean.PR\\\\Projects\\\\tracer-dashboard\\\\app\\\\_components\\\\FaviconSwitcher.tsx\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://apitester.asistentevirtualsas.com/machines/list\")",
+      "Bash(curl -s \"https://apitester.asistentevirtualsas.com/\")"
     ]
   }
 }

@@ -36,19 +36,18 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
     getRawAppUsageLogs(todayStr),
   ])
 
-  // Segundos de uso por machine_id para hoy: se suma la duración real de cada intervalo
-  // (interval_end - interval_start), no los `seconds` reportados por app dentro del log —
-  // ese campo no está acotado a la duración del intervalo y si se registran varias apps en
-  // el mismo bloque de tiempo, sumarlas directamente multiplica el total muy por encima del
-  // tiempo realmente transcurrido. Se descartan además intervalos con interval_start posterior
-  // al momento actual (reloj desincronizado en el equipo monitoreado).
+  // Segundos de uso por machine_id para hoy: se suma `active_seconds` de cada intervalo, no su
+  // duración total (interval_end - interval_start). El agente sigue registrando intervalos de
+  // forma continua aunque el usuario esté inactivo (active_seconds=0, idle_seconds=60), así que
+  // contar la duración del intervalo infla el total con horas de inactividad. Se descartan
+  // además intervalos con interval_start posterior al momento actual (reloj desincronizado en
+  // el equipo monitoreado).
   const secondsByMachine = new Map<number, number>()
   for (const log of rawLogs) {
     const startMs = new Date(log.interval_start).getTime()
     if (startMs > nowMs) continue
-    const endMs = new Date(log.interval_end).getTime()
-    const secs  = endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
-    const cid   = Number(log.computer_id)
+    const cid  = Number(log.computer_id)
+    const secs = log.active_seconds ?? 0
     secondsByMachine.set(cid, (secondsByMachine.get(cid) ?? 0) + secs)
   }
 
