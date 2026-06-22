@@ -14,9 +14,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/app/_components/_ui/t
 import { Loader2, Download } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
+// Usa Bogotá (UTC-5) para que "hoy" coincida con la zona horaria de los timestamps en BD,
+// sin importar la zona horaria del navegador del usuario.
 const today = () => {
-  const d = new Date()
-  return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-')
+  const bogota = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+  return bogota.toLocaleDateString('sv')
 }
 
 const fmtSecs = (s: number) => {
