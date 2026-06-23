@@ -12,6 +12,7 @@ export type Machine = {
   appuser_id: string;
   machineBrand?: string;
   machineModel?: string;
+  take_screenshots?: boolean;
 }
 
 export function machineLabel(m: Machine): string {

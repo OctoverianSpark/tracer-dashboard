@@ -1,8 +1,10 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { ArrowRight, Wifi, WifiOff } from 'lucide-react'
+import { ArrowRight, Camera, Wifi, WifiOff } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/app/_components/_ui/button'
 import { Badge } from '@/app/_components/_ui/badge'
+import { Switch } from '@/app/_components/_ui/switch'
 import {
   Dialog,
   DialogContent,
@@ -10,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/app/_components/_ui/dialog'
-import { getIPInfo, lockMachine, restartMachine, shutdownMachine, sendFileToMachine, sendNotice } from '@/app/computers/actions'
+import { getIPInfo, lockMachine, restartMachine, shutdownMachine, sendFileToMachine, sendNotice, setTakeScreenshots } from '@/app/computers/actions'
 import { Machine, machineLabel } from '@/types/Machine'
 import MachineActions from './MachineActions'
 
@@ -39,8 +41,25 @@ interface MachineDialogProps {
 export default function MachineDialog({ machine }: MachineDialogProps) {
   const [open, setOpen] = useState(false)
   const [ip, setIp]     = useState<Record<string, string>>()
+  const [screenshotsEnabled, setScreenshotsEnabled] = useState(!!machine.take_screenshots)
+  const [updatingScreenshots, setUpdatingScreenshots] = useState(false)
 
   const online = machine.alive || machine.isAlive
+
+  useEffect(() => { setScreenshotsEnabled(!!machine.take_screenshots) }, [machine.take_screenshots])
+
+  const handleToggleScreenshots = async (enabled: boolean) => {
+    setUpdatingScreenshots(true)
+    setScreenshotsEnabled(enabled)
+    try {
+      await setTakeScreenshots(machine.serial_number, enabled)
+    } catch (e) {
+      setScreenshotsEnabled(!enabled)
+      toast.error(e instanceof Error ? e.message : 'Error al actualizar capturas de pantalla')
+    } finally {
+      setUpdatingScreenshots(false)
+    }
+  }
 
   useEffect(() => {
     if (!open || !machine.ip_address || isPrivateIP(machine.ip_address)) return
@@ -134,6 +153,19 @@ export default function MachineDialog({ machine }: MachineDialogProps) {
           <InfoField
             label='Localización'
             value={locationValue}
+          />
+        </div>
+
+        {/* Toggle de capturas de pantalla */}
+        <div className='flex items-center justify-between border rounded-lg px-3 py-2 bg-muted/30'>
+          <div className='flex items-center gap-2'>
+            <Camera className='size-4 text-muted-foreground' />
+            <span className='text-sm font-medium'>Capturas de pantalla</span>
+          </div>
+          <Switch
+            checked={screenshotsEnabled}
+            disabled={updatingScreenshots}
+            onCheckedChange={handleToggleScreenshots}
           />
         </div>
       </DialogContent>

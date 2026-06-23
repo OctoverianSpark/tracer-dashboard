@@ -65,3 +65,15 @@ export const sendNotice = async (machineId: string, notification: Notification) 
     body: JSON.stringify(notification),
   })
 }
+
+export const setTakeScreenshots = async (serial: string, enabled: boolean) => {
+  const res = await fetch(`${API_URL}/machines/${serial}/take-screenshots`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || `Error ${res.status}`)
+  revalidatePath('/computers')
+  return data
+}
