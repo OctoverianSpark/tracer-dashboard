@@ -41,12 +41,12 @@ interface MachineDialogProps {
 export default function MachineDialog({ machine }: MachineDialogProps) {
   const [open, setOpen] = useState(false)
   const [ip, setIp]     = useState<Record<string, string>>()
-  const [screenshotsEnabled, setScreenshotsEnabled] = useState(!!machine.take_screenshots)
+  const [screenshotsEnabled, setScreenshotsEnabled] = useState(machine.take_screenshots !== false)
   const [updatingScreenshots, setUpdatingScreenshots] = useState(false)
 
   const online = machine.alive || machine.isAlive
 
-  useEffect(() => { setScreenshotsEnabled(!!machine.take_screenshots) }, [machine.take_screenshots])
+  useEffect(() => { setScreenshotsEnabled(machine.take_screenshots !== false) }, [machine.take_screenshots])
 
   const handleToggleScreenshots = async (enabled: boolean) => {
     setUpdatingScreenshots(true)
