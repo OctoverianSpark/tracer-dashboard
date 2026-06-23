@@ -13,7 +13,7 @@ const outfit = Outfit({ variable: '--font-outfit', subsets: ['latin'] })
 const spaceGrotesk = Space_Grotesk({ variable: '--font-space-grotesk', subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'ActiMetrics',
+  title: 'GoTracer',
   description: 'Gestión de computadores y reportes de actividad'
 }
 

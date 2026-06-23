@@ -87,8 +87,8 @@ export default function Page() {
         ? rawLogs.filter(l => l.computer_id === machine.id)
         : rawLogs
 
-      console.groupCollapsed(`[ActiMetrics] Reportes recibidos: ${logs.length} intervalos — ${machine.hostname} ${date}`)
-      console.log('[ActiMetrics] Raw body completo:', logs)
+      console.groupCollapsed(`[GoTracer] Reportes recibidos: ${logs.length} intervalos — ${machine.hostname} ${date}`)
+      console.log('[GoTracer] Raw body completo:', logs)
 
       const intervals: { start: number; end: number; pct: number }[] = []
 

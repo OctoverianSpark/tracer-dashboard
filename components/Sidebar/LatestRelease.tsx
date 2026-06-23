@@ -35,11 +35,11 @@ export function LatestRelease() {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton className='cursor-pointer'>
               <Download className='size-4 shrink-0' />
-              <span>Actimetrics {release.tag_name}</span>
+              <span>GoTracer {release.tag_name}</span>
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent side='right' align='end' className='w-56'>
-            <DropdownMenuLabel>Descargar Actimetrics {release.tag_name}</DropdownMenuLabel>
+            <DropdownMenuLabel>Descargar GoTracer {release.tag_name}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {release.assets.length > 0 ? (
               release.assets.map(asset => {
