@@ -1,32 +1,36 @@
 'use client'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { saveSchedule, updateSchedule, deleteSchedule } from '@/app/time/actions'
+import { saveSchedule, updateSchedule, deleteSchedule, saveRotationCycle, deleteRotationCycle } from '@/app/time/actions'
+import { splitDayAssignments, buildRotationSlots } from '@/lib/dayAssignments'
 import { AppUser, Group } from '@/types/AppUser'
-import { Programation, Schedule } from '@/types/Schedules'
+import { DayAssignments, Programation, RotationData, Schedule } from '@/types/Schedules'
 import { Button } from '@/app/_components/_ui/button'
 import { Checkbox } from '@/app/_components/_ui/checkbox'
 import { Input } from '@/app/_components/_ui/input'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/app/_components/_ui/dialog'
 import { Label } from '@/app/_components/_ui/label'
-import { DayAssignments, DayProgramationPicker } from './shared'
+import { DayProgramationPicker } from './shared'
 import { Users } from 'lucide-react'
 
 interface Props {
   appuser: AppUser[]
   programations: Programation[]
   schedules: Schedule[]
+  rotations: RotationData[]
   groups: Group[]
 }
 
 interface Errors {
   days?: string
   users?: string
+  rotationStartDate?: string
 }
 
-export default function BulkScheduleAssigner({ appuser, programations, schedules, groups }: Props) {
+export default function BulkScheduleAssigner({ appuser, programations, schedules, rotations, groups }: Props) {
   const [open, setOpen] = useState(false)
   const [dayAssignments, setDayAssignments] = useState<DayAssignments>({})
+  const [rotationStartDate, setRotationStartDate] = useState('')
   const [selectedUsers, setSelectedUsers] = useState<number[]>([])
   const [errors, setErrors] = useState<Errors>({})
   const [loading, setLoading] = useState(false)
@@ -48,6 +52,7 @@ export default function BulkScheduleAssigner({ appuser, programations, schedules
 
   function reset() {
     setDayAssignments({})
+    setRotationStartDate('')
     setSelectedUsers([])
     setErrors({})
     setUserSearch('')
@@ -62,8 +67,11 @@ export default function BulkScheduleAssigner({ appuser, programations, schedules
 
   function validate(): boolean {
     const next: Errors = {}
+    const { rotating } = splitDayAssignments(dayAssignments)
     if (Object.keys(dayAssignments).length === 0) next.days  = 'Selecciona al menos un día'
     if (selectedUsers.length === 0)                next.users = 'Selecciona al menos un empleado'
+    if (rotating.some(([, c]) => c.sequence.length < 2)) next.days = 'Cada día rotativo necesita al menos 2 horarios en su secuencia'
+    if (rotating.length > 0 && !rotationStartDate) next.rotationStartDate = 'Selecciona la fecha de inicio de la rotación'
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -72,27 +80,43 @@ export default function BulkScheduleAssigner({ appuser, programations, schedules
     if (!validate()) return
     setLoading(true)
     try {
-      const days = Object.keys(dayAssignments)
+      const { fixed, rotating } = splitDayAssignments(dayAssignments)
+      const fixedDays = fixed.map(([day]) => day)
+
       for (const userId of selectedUsers) {
         const existing = schedules.filter(s => s.appuser_id === userId)
 
-        // Eliminar días que ya no están seleccionados
-        for (const s of existing.filter(s => !days.includes(s.day_of_week))) {
+        // Eliminar días fijos que ya no están seleccionados (incluye los que pasaron a rotativos)
+        for (const s of existing.filter(s => !fixedDays.includes(s.day_of_week))) {
           if (s.id) await deleteSchedule(s.id)
         }
 
-        // Actualizar existentes / crear nuevos
+        // Actualizar existentes / crear nuevos días fijos
         const toSave: Schedule[] = []
-        for (const day of days) {
-          const programation_id = dayAssignments[day]
+        for (const [day, c] of fixed) {
           const match = existing.find(s => s.day_of_week === day)
           if (match?.id) {
-            await updateSchedule(match.id, { appuser_id: userId, programation_id, day_of_week: day })
+            await updateSchedule(match.id, { appuser_id: userId, programation_id: c.programation_id, day_of_week: day })
           } else {
-            toSave.push({ appuser_id: userId, programation_id, day_of_week: day })
+            toSave.push({ appuser_id: userId, programation_id: c.programation_id, day_of_week: day })
           }
         }
         if (toSave.length > 0) await saveSchedule(toSave)
+
+        if (rotating.length > 0) {
+          await saveRotationCycle(
+            {
+              appuser_id: userId,
+              name: 'Rotación de turnos',
+              start_date: rotationStartDate,
+              weeks: Math.max(...rotating.map(([, c]) => c.sequence.length)),
+            },
+            buildRotationSlots(rotating)
+          )
+        } else {
+          const existingCycleId = rotations.find(r => r.cycle.appuser_id === userId)?.cycle.id
+          if (existingCycleId) await deleteRotationCycle(existingCycleId)
+        }
       }
 
       toast.success(`Horario asignado a ${selectedUsers.length} empleado${selectedUsers.length > 1 ? 's' : ''}`)
@@ -106,6 +130,7 @@ export default function BulkScheduleAssigner({ appuser, programations, schedules
   }
 
   const allSelected = selectedUsers.length === appuser.length
+  const hasRotatingDay = Object.values(dayAssignments).some(c => c.mode === 'rotating')
 
   return (
     <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) reset() }}>
@@ -116,8 +141,24 @@ export default function BulkScheduleAssigner({ appuser, programations, schedules
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogTitle>Asignación en bloque</DialogTitle>
+
+        {hasRotatingDay && (
+          <div className="grid gap-1">
+            <Label>Inicio de la rotación</Label>
+            <Input
+              type="date"
+              value={rotationStartDate}
+              onChange={e => {
+                setRotationStartDate(e.target.value)
+                setErrors(prev => ({ ...prev, rotationStartDate: undefined }))
+              }}
+              className={errors.rotationStartDate ? 'border-destructive' : ''}
+            />
+            {errors.rotationStartDate && <span className="text-xs text-destructive">{errors.rotationStartDate}</span>}
+          </div>
+        )}
 
         {/* Días y horario */}
         <div className="grid gap-2">

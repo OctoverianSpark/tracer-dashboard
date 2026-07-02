@@ -4,7 +4,6 @@ import ProgramationForm from '@/components/TimeMesh/ProgramationForm'
 import ProgramationTable from '@/components/TimeMesh/ProgramationTable'
 import ScheduleAssigner from '@/components/TimeMesh/ScheduleAssigner'
 import BulkScheduleAssigner from '@/components/TimeMesh/BulkScheduleAssigner'
-import RotationAssigner from '@/components/TimeMesh/RotationAssigner'
 import ScheduleTable from '@/components/TimeMesh/ScheduleTable'
 import { getProgramations, getSchedules, getAllRotations } from '../actions'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
@@ -26,17 +25,13 @@ export default async function Page() {
           appuser={appuser}
           programations={programations}
           schedules={schedules}
+          rotations={rotations}
           groups={groups}
         />
         <BulkScheduleAssigner
           appuser={appuser}
           programations={programations}
           schedules={schedules}
-          groups={groups}
-        />
-        <RotationAssigner
-          appuser={appuser}
-          programations={programations}
           rotations={rotations}
           groups={groups}
         />

@@ -1,8 +1,10 @@
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
-import { Checkbox } from '@/app/_components/_ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
-import { Programation } from '@/types/Schedules'
+import { Badge } from '@/app/_components/_ui/badge'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/app/_components/_ui/tooltip'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { DayAssignments, DayRotatingConfig, Programation } from '@/types/Schedules'
 
 export const DIAS = [
   { key: 'L', label: 'Lunes' },
@@ -139,7 +141,91 @@ export function MallaHoraria({
   )
 }
 
-export type DayAssignments = Record<string, number>
+function RotatingSequenceEditor({
+  programations,
+  config,
+  onChange,
+}: {
+  programations: Programation[]
+  config: DayRotatingConfig
+  onChange: (config: DayRotatingConfig) => void
+}) {
+  const nameOf = (id: number) => programations.find(p => p.id === id)?.name ?? '—'
+
+  function addToSequence(id: number) {
+    onChange({ ...config, sequence: [...config.sequence, id] })
+  }
+
+  function removeAt(index: number) {
+    onChange({ ...config, sequence: config.sequence.filter((_, i) => i !== index) })
+  }
+
+  function move(index: number, dir: -1 | 1) {
+    const target = index + dir
+    if (target < 0 || target >= config.sequence.length) return
+    const next = [...config.sequence]
+    ;[next[index], next[target]] = [next[target], next[index]]
+    onChange({ ...config, sequence: next })
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {config.sequence.map((id, i) => (
+          <Badge key={i} variant="secondary" className="gap-1 text-xs font-normal">
+            {i + 1}. {nameOf(id)}
+            <button
+              type="button"
+              onClick={() => move(i, -1)}
+              disabled={i === 0}
+              className="cursor-pointer disabled:opacity-30"
+            >
+              <ChevronLeft className="size-3" />
+            </button>
+            <button
+              type="button"
+              onClick={() => move(i, 1)}
+              disabled={i === config.sequence.length - 1}
+              className="cursor-pointer disabled:opacity-30"
+            >
+              <ChevronRight className="size-3" />
+            </button>
+            <button type="button" onClick={() => removeAt(i)} className="cursor-pointer">
+              <X className="size-3" />
+            </button>
+          </Badge>
+        ))}
+      </div>
+
+      <div className="flex gap-2">
+        <Select value="" onValueChange={v => addToSequence(Number(v))}>
+          <SelectTrigger className="h-8 flex-1 text-sm">
+            <SelectValue placeholder="+ Agregar horario a la secuencia" />
+          </SelectTrigger>
+          <SelectContent>
+            {programations.map(p => (
+              <SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={config.cadence} onValueChange={v => onChange({ ...config, cadence: v as 'week' | 'day' })}>
+          <SelectTrigger className="h-8 w-32 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="week">Semanal</SelectItem>
+            <SelectItem value="day">Diaria</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {config.sequence.length < 2 && (
+        <p className="text-xs text-amber-500">Agrega al menos 2 horarios para que rote.</p>
+      )}
+    </div>
+  )
+}
 
 export function DayProgramationPicker({
   programations,
@@ -152,11 +238,11 @@ export function DayProgramationPicker({
   onChange: (value: DayAssignments) => void
   error?: string
 }) {
-  function toggleDay(day: string, checked: boolean) {
-    if (checked) {
-      const defaultId = value[day] ?? programations[0]?.id
-      if (defaultId == null) return
-      onChange({ ...value, [day]: defaultId })
+  function toggleDay(day: string, active: boolean) {
+    if (active) {
+      const firstId = programations[0]?.id
+      if (firstId == null) return
+      onChange({ ...value, [day]: { mode: 'fixed', programation_id: firstId } })
     } else {
       const next = { ...value }
       delete next[day]
@@ -164,41 +250,100 @@ export function DayProgramationPicker({
     }
   }
 
-  function setDayProgramation(day: string, programationId: number) {
-    onChange({ ...value, [day]: programationId })
+  function setMode(day: string, mode: 'fixed' | 'rotating') {
+    const firstId = programations[0]?.id
+    if (firstId == null) return
+    onChange({
+      ...value,
+      [day]: mode === 'fixed'
+        ? { mode: 'fixed', programation_id: firstId }
+        : { mode: 'rotating', sequence: [firstId], cadence: 'week' },
+    })
   }
 
+  const activeDays = DIAS.filter(dia => value[dia.key] != null)
+
   return (
-    <div className="space-y-1">
-      <div className={`space-y-1.5 rounded-lg border ${error ? 'border-destructive' : 'border-border'} p-2`}>
+    <div className="space-y-2">
+      <div className="flex gap-1">
         {DIAS.map(dia => {
-          const checked = value[dia.key] != null
+          const active = value[dia.key] != null
           return (
-            <div key={dia.key} className="flex items-center gap-2">
-              <Checkbox
-                checked={checked}
-                onCheckedChange={c => toggleDay(dia.key, !!c)}
-                disabled={programations.length === 0}
-              />
-              <span className="w-16 shrink-0 text-sm">{dia.label}</span>
-              <Select
-                disabled={!checked}
-                value={value[dia.key]?.toString() ?? ''}
-                onValueChange={v => setDayProgramation(dia.key, Number(v))}
-              >
-                <SelectTrigger className="h-8 flex-1 text-sm">
-                  <SelectValue placeholder="Selecciona un horario" />
-                </SelectTrigger>
-                <SelectContent>
-                  {programations.map(p => (
-                    <SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Tooltip key={dia.key}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => toggleDay(dia.key, !active)}
+                  disabled={programations.length === 0}
+                  className={`
+                    flex-1 h-10 rounded-md text-sm font-medium border transition-colors cursor-pointer
+                    ${active
+                      ? 'bg-green-500 text-white border-green-500'
+                      : 'bg-secondary text-muted-foreground border-border hover:border-green-400 hover:text-green-400'}
+                  `}
+                >
+                  {dia.key}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{dia.label}</TooltipContent>
+            </Tooltip>
           )
         })}
       </div>
+
+      {activeDays.length > 0 && (
+        <div className="space-y-2">
+          {activeDays.map(dia => {
+            const config = value[dia.key]!
+            return (
+              <div key={dia.key} className="space-y-2 rounded-lg border border-border p-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">{dia.label}</span>
+                  <div className="flex overflow-hidden rounded-md border border-border text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setMode(dia.key, 'fixed')}
+                      className={`cursor-pointer px-2 py-1 transition-colors ${config.mode === 'fixed' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+                    >
+                      Fijo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMode(dia.key, 'rotating')}
+                      className={`cursor-pointer px-2 py-1 transition-colors ${config.mode === 'rotating' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+                    >
+                      Rotativo
+                    </button>
+                  </div>
+                </div>
+
+                {config.mode === 'fixed' ? (
+                  <Select
+                    value={config.programation_id.toString()}
+                    onValueChange={v => onChange({ ...value, [dia.key]: { mode: 'fixed', programation_id: Number(v) } })}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Selecciona un horario" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {programations.map(p => (
+                        <SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <RotatingSequenceEditor
+                    programations={programations}
+                    config={config}
+                    onChange={next => onChange({ ...value, [dia.key]: next })}
+                  />
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {error && <span className="text-xs text-destructive">{error}</span>}
     </div>
   )

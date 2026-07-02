@@ -1,5 +1,5 @@
 'use client'
-import { Schedule, Programation, RotationData } from '@/types/Schedules'
+import { Schedule, Programation, RotationData, RotationSlot } from '@/types/Schedules'
 import { AppUser } from '@/types/AppUser'
 import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
 import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
@@ -27,23 +27,45 @@ const DAY_ABBR: Record<string, string> = {
 
 interface DayEntry {
   dayKey: string
-  progName: string
+  label: string
+  rotating: boolean
 }
 
-function buildDayEntries(rows: Schedule[], programations: Programation[]): DayEntry[] {
-  return rows
-    .map(r => ({
-      dayKey:   r.day_of_week,
-      progName: programations.find(p => p.id === r.programation_id)?.name ?? '—',
-    }))
-    .sort((a, b) => DAY_ORDER.indexOf(a.dayKey) - DAY_ORDER.indexOf(b.dayKey))
+function buildDayEntries(rows: Schedule[], rotation: RotationData | null, programations: Programation[]): DayEntry[] {
+  const nameOf = (id: number) => programations.find(p => p.id === id)?.name ?? '—'
+
+  const entries: DayEntry[] = rows.map(r => ({
+    dayKey: r.day_of_week,
+    label: nameOf(r.programation_id),
+    rotating: false,
+  }))
+
+  if (rotation) {
+    const byDay = new Map<string, RotationSlot[]>()
+    for (const slot of rotation.slots) {
+      if (!byDay.has(slot.day_of_week)) byDay.set(slot.day_of_week, [])
+      byDay.get(slot.day_of_week)!.push(slot)
+    }
+    for (const [day, slots] of byDay) {
+      const sorted = [...slots].sort((a, b) => a.week_index - b.week_index)
+      const cadenceLabel = (sorted[0].cadence ?? 'week') === 'day' ? 'diaria' : 'semanal'
+      entries.push({
+        dayKey: day,
+        label: `${sorted.map(s => nameOf(s.programation_id)).join(' → ')} (${cadenceLabel})`,
+        rotating: true,
+      })
+    }
+  }
+
+  return entries.sort((a, b) => DAY_ORDER.indexOf(a.dayKey) - DAY_ORDER.indexOf(b.dayKey))
 }
 
 function DayChip({ entry }: { entry: DayEntry }) {
   return (
-    <Badge variant="secondary" className="text-xs font-normal whitespace-nowrap">
+    <Badge variant={entry.rotating ? 'outline' : 'secondary'} className="gap-1 text-xs font-normal whitespace-nowrap">
+      {entry.rotating && <RefreshCw className="size-3" />}
       <span className="font-medium">{DAY_ABBR[entry.dayKey] ?? entry.dayKey}</span>
-      <span className="text-muted-foreground ml-1">- {entry.progName}</span>
+      <span className="text-muted-foreground ml-1">- {entry.label}</span>
     </Badge>
   )
 }
@@ -55,12 +77,10 @@ function exportXLSX(
   programations: Programation[]
 ) {
   const rows = grouped.map(({ user, rows: schedRows, rotation }) => {
-    const entries = buildDayEntries(schedRows, programations)
+    const entries = buildDayEntries(schedRows, rotation, programations)
     return {
       'Empleado':        user.full_name,
-      'Días y horarios': rotation
-        ? `Rotación: ${rotation.cycle.name} (ciclo de ${rotation.cycle.weeks} semanas, desde ${rotation.cycle.start_date})`
-        : entries.map(e => `${DAY_ABBR[e.dayKey] ?? e.dayKey}: ${e.progName}`).join(', '),
+      'Días y horarios': entries.map(e => `${DAY_ABBR[e.dayKey] ?? e.dayKey}: ${e.label}`).join(', '),
     }
   })
   const ws = XLSX.utils.json_to_sheet(rows)
@@ -128,7 +148,7 @@ export default function ScheduleTable({ schedules, appuser, programations, rotat
                 </TableCell>
               </TableRow>
             ) : grouped.map(({ user, rows, rotation }) => {
-              const entries = buildDayEntries(rows, programations)
+              const entries = buildDayEntries(rows, rotation, programations)
               const visible = entries.slice(0, MAX_INLINE)
               const hidden  = entries.slice(MAX_INLINE)
 
@@ -137,46 +157,32 @@ export default function ScheduleTable({ schedules, appuser, programations, rotat
                   <TableCell className='font-medium'>{user.full_name}</TableCell>
 
                   <TableCell>
-                    {rotation ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Badge variant="outline" className="text-xs font-normal gap-1 cursor-help">
-                            <RefreshCw className="size-3" />
-                            {rotation.cycle.name} · {rotation.cycle.weeks} semanas
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                          Rotación activa desde {rotation.cycle.start_date}
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <div className="flex flex-wrap gap-1.5 items-center">
-                        {visible.map((entry, i) => (
-                          <DayChip key={i} entry={entry} />
-                        ))}
+                    <div className="flex flex-wrap gap-1.5 items-center">
+                      {visible.map((entry, i) => (
+                        <DayChip key={i} entry={entry} />
+                      ))}
 
-                        {hidden.length > 0 && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="text-xs text-muted-foreground underline decoration-dashed cursor-help">
-                                +{hidden.length} más
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs">
-                              <div className="space-y-1 text-xs">
-                                {hidden.map((entry, i) => (
-                                  <p key={i}>
-                                    <span className="font-semibold">{DAY_ABBR[entry.dayKey] ?? entry.dayKey}</span>
-                                    {' - '}
-                                    {entry.progName}
-                                  </p>
-                                ))}
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                      </div>
-                    )}
+                      {hidden.length > 0 && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-xs text-muted-foreground underline decoration-dashed cursor-help">
+                              +{hidden.length} más
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs">
+                            <div className="space-y-1 text-xs">
+                              {hidden.map((entry, i) => (
+                                <p key={i}>
+                                  <span className="font-semibold">{DAY_ABBR[entry.dayKey] ?? entry.dayKey}</span>
+                                  {' - '}
+                                  {entry.label}
+                                </p>
+                              ))}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
                   </TableCell>
 
                   <TableCell>
