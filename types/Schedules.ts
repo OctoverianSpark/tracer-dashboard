@@ -29,16 +29,11 @@ export interface RotationSlot {
   id?: number
   rotation_cycle_id: number
   // Posición dentro de la secuencia propia de `day_of_week` (0..N-1, donde N = cantidad
-  // de horarios de esa secuencia). El nombre se mantiene por compatibilidad con el
-  // contrato original; con cadence='day' ya no representa una semana calendario, sino
-  // el N-ésimo paso de la secuencia.
+  // de horarios de esa secuencia). Avanza un paso por cada semana calendario transcurrida
+  // desde start_date.
   week_index: number
   day_of_week: string
   programation_id: number
-  // Cómo avanza `week_index` con el tiempo. 'week' (default si no viene, por compatibilidad
-  // con ciclos creados antes de este campo): un paso por cada semana calendario transcurrida.
-  // 'day': un paso por cada día calendario transcurrido desde start_date.
-  cadence?: 'week' | 'day'
 }
 
 export interface RotationData {
@@ -53,8 +48,7 @@ export interface DayFixedConfig {
 
 export interface DayRotatingConfig {
   mode: 'rotating'
-  sequence: number[]        // programation_ids en orden de rotación (mínimo 2)
-  cadence: 'week' | 'day'
+  sequence: number[]        // programation_ids en orden de rotación (mínimo 2), rota semanalmente
 }
 
 export type DayConfig = DayFixedConfig | DayRotatingConfig

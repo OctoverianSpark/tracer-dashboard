@@ -197,31 +197,21 @@ function RotatingSequenceEditor({
         ))}
       </div>
 
-      <div className="flex gap-2">
-        <Select value="" onValueChange={v => addToSequence(Number(v))}>
-          <SelectTrigger className="h-8 flex-1 text-sm">
-            <SelectValue placeholder="+ Agregar horario a la secuencia" />
-          </SelectTrigger>
-          <SelectContent>
-            {programations.map(p => (
-              <SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <Select value="" onValueChange={v => addToSequence(Number(v))}>
+        <SelectTrigger className="h-8 text-sm">
+          <SelectValue placeholder="+ Agregar horario a la secuencia" />
+        </SelectTrigger>
+        <SelectContent>
+          {programations.map(p => (
+            <SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-        <Select value={config.cadence} onValueChange={v => onChange({ ...config, cadence: v as 'week' | 'day' })}>
-          <SelectTrigger className="h-8 w-32 text-sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="week">Semanal</SelectItem>
-            <SelectItem value="day">Diaria</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {config.sequence.length < 2 && (
+      {config.sequence.length < 2 ? (
         <p className="text-xs text-amber-500">Agrega al menos 2 horarios para que rote.</p>
+      ) : (
+        <p className="text-xs text-muted-foreground">Rota semanalmente entre los horarios de arriba.</p>
       )}
     </div>
   )
@@ -257,7 +247,7 @@ export function DayProgramationPicker({
       ...value,
       [day]: mode === 'fixed'
         ? { mode: 'fixed', programation_id: firstId }
-        : { mode: 'rotating', sequence: [firstId], cadence: 'week' },
+        : { mode: 'rotating', sequence: [firstId] },
     })
   }
 

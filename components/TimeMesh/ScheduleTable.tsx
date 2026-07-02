@@ -48,10 +48,9 @@ function buildDayEntries(rows: Schedule[], rotation: RotationData | null, progra
     }
     for (const [day, slots] of byDay) {
       const sorted = [...slots].sort((a, b) => a.week_index - b.week_index)
-      const cadenceLabel = (sorted[0].cadence ?? 'week') === 'day' ? 'diaria' : 'semanal'
       entries.push({
         dayKey: day,
-        label: `${sorted.map(s => nameOf(s.programation_id)).join(' → ')} (${cadenceLabel})`,
+        label: sorted.map(s => nameOf(s.programation_id)).join(' → '),
         rotating: true,
       })
     }

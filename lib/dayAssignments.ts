@@ -27,7 +27,6 @@ export function buildRotationSlots(
       week_index,
       day_of_week: day,
       programation_id,
-      cadence: c.cadence,
     }))
   )
 }
@@ -66,7 +65,6 @@ export function loadDayAssignments(
     assignments[day] = {
       mode: 'rotating',
       sequence: sorted.map(s => s.programation_id),
-      cadence: sorted[0].cadence ?? 'week',
     }
   }
 

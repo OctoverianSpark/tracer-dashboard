@@ -10,9 +10,8 @@ const dayMs = (date: string) => new Date(`${date}T12:00:00`).getTime()
  * Schedule/day_of_week directamente queda desincronizado en cuanto un día rota.
  *
  * Cada day_of_week tiene su propia secuencia independiente (N horarios, N = cantidad de
- * slots de ese día), con su propia cadencia:
- *  - 'week': avanza un paso por cada semana calendario transcurrida desde start_date.
- *  - 'day':  avanza un paso por cada día calendario transcurrido desde start_date.
+ * slots de ese día) que avanza un paso por cada semana calendario transcurrida desde
+ * start_date.
  */
 export function resolveEffectiveProgramation(
   schedules: Schedule[],
@@ -28,12 +27,8 @@ export function resolveEffectiveProgramation(
     const daySlots = rotation.slots.filter(s => s.day_of_week === dayKey)
 
     if (daySlots.length > 0) {
-      const cadence  = daySlots[0].cadence ?? 'week'
       const diffDays = Math.round((dayMs(date) - dayMs(rotation.cycle.start_date)) / 86400000)
-      const period   = daySlots.length
-      const position = cadence === 'day'
-        ? diffDays % period
-        : Math.floor(diffDays / 7) % period
+      const position = Math.floor(diffDays / 7) % daySlots.length
 
       const slot = daySlots.find(s => s.week_index === position)
       return slot ? programations.find(p => p.id === slot.programation_id) : undefined
