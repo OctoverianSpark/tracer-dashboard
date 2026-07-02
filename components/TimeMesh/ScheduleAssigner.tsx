@@ -2,15 +2,13 @@
 import { saveSchedule } from '@/app/time/actions'
 import { Programation, Schedule } from '@/types/Schedules'
 import { AppUser, Group } from '@/types/AppUser'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/app/_components/_ui/dialog'
 import { Button } from '@/app/_components/_ui/button'
 import { Label } from '@/app/_components/_ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
 import { UserSelect } from '@/components/UserSelect'
-import { WeekPicker } from './Weekpicker'
-import { DIAS } from './shared'
+import { DayAssignments, DayProgramationPicker } from './shared'
 
 interface Props {
   appuser: AppUser[]
@@ -21,51 +19,29 @@ interface Props {
 
 interface AssignerErrors {
   appuser?: string
-  programation?: string
   days?: string
 }
 
 export default function ScheduleAssigner({ appuser, programations, schedules, groups }: Props) {
   const [open, setOpen] = useState(false)
   const [selectedappuser, setSelectedappuser] = useState<number | null>(null)
-  const [selectedProgramation, setSelectedProgramation] = useState<number | null>(null)
-  const [selectedDays, setSelectedDays] = useState<string[]>([])
+  const [dayAssignments, setDayAssignments] = useState<DayAssignments>({})
   const [errors, setErrors] = useState<AssignerErrors>({})
 
-  // Al seleccionar empleado, autocompleta programacion y dias
-  useEffect(() => {
-    if (selectedappuser) {
-      const schedulesOfappuser = schedules.filter(s => s.appuser_id === selectedappuser)
-      if (schedulesOfappuser.length > 0) {
-        const programationId = schedulesOfappuser[0].programation_id!
-        setSelectedProgramation(programationId)
-        setSelectedDays(
-          schedulesOfappuser
-            .filter(s => s.programation_id === programationId)
-            .map(s => s.day_of_week)
-        )
-      } else {
-        setSelectedProgramation(null)
-        setSelectedDays([])
-      }
-    }
-  }, [selectedappuser])
+  // Al seleccionar empleado, autocompleta el horario asignado por día (puede variar por día)
+  function handleSelectappuser(id: number) {
+    setSelectedappuser(id)
+    setErrors(prev => ({ ...prev, appuser: undefined }))
 
-  // Al cambiar la programacion, actualiza los dias
-  useEffect(() => {
-    if (selectedappuser && selectedProgramation) {
-      const days = schedules
-        .filter(s => s.appuser_id === selectedappuser && s.programation_id === selectedProgramation)
-        .map(s => s.day_of_week)
-      setSelectedDays(days)
-    }
-  }, [selectedProgramation])
+    const map: DayAssignments = {}
+    for (const s of schedules.filter(s => s.appuser_id === id)) map[s.day_of_week] = s.programation_id
+    setDayAssignments(map)
+  }
 
   function validate(): boolean {
     const newErrors: AssignerErrors = {}
-    if (!selectedappuser)         newErrors.appuser      = 'Selecciona un empleado'
-    if (!selectedProgramation)    newErrors.programation = 'Selecciona un horario'
-    if (selectedDays.length === 0) newErrors.days         = 'Selecciona al menos un día'
+    if (!selectedappuser)                          newErrors.appuser = 'Selecciona un empleado'
+    if (Object.keys(dayAssignments).length === 0)  newErrors.days    = 'Selecciona al menos un día'
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -77,9 +53,9 @@ export default function ScheduleAssigner({ appuser, programations, schedules, gr
     // si el día ya existe lo actualiza, si no lo crea.
     // Los días no incluidos en este envío quedan intactos.
     await saveSchedule(
-      selectedDays.map(day => ({
+      Object.entries(dayAssignments).map(([day, programation_id]) => ({
         appuser_id: selectedappuser!,
-        programation_id: selectedProgramation!,
+        programation_id,
         day_of_week: day,
       }))
     )
@@ -96,56 +72,30 @@ export default function ScheduleAssigner({ appuser, programations, schedules, gr
       <DialogContent className="max-w-lg">
         <DialogTitle>Asignar Horarios al empleado</DialogTitle>
 
-        <div className="flex gap-2">
-          <div className="grid gap-1 flex-1">
-            <Label>Empleado</Label>
-            <UserSelect
-              users={appuser}
-              groups={groups}
-              value={selectedappuser?.toString() ?? ''}
-              onValueChange={val => {
-                setSelectedappuser(Number(val))
-                setErrors(prev => ({ ...prev, appuser: undefined }))
-              }}
-              placeholder="Seleccionar empleado"
-              error={!!errors.appuser}
-            />
-            {errors.appuser && <span className="text-xs text-destructive">{errors.appuser}</span>}
-          </div>
-
-          <div className="grid gap-1 flex-1">
-            <Label>Tipo de Horario</Label>
-            <Select
-              onValueChange={val => {
-                setSelectedProgramation(Number(val))
-                setErrors(prev => ({ ...prev, programation: undefined }))
-              }}
-              value={selectedProgramation?.toString() ?? ''}
-            >
-              <SelectTrigger className={errors.programation ? 'border-destructive' : ''}>
-                <SelectValue placeholder='Selecciona un horario' />
-              </SelectTrigger>
-              <SelectContent>
-                {programations?.map(p => (
-                  <SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.programation && <span className="text-xs text-destructive">{errors.programation}</span>}
-          </div>
+        <div className="grid gap-1">
+          <Label>Empleado</Label>
+          <UserSelect
+            users={appuser}
+            groups={groups}
+            value={selectedappuser?.toString() ?? ''}
+            onValueChange={val => handleSelectappuser(Number(val))}
+            placeholder="Seleccionar empleado"
+            error={!!errors.appuser}
+          />
+          {errors.appuser && <span className="text-xs text-destructive">{errors.appuser}</span>}
         </div>
 
         <div className="grid gap-2">
-          <Label>Días</Label>
-          <WeekPicker
-            selected={selectedDays}
+          <Label>Días y horario</Label>
+          <DayProgramationPicker
+            programations={programations}
+            value={dayAssignments}
             onChange={days => {
-              setSelectedDays(days)
+              setDayAssignments(days)
               setErrors(prev => ({ ...prev, days: undefined }))
             }}
-            values={DIAS}
+            error={errors.days}
           />
-          {errors.days && <span className="text-xs text-destructive">{errors.days}</span>}
         </div>
 
         <Button onClick={asignSchedule}>Asignar</Button>

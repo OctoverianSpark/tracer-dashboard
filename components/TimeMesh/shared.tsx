@@ -1,5 +1,7 @@
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
+import { Checkbox } from '@/app/_components/_ui/checkbox'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
 import { Programation } from '@/types/Schedules'
 
 export const DIAS = [
@@ -133,6 +135,71 @@ export function MallaHoraria({
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+export type DayAssignments = Record<string, number>
+
+export function DayProgramationPicker({
+  programations,
+  value,
+  onChange,
+  error
+}: {
+  programations: Programation[]
+  value: DayAssignments
+  onChange: (value: DayAssignments) => void
+  error?: string
+}) {
+  function toggleDay(day: string, checked: boolean) {
+    if (checked) {
+      const defaultId = value[day] ?? programations[0]?.id
+      if (defaultId == null) return
+      onChange({ ...value, [day]: defaultId })
+    } else {
+      const next = { ...value }
+      delete next[day]
+      onChange(next)
+    }
+  }
+
+  function setDayProgramation(day: string, programationId: number) {
+    onChange({ ...value, [day]: programationId })
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className={`space-y-1.5 rounded-lg border ${error ? 'border-destructive' : 'border-border'} p-2`}>
+        {DIAS.map(dia => {
+          const checked = value[dia.key] != null
+          return (
+            <div key={dia.key} className="flex items-center gap-2">
+              <Checkbox
+                checked={checked}
+                onCheckedChange={c => toggleDay(dia.key, !!c)}
+                disabled={programations.length === 0}
+              />
+              <span className="w-16 shrink-0 text-sm">{dia.label}</span>
+              <Select
+                disabled={!checked}
+                value={value[dia.key]?.toString() ?? ''}
+                onValueChange={v => setDayProgramation(dia.key, Number(v))}
+              >
+                <SelectTrigger className="h-8 flex-1 text-sm">
+                  <SelectValue placeholder="Selecciona un horario" />
+                </SelectTrigger>
+                <SelectContent>
+                  {programations.map(p => (
+                    <SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )
+        })}
+      </div>
+      {error && <span className="text-xs text-destructive">{error}</span>}
     </div>
   )
 }

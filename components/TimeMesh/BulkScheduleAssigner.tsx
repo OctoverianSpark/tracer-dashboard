@@ -9,9 +9,7 @@ import { Checkbox } from '@/app/_components/_ui/checkbox'
 import { Input } from '@/app/_components/_ui/input'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/app/_components/_ui/dialog'
 import { Label } from '@/app/_components/_ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
-import { WeekPicker } from './Weekpicker'
-import { DIAS } from './shared'
+import { DayAssignments, DayProgramationPicker } from './shared'
 import { Users } from 'lucide-react'
 
 interface Props {
@@ -22,15 +20,13 @@ interface Props {
 }
 
 interface Errors {
-  programation?: string
   days?: string
   users?: string
 }
 
 export default function BulkScheduleAssigner({ appuser, programations, schedules, groups }: Props) {
   const [open, setOpen] = useState(false)
-  const [selectedProgramation, setSelectedProgramation] = useState<number | null>(null)
-  const [selectedDays, setSelectedDays] = useState<string[]>([])
+  const [dayAssignments, setDayAssignments] = useState<DayAssignments>({})
   const [selectedUsers, setSelectedUsers] = useState<number[]>([])
   const [errors, setErrors] = useState<Errors>({})
   const [loading, setLoading] = useState(false)
@@ -51,8 +47,7 @@ export default function BulkScheduleAssigner({ appuser, programations, schedules
   }
 
   function reset() {
-    setSelectedProgramation(null)
-    setSelectedDays([])
+    setDayAssignments({})
     setSelectedUsers([])
     setErrors({})
     setUserSearch('')
@@ -67,9 +62,8 @@ export default function BulkScheduleAssigner({ appuser, programations, schedules
 
   function validate(): boolean {
     const next: Errors = {}
-    if (!selectedProgramation)     next.programation = 'Selecciona un horario'
-    if (selectedDays.length === 0) next.days         = 'Selecciona al menos un día'
-    if (selectedUsers.length === 0) next.users       = 'Selecciona al menos un empleado'
+    if (Object.keys(dayAssignments).length === 0) next.days  = 'Selecciona al menos un día'
+    if (selectedUsers.length === 0)                next.users = 'Selecciona al menos un empleado'
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -78,22 +72,24 @@ export default function BulkScheduleAssigner({ appuser, programations, schedules
     if (!validate()) return
     setLoading(true)
     try {
+      const days = Object.keys(dayAssignments)
       for (const userId of selectedUsers) {
         const existing = schedules.filter(s => s.appuser_id === userId)
 
         // Eliminar días que ya no están seleccionados
-        for (const s of existing.filter(s => !selectedDays.includes(s.day_of_week))) {
+        for (const s of existing.filter(s => !days.includes(s.day_of_week))) {
           if (s.id) await deleteSchedule(s.id)
         }
 
         // Actualizar existentes / crear nuevos
         const toSave: Schedule[] = []
-        for (const day of selectedDays) {
+        for (const day of days) {
+          const programation_id = dayAssignments[day]
           const match = existing.find(s => s.day_of_week === day)
           if (match?.id) {
-            await updateSchedule(match.id, { appuser_id: userId, programation_id: selectedProgramation!, day_of_week: day })
+            await updateSchedule(match.id, { appuser_id: userId, programation_id, day_of_week: day })
           } else {
-            toSave.push({ appuser_id: userId, programation_id: selectedProgramation!, day_of_week: day })
+            toSave.push({ appuser_id: userId, programation_id, day_of_week: day })
           }
         }
         if (toSave.length > 0) await saveSchedule(toSave)
@@ -123,43 +119,18 @@ export default function BulkScheduleAssigner({ appuser, programations, schedules
       <DialogContent className="max-w-lg">
         <DialogTitle>Asignación en bloque</DialogTitle>
 
-        {/* Horario y días */}
-        <div className="flex gap-3">
-          <div className="grid gap-1 flex-1">
-            <Label>Horario</Label>
-            <Select
-              onValueChange={val => {
-                setSelectedProgramation(Number(val))
-                setErrors(prev => ({ ...prev, programation: undefined }))
-              }}
-              value={selectedProgramation?.toString() ?? ''}
-            >
-              <SelectTrigger className={errors.programation ? 'border-destructive' : ''}>
-                <SelectValue placeholder="Selecciona un horario" />
-              </SelectTrigger>
-              <SelectContent>
-                {programations.map(p => (
-                  <SelectItem key={p.id} value={p.id!.toString()}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.programation && (
-              <span className="text-xs text-destructive">{errors.programation}</span>
-            )}
-          </div>
-        </div>
-
+        {/* Días y horario */}
         <div className="grid gap-2">
-          <Label>Días</Label>
-          <WeekPicker
-            selected={selectedDays}
+          <Label>Días y horario</Label>
+          <DayProgramationPicker
+            programations={programations}
+            value={dayAssignments}
             onChange={days => {
-              setSelectedDays(days)
+              setDayAssignments(days)
               setErrors(prev => ({ ...prev, days: undefined }))
             }}
-            values={DIAS}
+            error={errors.days}
           />
-          {errors.days && <span className="text-xs text-destructive">{errors.days}</span>}
         </div>
 
         {/* Lista de empleados */}
@@ -230,8 +201,8 @@ export default function BulkScheduleAssigner({ appuser, programations, schedules
                 </span>
             }
             <span className="text-xs text-muted-foreground">
-              {selectedDays.length > 0 && selectedUsers.length > 0
-                ? `${selectedUsers.length * selectedDays.length} asignaciones`
+              {Object.keys(dayAssignments).length > 0 && selectedUsers.length > 0
+                ? `${selectedUsers.length * Object.keys(dayAssignments).length} asignaciones`
                 : ''}
             </span>
           </div>

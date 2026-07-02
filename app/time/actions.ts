@@ -1,5 +1,5 @@
 'use server'
-import { Programation, Schedule } from "@/types/Schedules"
+import { Programation, RotationCycle, RotationSlot, Schedule } from "@/types/Schedules"
 import { revalidatePath } from "next/cache"
 import { AppUsageLog, FlatAppUsageLog } from "@/types/AppUser"
 
@@ -64,6 +64,48 @@ export const deleteSchedule = async (id: number) => {
   await fetch(`${API}/schedules/delete/${id}`, { method: 'DELETE' })
   revalidatePath('/time/control')
 }
+
+// --- Rotación de turnos ---
+// Los endpoints /rotation-cycles* y /schedules/effective aún no existen en el backend.
+// Quedan como scaffold hasta que se implementen del lado del API.
+
+export const getRotationCycles = async (): Promise<RotationCycle[]> =>
+  fetcher(`${API}/rotation-cycles`)
+
+export const getRotationCycleByappuserId = async (appuser_id: number): Promise<RotationCycle | null> => {
+  const cycles = await fetcher<RotationCycle[]>(`${API}/rotation-cycles?appuser_id=${appuser_id}`)
+  return cycles[0] ?? null
+}
+
+export const getRotationSlots = async (rotation_cycle_id: number): Promise<RotationSlot[]> =>
+  fetcher(`${API}/rotation-cycles/${rotation_cycle_id}/slots`)
+
+// Guarda el ciclo y sus slots en una sola llamada para evitar estados intermedios inconsistentes.
+export const saveRotationCycle = async (
+  cycle: Omit<RotationCycle, 'id'>,
+  slots: Omit<RotationSlot, 'id' | 'rotation_cycle_id'>[]
+) => {
+  await fetch(`${API}/rotation-cycles/save`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...cycle, slots }),
+  })
+  revalidatePath('/time/control')
+}
+
+export const deleteRotationCycle = async (id: number) => {
+  await fetch(`${API}/rotation-cycles/delete/${id}`, { method: 'DELETE' })
+  revalidatePath('/time/control')
+}
+
+// Resolución del horario efectivo para una fecha puntual (rotación o fijo).
+// Debe vivir en el backend para que todos los consumidores (malla, TH, supervisores)
+// compartan la misma lógica en vez de recalcularla cada uno por su lado.
+export const getEffectiveProgramation = async (
+  appuser_id: number,
+  date: string // 'YYYY-MM-DD'
+): Promise<Programation | null> =>
+  fetcher(`${API}/schedules/effective?appuser_id=${appuser_id}&date=${date}`)
 
 // Los timestamps de la DB vienen en hora local Colombia (sin sufijo de zona horaria).
 // Formato: '2026-06-12 20:44:21'. No se hace conversión UTC — se compara por prefijo de fecha.

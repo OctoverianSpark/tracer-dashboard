@@ -14,7 +14,12 @@
       "Bash(grep -r \"NEXT_PUBLIC_API_URL\" \"c:\\\\Users\\\\Jean.PR\\\\Projects\\\\tracer-dashboard\" --include=\"*.ts\" --include=\"*.tsx\" ! -path \"*/node_modules/*\" ! -path \"*/.next/*\")",
       "Bash(del \"c:\\\\Users\\\\Jean.PR\\\\Projects\\\\tracer-dashboard\\\\app\\\\_components\\\\FaviconSwitcher.tsx\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://apitester.asistentevirtualsas.com/machines/list\")",
-      "Bash(curl -s \"https://apitester.asistentevirtualsas.com/\")"
+      "Bash(curl -s \"https://apitester.asistentevirtualsas.com/\")",
+      "Bash(npx eslint *)",
+      "Bash(git stash *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5500/)",
+      "Bash(curl -s -o /tmp/time_control.html -w \"%{http_code}\\\\n\" -L http://localhost:5500/time/control)",
+      "Bash(pkill -f \"next dev -p 5500\")"
     ]
   }
 }
