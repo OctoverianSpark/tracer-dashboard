@@ -4,16 +4,18 @@ import ProgramationForm from '@/components/TimeMesh/ProgramationForm'
 import ProgramationTable from '@/components/TimeMesh/ProgramationTable'
 import ScheduleAssigner from '@/components/TimeMesh/ScheduleAssigner'
 import BulkScheduleAssigner from '@/components/TimeMesh/BulkScheduleAssigner'
+import RotationAssigner from '@/components/TimeMesh/RotationAssigner'
 import ScheduleTable from '@/components/TimeMesh/ScheduleTable'
-import { getProgramations, getSchedules } from '../actions'
+import { getProgramations, getSchedules, getAllRotations } from '../actions'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
 
 export default async function Page() {
-  const [appuser, programations, schedules, groups] = await Promise.all([
+  const [appuser, programations, schedules, groups, rotations] = await Promise.all([
     getappuser(),
     getProgramations(),
     getSchedules(),
     getGroups(),
+    getAllRotations(),
   ])
   return (
     <div className="space-y-4">
@@ -32,6 +34,12 @@ export default async function Page() {
           schedules={schedules}
           groups={groups}
         />
+        <RotationAssigner
+          appuser={appuser}
+          programations={programations}
+          rotations={rotations}
+          groups={groups}
+        />
       </div>
       <Tabs defaultValue="programations">
         <TabsList>
@@ -46,6 +54,7 @@ export default async function Page() {
             schedules={schedules}
             appuser={appuser}
             programations={programations}
+            rotations={rotations}
           />
         </TabsContent>
       </Tabs>

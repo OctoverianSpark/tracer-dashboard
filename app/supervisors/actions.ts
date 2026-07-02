@@ -1,8 +1,9 @@
 'use server'
 import { getappuser } from '../app/actions'
 import { getMachines, findAsignedMachines } from '../computers/actions'
-import { getSchedules, getProgramations, getStateLog, getRawAppUsageLogs } from '../time/actions'
+import { getSchedules, getProgramations, getStateLog, getRawAppUsageLogs, getAllRotations } from '../time/actions'
 import { getCategorizationApps } from './categorization-actions'
+import { resolveEffectiveProgramation } from '@/lib/scheduleResolver'
 import { AppUser, AppUsageLog } from '@/types/AppUser'
 import { Machine } from '@/types/Machine'
 import { Programation } from '@/types/Schedules'
@@ -28,12 +29,13 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
   const todayStr = bogota.toLocaleDateString('sv')   // YYYY-MM-DD
   const nowMs    = bogota.getTime()
 
-  const [users, machines, schedules, programations, rawLogs] = await Promise.all([
+  const [users, machines, schedules, programations, rawLogs, rotations] = await Promise.all([
     getappuser(),
     getMachines(),
     getSchedules(),
     getProgramations(),
     getRawAppUsageLogs(todayStr),
+    getAllRotations(),
   ])
 
   // Segundos de uso por machine_id para hoy: se suma `active_seconds` de cada intervalo, no su
@@ -79,25 +81,21 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
   const currentTime = `${bogota.getHours().toString().padStart(2, '0')}:${bogota.getMinutes().toString().padStart(2, '0')}`
 
   return users.map(user => {
-    const userScheduleToday = schedules.find(
-      s => Number(s.appuser_id) === Number(user.id) && s.day_of_week === todayKey
+    const programation = resolveEffectiveProgramation(
+      schedules, rotations, programations, Number(user.id), todayKey, todayStr
     )
 
     let shouldBeConnected = false
-    let programation: Programation | undefined
     let startTime: string | undefined
     let endTime: string | undefined
 
-    if (userScheduleToday) {
-      programation = programations.find(p => p.id === userScheduleToday.programation_id)
-      if (programation) {
-        startTime = programation.start_day
-        endTime   = programation.end_day
-        shouldBeConnected =
-          !user.on_vacation &&
-          currentTime >= programation.start_day &&
-          (!programation.end_day || currentTime <= programation.end_day)
-      }
+    if (programation) {
+      startTime = programation.start_day
+      endTime   = programation.end_day
+      shouldBeConnected =
+        !user.on_vacation &&
+        currentTime >= programation.start_day &&
+        (!programation.end_day || currentTime <= programation.end_day)
     }
 
     const userMachines = machinesByUser.get(Number(user.id)) ?? []
@@ -187,12 +185,13 @@ export const getProductivityReport = async (date: string): Promise<UserProductiv
   const nowMs     = date === bogotaNow.toLocaleDateString('sv') ? bogotaNow.getTime() : Infinity
 
   // Ronda 1: datos globales que no dependen del usuario
-  const [users, schedules, programations, rawLogs, categorizationApps] = await Promise.all([
+  const [users, schedules, programations, rawLogs, categorizationApps, rotations] = await Promise.all([
     getappuser(),
     getSchedules(),
     getProgramations(),
     getRawAppUsageLogs(date),
     getCategorizationApps(),
+    getAllRotations(),
   ])
 
   // Ronda 2: máquinas asignadas a cada usuario (endpoint correcto por usuario)
@@ -241,8 +240,7 @@ export const getProductivityReport = async (date: string): Promise<UserProductiv
   return users.map(user => {
     const userId = Number(user.id)
     const userMachines = machinesByUser.get(userId) ?? []
-    const userSchedule = schedules.find(s => Number(s.appuser_id) === userId && s.day_of_week === dayKey)
-    const programation = userSchedule ? programations.find(p => p.id === userSchedule.programation_id) : undefined
+    const programation = resolveEffectiveProgramation(schedules, rotations, programations, userId, dayKey, date)
     const scheduledMinutes = programation ? scheduledWorkMinutes(programation) : 0
     const primaryMachine = userMachines[0]
 

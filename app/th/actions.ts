@@ -13,8 +13,9 @@ export const setAbsenceStatus = async (userId: number, status: AbsenceStatus): P
 }
 
 import { findAsignedMachines } from '../computers/actions'
-import { getSchedules, getProgramations, getStateLog, getRawAppUsageLogs } from '../time/actions'
+import { getSchedules, getProgramations, getStateLog, getRawAppUsageLogs, getAllRotations } from '../time/actions'
 import { getCategorizationApps } from '../supervisors/categorization-actions'
+import { resolveEffectiveProgramation } from '@/lib/scheduleResolver'
 import { AppUser, AppUsageLog } from '@/types/AppUser'
 import { Machine } from '@/types/Machine'
 import { Programation } from '@/types/Schedules'
@@ -105,26 +106,37 @@ const loadMachinesAndStateLogs = async (
 
 export interface UserScheduleRow {
   user: AppUser
-  days: Record<string, { programation: Programation; scheduleId: number } | null>
+  days: Record<string, { programation: Programation } | null>
 }
 
 export const getUserSchedules = async (): Promise<{ rows: UserScheduleRow[]; dayKeys: string[] }> => {
-  const [users, schedules, programations] = await Promise.all([
+  const [users, schedules, programations, rotations] = await Promise.all([
     getappuser(),
     getSchedules(),
     getProgramations(),
+    getAllRotations(),
   ])
+
+  // Cada day_of_week se ancla a su fecha real dentro de la semana actual: la rotación
+  // depende de la fecha, no solo del día de la semana, así que hace falta esa fecha para
+  // saber qué Programation aplica hoy en cada columna del grid.
+  const bogotaNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+  const todayStr  = bogotaNow.toLocaleDateString('sv')
+  const todayDow  = bogotaNow.getDay()
+  const dateForDayIndex = (i: number) => {
+    const d = new Date(`${todayStr}T12:00:00`)
+    d.setDate(d.getDate() + (i - todayDow))
+    return d.toLocaleDateString('sv')
+  }
 
   const rows: UserScheduleRow[] = users.map(user => {
     const days: UserScheduleRow['days'] = {}
-    for (const key of DAY_KEYS) {
-      const s = schedules.find(sc => sc.appuser_id === user.id && sc.day_of_week === key)
-      days[key] = s
-        ? (programations.find(p => p.id === s.programation_id)
-            ? { programation: programations.find(p => p.id === s.programation_id)!, scheduleId: s.id! }
-            : null)
-        : null
-    }
+    DAY_KEYS.forEach((key, i) => {
+      const programation = resolveEffectiveProgramation(
+        schedules, rotations, programations, Number(user.id), key, dateForDayIndex(i)
+      )
+      days[key] = programation ? { programation } : null
+    })
     return { user, days }
   })
 
@@ -144,22 +156,22 @@ export interface LateArrival {
 export const getLateArrivals = async (date: string): Promise<LateArrival[]> => {
   const dayKey = DAY_KEYS[new Date(`${date}T12:00:00`).getDay()]
 
-  const [users, schedules, programations] = await Promise.all([
+  const [users, schedules, programations, rotations] = await Promise.all([
     getappuser(),
     getSchedules(),
     getProgramations(),
+    getAllRotations(),
   ])
 
   const scheduledUsers = users.filter(user =>
-    schedules.some(s => Number(s.appuser_id) === Number(user.id) && s.day_of_week === dayKey)
+    resolveEffectiveProgramation(schedules, rotations, programations, Number(user.id), dayKey, date) != null
   )
 
   const { machinesByUser, stateByMachine } = await loadMachinesAndStateLogs(scheduledUsers, date)
 
   return scheduledUsers.map(user => {
     const userId       = Number(user.id)
-    const userSchedule = schedules.find(s => Number(s.appuser_id) === userId && s.day_of_week === dayKey)
-    const programation = programations.find(p => p.id === userSchedule?.programation_id)
+    const programation = resolveEffectiveProgramation(schedules, rotations, programations, userId, dayKey, date)
     const scheduledStart = programation?.start_day ?? '08:00'
     const absent = { user, scheduledStart, firstActivity: null, minutesLate: 0, status: 'absent' as const }
 
@@ -232,12 +244,13 @@ export const getTHProductivityReport = async (date: string): Promise<THProductiv
   const bogotaNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
   const nowMs     = date === bogotaNow.toLocaleDateString('sv') ? bogotaNow.getTime() : Infinity
 
-  const [users, schedules, programations, rawLogs, categorizationApps] = await Promise.all([
+  const [users, schedules, programations, rawLogs, categorizationApps, rotations] = await Promise.all([
     getappuser(),
     getSchedules(),
     getProgramations(),
     getRawAppUsageLogs(date),
     getCategorizationApps(),
+    getAllRotations(),
   ])
 
   const { machinesByUser, stateByMachine } = await loadMachinesAndStateLogs(users, date)
@@ -254,8 +267,7 @@ export const getTHProductivityReport = async (date: string): Promise<THProductiv
   return users.map(user => {
     const userId       = Number(user.id)
     const userMachines = machinesByUser.get(userId) ?? []
-    const userSchedule = schedules.find(s => Number(s.appuser_id) === userId && s.day_of_week === dayKey)
-    const programation = userSchedule ? programations.find(p => p.id === userSchedule.programation_id) : undefined
+    const programation = resolveEffectiveProgramation(schedules, rotations, programations, userId, dayKey, date)
     const scheduledMinutes = programation ? scheduledWorkMinutes(programation) : 0
 
     const empty: THProductivity = {

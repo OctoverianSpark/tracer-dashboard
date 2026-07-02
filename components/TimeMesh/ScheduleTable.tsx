@@ -1,5 +1,5 @@
 'use client'
-import { Schedule, Programation } from '@/types/Schedules'
+import { Schedule, Programation, RotationData } from '@/types/Schedules'
 import { AppUser } from '@/types/AppUser'
 import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
 import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
@@ -8,16 +8,16 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
-import { Trash2, FileDown } from 'lucide-react'
+import { Trash2, FileDown, RefreshCw } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { useState } from 'react'
-import { deleteSchedule } from '@/app/time/actions'
-import { DIAS } from './shared'
+import { deleteSchedule, deleteRotationCycle } from '@/app/time/actions'
 
 interface Props {
   schedules: Schedule[]
   appuser: AppUser[]
   programations: Programation[]
+  rotations?: RotationData[]
 }
 
 const DAY_ORDER = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
@@ -50,12 +50,17 @@ function DayChip({ entry }: { entry: DayEntry }) {
 
 const MAX_INLINE = 4
 
-function exportXLSX(grouped: { user: AppUser; rows: Schedule[] }[], programations: Programation[]) {
-  const rows = grouped.map(({ user, rows: schedRows }) => {
+function exportXLSX(
+  grouped: { user: AppUser; rows: Schedule[]; rotation: RotationData | null }[],
+  programations: Programation[]
+) {
+  const rows = grouped.map(({ user, rows: schedRows, rotation }) => {
     const entries = buildDayEntries(schedRows, programations)
     return {
       'Empleado':        user.full_name,
-      'Días y horarios': entries.map(e => `${DAY_ABBR[e.dayKey] ?? e.dayKey}: ${e.progName}`).join(', '),
+      'Días y horarios': rotation
+        ? `Rotación: ${rotation.cycle.name} (ciclo de ${rotation.cycle.weeks} semanas, desde ${rotation.cycle.start_date})`
+        : entries.map(e => `${DAY_ABBR[e.dayKey] ?? e.dayKey}: ${e.progName}`).join(', '),
     }
   })
   const ws = XLSX.utils.json_to_sheet(rows)
@@ -65,7 +70,7 @@ function exportXLSX(grouped: { user: AppUser; rows: Schedule[] }[], programation
   XLSX.writeFile(wb, `asignaciones_${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
-export default function ScheduleTable({ schedules, appuser, programations }: Props) {
+export default function ScheduleTable({ schedules, appuser, programations, rotations = [] }: Props) {
   const [confirmUserId, setConfirmUserId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -73,16 +78,21 @@ export default function ScheduleTable({ schedules, appuser, programations }: Pro
     .map(u => ({
       user: u,
       rows: schedules.filter(s => s.appuser_id === u.id),
+      rotation: rotations.find(r => r.cycle.appuser_id === u.id) ?? null,
     }))
-    .filter(g => g.rows.length > 0)
+    .filter(g => g.rows.length > 0 || g.rotation)
 
   const confirmUser = appuser.find(u => u.id === confirmUserId)
+  const confirmRotation = rotations.find(r => r.cycle.appuser_id === confirmUserId) ?? null
 
   async function handleDelete() {
     if (!confirmUserId) return
     setLoading(true)
     const rows = schedules.filter(s => s.appuser_id === confirmUserId)
-    await Promise.all(rows.filter(s => s.id).map(s => deleteSchedule(s.id!)))
+    await Promise.all([
+      ...rows.filter(s => s.id).map(s => deleteSchedule(s.id!)),
+      ...(confirmRotation ? [deleteRotationCycle(confirmRotation.cycle.id!)] : []),
+    ])
     setLoading(false)
     setConfirmUserId(null)
   }
@@ -117,7 +127,7 @@ export default function ScheduleTable({ schedules, appuser, programations }: Pro
                   No hay asignaciones
                 </TableCell>
               </TableRow>
-            ) : grouped.map(({ user, rows }) => {
+            ) : grouped.map(({ user, rows, rotation }) => {
               const entries = buildDayEntries(rows, programations)
               const visible = entries.slice(0, MAX_INLINE)
               const hidden  = entries.slice(MAX_INLINE)
@@ -127,32 +137,46 @@ export default function ScheduleTable({ schedules, appuser, programations }: Pro
                   <TableCell className='font-medium'>{user.full_name}</TableCell>
 
                   <TableCell>
-                    <div className="flex flex-wrap gap-1.5 items-center">
-                      {visible.map((entry, i) => (
-                        <DayChip key={i} entry={entry} />
-                      ))}
+                    {rotation ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="outline" className="text-xs font-normal gap-1 cursor-help">
+                            <RefreshCw className="size-3" />
+                            {rotation.cycle.name} · {rotation.cycle.weeks} semanas
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          Rotación activa desde {rotation.cycle.start_date}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5 items-center">
+                        {visible.map((entry, i) => (
+                          <DayChip key={i} entry={entry} />
+                        ))}
 
-                      {hidden.length > 0 && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="text-xs text-muted-foreground underline decoration-dashed cursor-help">
-                              +{hidden.length} más
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs">
-                            <div className="space-y-1 text-xs">
-                              {hidden.map((entry, i) => (
-                                <p key={i}>
-                                  <span className="font-semibold">{DAY_ABBR[entry.dayKey] ?? entry.dayKey}</span>
-                                  {' - '}
-                                  {entry.progName}
-                                </p>
-                              ))}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
+                        {hidden.length > 0 && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-xs text-muted-foreground underline decoration-dashed cursor-help">
+                                +{hidden.length} más
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <div className="space-y-1 text-xs">
+                                {hidden.map((entry, i) => (
+                                  <p key={i}>
+                                    <span className="font-semibold">{DAY_ABBR[entry.dayKey] ?? entry.dayKey}</span>
+                                    {' - '}
+                                    {entry.progName}
+                                  </p>
+                                ))}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
+                    )}
                   </TableCell>
 
                   <TableCell>
@@ -178,7 +202,7 @@ export default function ScheduleTable({ schedules, appuser, programations }: Pro
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar asignación?</AlertDialogTitle>
             <AlertDialogDescription>
-              Se eliminarán todos los horarios asignados a <strong>{confirmUser?.full_name}</strong>. Esta acción no se puede deshacer.
+              Se eliminarán todos los horarios{confirmRotation ? ' y la rotación' : ''} asignados a <strong>{confirmUser?.full_name}</strong>. Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

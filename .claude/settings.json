@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5500/)",
+      "Bash(curl -s -o /tmp/tc.html -w \"%{http_code}\\\\n\" http://localhost:5500/time/control)",
+      "Read(//tmp/**)",
+      "Bash(tail -c 2000 /tmp/dev.log)",
+      "Bash(pkill -f \"next dev -p 5500\")",
+      "Bash(npx next *)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)"
+    ]
+  }
+}

@@ -32,3 +32,8 @@ export interface RotationSlot {
   day_of_week: string
   programation_id: number
 }
+
+export interface RotationData {
+  cycle: RotationCycle
+  slots: RotationSlot[]
+}

@@ -1,5 +1,5 @@
 'use server'
-import { Programation, RotationCycle, RotationSlot, Schedule } from "@/types/Schedules"
+import { Programation, RotationCycle, RotationData, RotationSlot, Schedule } from "@/types/Schedules"
 import { revalidatePath } from "next/cache"
 import { AppUsageLog, FlatAppUsageLog } from "@/types/AppUser"
 
@@ -96,6 +96,14 @@ export const saveRotationCycle = async (
 export const deleteRotationCycle = async (id: number) => {
   await fetch(`${API}/rotation-cycles/delete/${id}`, { method: 'DELETE' })
   revalidatePath('/time/control')
+}
+
+// Carga todos los ciclos y sus slots en bloque, para resolver el horario efectivo de
+// muchos empleados en memoria (con resolveEffectiveProgramation) sin un fetch por empleado.
+export const getAllRotations = async (): Promise<RotationData[]> => {
+  const cycles = await getRotationCycles()
+  const slots = await Promise.all(cycles.map(c => getRotationSlots(c.id!)))
+  return cycles.map((cycle, i) => ({ cycle, slots: slots[i] }))
 }
 
 // Resolución del horario efectivo para una fecha puntual (rotación o fijo).
