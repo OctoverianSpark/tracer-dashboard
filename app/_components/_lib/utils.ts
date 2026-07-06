@@ -65,5 +65,12 @@ export const PERMISSION_GROUPS = [
     permissions: [
       { id: 'manage_releases', label: 'Puede gestionar versiones del agente', default: false }
     ]
+  },
+  {
+    id: 'report_types_group',
+    label: 'Tipos de Reporte',
+    permissions: [
+      { id: 'manage_report_types', label: 'Puede gestionar tipos de reporte', default: false }
+    ]
   }
 ]

@@ -18,6 +18,7 @@ import {
   Table2,
   Table2Icon,
   TimerIcon,
+  ClipboardList,
   User2Icon,
   UserCog2,
   UserPlus,
@@ -174,6 +175,14 @@ const REPORTS: NavSection = {
       url: UriGenerator('screenshots', Actions.INDEX),
       desc: 'Ver reportes de capturas de pantalla',
       perm: 'view_screenshots'
+    },
+    {
+      title: 'Tipos de Reporte',
+      type: NavTypes.LINK,
+      icon: ClipboardList,
+      url: UriGenerator('reports', Actions.CONTROL),
+      desc: 'Configurar los tipos de reporte disponibles en la app',
+      perm: 'manage_report_types'
     }
   ]
 }

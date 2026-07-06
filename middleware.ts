@@ -12,6 +12,7 @@ const ROUTE_PERMISSIONS: Record<string, string> = {
   '/app/releases': 'manage_releases',
   '/supervisors': 'view_supervisors',
   '/th': 'view_th',
+  '/reports': 'manage_report_types',
 }
 
 const OPERATIONAL_PERMISSIONS = Object.values(ROUTE_PERMISSIONS)
@@ -67,5 +68,6 @@ export const config = {
     '/app/releases',
     '/supervisors/:path*',
     '/th/:path*',
+    '/reports/:path*',
   ]
 }
