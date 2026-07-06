@@ -11,12 +11,14 @@ import { getappuser } from '@/app/app/actions'
 import { getGroups, getGroupVisibility } from '@/app/app/groups/actions'
 import { getScheduleByappuserId, getProgramationById, getStateLog, getAppUsageLogs } from '@/app/time/actions'
 import { getCategorizationApps } from '@/app/supervisors/categorization-actions'
+import { getStates, getStateCategories } from '@/app/states/actions'
 import { Timeline } from '@/components/TimeReporting/Timeline'
 import AppUsageList from '@/components/TimeReporting/AppUsageList'
 import { Machine, machineLabel } from '@/types/Machine'
 import { AppUser, FlatAppUsageLog, Group } from '@/types/AppUser'
 import { StateLog } from '@/types/StateLog'
 import { Programation } from '@/types/Schedules'
+import { StateCategory, WorkState } from '@/types/States'
 
 const DAY_KEYS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'] as const
 
@@ -28,6 +30,8 @@ export default function Page() {
   const [date, setDate]                 = useState<string>('')
   const [logs, setLogs]                 = useState<StateLog[]>([])
   const [usageLogs, setUsageLogs]       = useState<FlatAppUsageLog[]>([])
+  const [states, setStates]             = useState<WorkState[]>([])
+  const [categories, setCategories]     = useState<StateCategory[]>([])
 
   const [selectedAppUser, setSelected]  = useState<AppUser | undefined>()
   const [selectedComputer, setComputer] = useState<Machine | undefined>()
@@ -58,6 +62,8 @@ export default function Page() {
     getCategorizationApps().then(apps => {
       setIgnoredApps(new Set(apps.filter(a => a.category === 'ignore').map(a => a.name.toLowerCase())))
     })
+    getStates().then(setStates)
+    getStateCategories().then(setCategories)
   }, [])
 
   useEffect(() => {
@@ -149,6 +155,8 @@ export default function Page() {
           }))}
           scheduleStart={programation?.start_day}
           scheduleEnd={programation?.end_day}
+          states={states}
+          categories={categories}
         />
       )}
 

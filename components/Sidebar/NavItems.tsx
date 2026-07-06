@@ -19,6 +19,7 @@ import {
   Table2Icon,
   TimerIcon,
   ClipboardList,
+  ListChecks,
   User2Icon,
   UserCog2,
   UserPlus,
@@ -97,6 +98,14 @@ const TIME_MESH: NavSection = {
       type: NavTypes.LINK,
       desc: 'Administrar horarios de entrada y salida',
       perm: 'manage_schedules'
+    },
+    {
+      title: 'Estados de Trabajo',
+      icon: ListChecks,
+      url: UriGenerator('states', Actions.CONTROL),
+      type: NavTypes.LINK,
+      desc: 'Configurar nombres, colores y orden de los estados de la malla',
+      perm: 'manage_states'
     }
   ]
 }

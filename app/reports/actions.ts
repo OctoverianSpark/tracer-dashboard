@@ -49,3 +49,14 @@ export const unassignReportTypeFromGroup = async (id: number) => {
   await fetch(`${API}/report-type-assignments/delete/${id}`, { method: 'DELETE' })
   revalidatePath('/reports/control')
 }
+
+// POST /tracer/reports ya existe en el backend — la app de escritorio lo usa para enviar el
+// reporte elegido por el usuario (serial del equipo + tipo + mensaje).
+export const sendReport = async (body: { serial: string; report_type_id: number; message: string }) => {
+  const res = await fetch(`${API}/tracer/reports`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status} — /tracer/reports`)
+}

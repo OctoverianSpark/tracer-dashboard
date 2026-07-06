@@ -72,5 +72,12 @@ export const PERMISSION_GROUPS = [
     permissions: [
       { id: 'manage_report_types', label: 'Puede gestionar tipos de reporte', default: false }
     ]
+  },
+  {
+    id: 'states_group',
+    label: 'Estados de Trabajo',
+    permissions: [
+      { id: 'manage_states', label: 'Puede gestionar estados y categorías de la malla', default: false }
+    ]
   }
 ]

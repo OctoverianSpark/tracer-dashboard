@@ -3,12 +3,33 @@
 import { cn } from "@/app/_components/_lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/_components/_ui/tooltip"
 import { AlertTriangle, Clock } from "lucide-react"
+import { StateCategory, WorkState } from "@/types/States"
 
 export interface Log {
   category: string
   timestamp: string
   state: string
 }
+
+// Catálogo de respaldo si /states y /state-categories no responden o vienen vacíos —
+// mantiene el Timeline funcionando con el mismo look que tenía antes de ser configurable.
+const DEFAULT_CATEGORIES: StateCategory[] = [
+  { id: -1, key: "active",   name: "Productivo", color: "#10b981", sort_order: 0 },
+  { id: -2, key: "neutral",  name: "Neutral",     color: "#fbbf24", sort_order: 1 },
+  { id: -3, key: "inactive", name: "Inactivo",    color: "#475569", sort_order: 2 },
+]
+
+const DEFAULT_STATES: WorkState[] = [
+  { id: -1, code: 0, name: "Trabajando",   category_id: -1, sort_order: 0 },
+  { id: -2, code: 1, name: "Horas Extras", category_id: -1, sort_order: 1 },
+  { id: -3, code: 2, name: "Descanso",     category_id: -2, sort_order: 2 },
+  { id: -4, code: 3, name: "Baño",         category_id: -2, sort_order: 3 },
+  { id: -5, code: 4, name: "Almuerzo",     category_id: -2, sort_order: 4 },
+  { id: -6, code: 5, name: "Inactivo",     category_id: -3, sort_order: 5 },
+  { id: -7, code: 6, name: "Desconectado", category_id: -3, sort_order: 6 },
+]
+
+const FALLBACK_COLOR = "#475569"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -57,19 +78,6 @@ interface Block {
   endLabel: string
 }
 
-function stateLabel(state: string): string {
-  switch (state.toUpperCase()) {
-    case "0": case "TRABAJANDO": case "WORKING":  return "Trabajando"
-    case "1": case "OVERTIME":                    return "Horas Extras"
-    case "2": case "BREAK":                       return "Descanso"
-    case "3": case "WC":                          return "Baño"
-    case "4": case "ALMUERZO":  case "LUNCH":     return "Almuerzo"
-    case "5": case "IDLE":                        return "Inactivo"
-    case "6": case "OFFLINE":                     return "Desconectado"
-    default:                                      return state
-  }
-}
-
 function buildBlocks(logs: Log[], workdayStartMins: number, workdayMins: number): Block[] {
   const sorted = [...logs].sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
@@ -106,24 +114,42 @@ function buildBlocks(logs: Log[], workdayStartMins: number, workdayMins: number)
   return blocks
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-
-const blockStyles: Record<string, { bar: string; tooltip: string; label: string }> = {
-  active:   { bar: "bg-emerald-500 hover:bg-emerald-400", tooltip: "bg-emerald-600 text-white",  label: "Productivo" },
-  neutral:  { bar: "bg-amber-400 hover:bg-amber-300",     tooltip: "bg-amber-500 text-white",    label: "Neutral"    },
-  inactive: { bar: "bg-slate-600 hover:bg-slate-500",     tooltip: "bg-slate-600 text-white",    label: "Inactivo"   },
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 interface ProductiveTimelineProps {
   logs: Log[]
-  scheduleStart?: string  // "HH:MM" — hora de entrada según malla
-  scheduleEnd?: string    // "HH:MM" — hora de fin según malla
+  scheduleStart?: string     // "HH:MM" — hora de entrada según malla
+  scheduleEnd?: string       // "HH:MM" — hora de fin según malla
+  states?: WorkState[]       // catálogo dinámico de GET /states (nombre/orden por código)
+  categories?: StateCategory[] // catálogo dinámico de GET /state-categories (nombre/color/orden)
   className?: string
 }
 
-export function Timeline({ logs, scheduleStart, scheduleEnd, className }: ProductiveTimelineProps) {
+export function Timeline({ logs, scheduleStart, scheduleEnd, states, categories, className }: ProductiveTimelineProps) {
+  // ── Catálogo de estados y categorías (con respaldo si el dashboard aún no los define) ──
+
+  const activeStates     = states && states.length > 0 ? states : DEFAULT_STATES
+  const activeCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES
+  const sortedCategories = [...activeCategories].sort((a, b) => a.sort_order - b.sort_order)
+
+  const stateByCode = new Map(activeStates.map(s => [s.code, s]))
+  const categoryByKey = new Map(activeCategories.map(c => [c.key, c]))
+
+  function stateLabel(state: string): string {
+    const code = Number(state)
+    if (!Number.isNaN(code)) {
+      const match = stateByCode.get(code)
+      if (match) return match.name
+    }
+    return state
+  }
+
+  function categoryStyle(categoryKey: string): { name: string; color: string } {
+    const byKey = categoryByKey.get(categoryKey)
+    if (byKey) return { name: byKey.name, color: byKey.color ?? FALLBACK_COLOR }
+    return { name: categoryKey, color: FALLBACK_COLOR }
+  }
+
   // ── Rango de la malla según el horario asignado al usuario ─────────────────
 
   const scheduleStartMins = scheduleStart ? timeStringToMins(scheduleStart) : null
@@ -198,10 +224,10 @@ export function Timeline({ logs, scheduleStart, scheduleEnd, className }: Produc
 
           {/* Leyenda */}
           <div className="flex gap-3 text-xs text-muted-foreground">
-            {["active", "neutral", "inactive"].map(s => (
-              <span key={s} className="flex items-center gap-1.5">
-                <span className={cn("inline-block h-2.5 w-2.5 rounded-sm", blockStyles[s].bar.split(" ")[0])} />
-                {blockStyles[s].label}
+            {sortedCategories.map(cat => (
+              <span key={cat.key} className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: cat.color ?? FALLBACK_COLOR }} />
+                {cat.name}
               </span>
             ))}
           </div>
@@ -216,11 +242,8 @@ export function Timeline({ logs, scheduleStart, scheduleEnd, className }: Produc
             <Tooltip key={i}>
               <TooltipTrigger asChild>
                 <div
-                  className={cn(
-                    "group absolute top-0 h-full rounded-sm transition-colors cursor-default",
-                    blockStyles[block.category]?.bar ?? blockStyles.inactive.bar
-                  )}
-                  style={{ left: `${block.leftPct}%`, width: `${block.widthPct}%` }}
+                  className="group absolute top-0 h-full rounded-sm transition-[filter] hover:brightness-110 cursor-default"
+                  style={{ left: `${block.leftPct}%`, width: `${block.widthPct}%`, backgroundColor: categoryStyle(block.category).color }}
                 />
               </TooltipTrigger>
               <TooltipContent side="top" className="font-sans">
@@ -291,10 +314,10 @@ export function Timeline({ logs, scheduleStart, scheduleEnd, className }: Produc
         <ul className="space-y-1.5 pt-2">
           {blocks.map((block, i) => (
             <li key={i} className="flex items-center gap-3 text-xs font-sans">
-              <span className={cn(
-                "h-2 w-2 rounded-sm flex-shrink-0",
-                blockStyles[block.category]?.bar.split(" ")[0] ?? "bg-slate-600"
-              )} />
+              <span
+                className="h-2 w-2 rounded-sm shrink-0"
+                style={{ backgroundColor: categoryStyle(block.category).color }}
+              />
               <span className="text-muted-foreground tabular-nums w-28">
                 {block.startLabel} → {block.endLabel}
               </span>
