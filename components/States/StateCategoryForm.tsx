@@ -12,15 +12,22 @@ import { toast } from 'sonner'
 
 interface Props {
   category?: StateCategory
+  groupId: number | null  // catálogo al que pertenece: null = por defecto
 }
 
-const EMPTY_CATEGORY: StateCategory = { key: '', name: '', color: '#22c55e', sort_order: 0 }
+export default function StateCategoryForm({ category, groupId }: Props) {
+  const isEdit = !!category?.id
+  const emptyCategory: StateCategory = { key: '', name: '', color: '#22c55e', sort_order: 0, group_id: groupId }
 
-export default function StateCategoryForm({ category = EMPTY_CATEGORY }: Props) {
-  const [values, setValues] = useState<StateCategory>(category)
+  const [values, setValues] = useState<StateCategory>(category ?? emptyCategory)
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Partial<Record<keyof StateCategory, string>>>({})
+
+  function reset() {
+    setValues(category ?? emptyCategory)
+    setErrors({})
+  }
 
   function validate(): boolean {
     const newErrors: Partial<Record<keyof StateCategory, string>> = {}
@@ -37,10 +44,9 @@ export default function StateCategoryForm({ category = EMPTY_CATEGORY }: Props) 
     }
     try {
       setLoading(true)
-      await saveStateCategory(values)
+      await saveStateCategory({ ...values, group_id: groupId })
       toast.success('Categoría guardada!')
-      setValues(EMPTY_CATEGORY)
-      setErrors({})
+      reset()
       setOpen(false)
     } catch {
       toast.error('Ocurrió un error al guardar la categoría')
@@ -50,23 +56,23 @@ export default function StateCategoryForm({ category = EMPTY_CATEGORY }: Props) 
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={v => { setOpen(v); if (v) reset() }}>
       <Tooltip>
         <TooltipTrigger asChild>
           <DialogTrigger asChild>
-            <Button className="cursor-pointer" size={category?.id ? 'icon-sm' : 'default'} variant={category?.id ? 'ghost' : 'default'}>
-              {category?.id ? <Pencil /> : <><Plus />Agregar categoría</>}
+            <Button className="cursor-pointer" size={isEdit ? 'icon-sm' : 'default'} variant={isEdit ? 'ghost' : 'default'}>
+              {isEdit ? <Pencil /> : <><Plus />Agregar categoría</>}
             </Button>
           </DialogTrigger>
         </TooltipTrigger>
         <TooltipContent>
-          {category?.id ? 'Editar categoría' : 'Registrar nueva categoría'}
+          {isEdit ? 'Editar categoría' : 'Registrar nueva categoría'}
         </TooltipContent>
       </Tooltip>
 
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{category?.id ? 'Editar categoría' : 'Registrar nueva categoría'}</DialogTitle>
+          <DialogTitle>{isEdit ? 'Editar categoría' : 'Registrar nueva categoría'}</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-2">
@@ -118,7 +124,7 @@ export default function StateCategoryForm({ category = EMPTY_CATEGORY }: Props) 
 
         <DialogFooter>
           <Button className="cursor-pointer" onClick={handleSubmit} disabled={loading}>
-            {loading ? 'Guardando...' : category?.id ? 'Actualizar' : 'Registrar'}
+            {loading ? 'Guardando...' : isEdit ? 'Actualizar' : 'Registrar'}
           </Button>
         </DialogFooter>
       </DialogContent>

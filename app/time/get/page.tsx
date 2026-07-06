@@ -62,9 +62,26 @@ export default function Page() {
     getCategorizationApps().then(apps => {
       setIgnoredApps(new Set(apps.filter(a => a.category === 'ignore').map(a => a.name.toLowerCase())))
     })
-    getStates().then(setStates)
-    getStateCategories().then(setCategories)
   }, [])
+
+  // Cada grupo puede tener su propio catálogo de estados/categorías, independiente del
+  // catálogo por defecto. Si el grupo del usuario mostrado no tiene uno propio (viene vacío),
+  // se usa el catálogo por defecto — y si ese tampoco existe, el Timeline cae en su propio
+  // catálogo de respaldo interno.
+  useEffect(() => {
+    const groupId = selectedAppUser?.group_id ?? null
+
+    Promise.all([getStates(groupId), getStateCategories(groupId)]).then(async ([groupStates, groupCategories]) => {
+      if (groupId != null && groupStates.length === 0 && groupCategories.length === 0) {
+        const [defaultStates, defaultCategories] = await Promise.all([getStates(), getStateCategories()])
+        setStates(defaultStates)
+        setCategories(defaultCategories)
+      } else {
+        setStates(groupStates)
+        setCategories(groupCategories)
+      }
+    })
+  }, [selectedAppUser])
 
   useEffect(() => {
     const groupId = session?.appUser?.group_id

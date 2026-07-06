@@ -19,14 +19,15 @@ const DEFAULT_CATEGORIES: StateCategory[] = [
   { id: -3, key: "inactive", name: "Inactivo",    color: "#475569", sort_order: 2 },
 ]
 
+// sort_order es relativo a la categoría (se reinicia en 0 por cada category_id)
 const DEFAULT_STATES: WorkState[] = [
   { id: -1, code: 0, name: "Trabajando",   category_id: -1, sort_order: 0 },
   { id: -2, code: 1, name: "Horas Extras", category_id: -1, sort_order: 1 },
-  { id: -3, code: 2, name: "Descanso",     category_id: -2, sort_order: 2 },
-  { id: -4, code: 3, name: "Baño",         category_id: -2, sort_order: 3 },
-  { id: -5, code: 4, name: "Almuerzo",     category_id: -2, sort_order: 4 },
-  { id: -6, code: 5, name: "Inactivo",     category_id: -3, sort_order: 5 },
-  { id: -7, code: 6, name: "Desconectado", category_id: -3, sort_order: 6 },
+  { id: -3, code: 2, name: "Descanso",     category_id: -2, sort_order: 0 },
+  { id: -4, code: 3, name: "Baño",         category_id: -2, sort_order: 1 },
+  { id: -5, code: 4, name: "Almuerzo",     category_id: -2, sort_order: 2 },
+  { id: -6, code: 5, name: "Inactivo",     category_id: -3, sort_order: 0 },
+  { id: -7, code: 6, name: "Desconectado", category_id: -3, sort_order: 1 },
 ]
 
 const FALLBACK_COLOR = "#475569"
