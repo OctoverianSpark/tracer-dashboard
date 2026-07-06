@@ -9,7 +9,9 @@
       "Bash(npx next *)",
       "Bash(npx tsc *)",
       "Bash(npx eslint *)",
-      "Bash(cd \"c:\\\\Users\\\\Jean.PR\\\\Projects\\\\tracer-dashboard\" && rm -rf app/reports components/ReportTypes types/Reports.ts && echo done)"
+      "Bash(cd \"c:\\\\Users\\\\Jean.PR\\\\Projects\\\\tracer-dashboard\" && rm -rf app/reports components/ReportTypes types/Reports.ts && echo done)",
+      "Bash(curl -s \"https://apitester.asistentevirtualsas.com/states\")",
+      "Bash(curl -s \"https://apitester.asistentevirtualsas.com/state-categories\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Jean.PR\\Projects\\tracer-dashboard\\app\\reports"

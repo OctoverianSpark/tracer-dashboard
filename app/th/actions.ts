@@ -19,7 +19,7 @@ import { resolveEffectiveProgramation } from '@/lib/scheduleResolver'
 import { AppUser, AppUsageLog } from '@/types/AppUser'
 import { Machine } from '@/types/Machine'
 import { Programation } from '@/types/Schedules'
-import { StateLog, StateLogCategory, StateLogState } from '@/types/StateLog'
+import { StateLog } from '@/types/StateLog'
 
 const DAY_KEYS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'] as const
 
@@ -45,7 +45,7 @@ const buildActiveWindows = (stateLogs: StateLog[]): Array<{ start: number; end: 
   )
   const windows: Array<{ start: number; end: number }> = []
   for (let i = 0; i < sorted.length; i++) {
-    if (Number(sorted[i].category) !== StateLogCategory.ACTIVE) continue
+    if (sorted[i].category?.key !== 'active') continue
     const start = new Date(sorted[i].timestamp).getTime()
     const end   = i + 1 < sorted.length
       ? new Date(sorted[i + 1].timestamp).getTime()
@@ -185,11 +185,7 @@ export const getLateArrivals = async (date: string): Promise<LateArrival[]> => {
     }
 
     const activeLogs = allLogs
-      .filter(l => {
-        // StateLogState.OFFLINE = 6; el API devuelve el valor numérico
-        const s = Number(l.state)
-        return s !== StateLogState.OFFLINE
-      })
+      .filter(l => l.code !== 6) // code 6 = offline (código crudo, siempre presente aunque el catálogo se borre)
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 
     if (activeLogs.length === 0) return absent

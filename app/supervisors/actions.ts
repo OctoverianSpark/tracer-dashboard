@@ -7,7 +7,7 @@ import { resolveEffectiveProgramation } from '@/lib/scheduleResolver'
 import { AppUser, AppUsageLog } from '@/types/AppUser'
 import { Machine } from '@/types/Machine'
 import { Programation } from '@/types/Schedules'
-import { StateLog, StateLogCategory } from '@/types/StateLog'
+import { StateLog } from '@/types/StateLog'
 
 const DAY_KEYS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'] as const
 
@@ -158,7 +158,7 @@ const buildActiveWindows = (stateLogs: StateLog[]): Array<{ start: number; end: 
   )
   const windows: Array<{ start: number; end: number }> = []
   for (let i = 0; i < sorted.length; i++) {
-    if (Number(sorted[i].category) !== StateLogCategory.ACTIVE) continue
+    if (sorted[i].category?.key !== 'active') continue
     const start = new Date(sorted[i].timestamp).getTime()
     const end = i + 1 < sorted.length
       ? new Date(sorted[i + 1].timestamp).getTime()

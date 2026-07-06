@@ -169,8 +169,8 @@ export default function Page() {
       {showData && (
         <Timeline
           logs={filteredLogs.map(log => ({
-            state:     log.state.toString(),
-            category:  log.category.toString(),
+            state:     String(log.code),
+            category:  log.category?.key ?? '',
             timestamp: new Date(log.timestamp).toISOString(),
           }))}
           scheduleStart={programation?.start_day}
