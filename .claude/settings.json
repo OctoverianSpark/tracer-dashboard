@@ -8,7 +8,11 @@
       "Bash(pkill -f \"next dev -p 5500\")",
       "Bash(npx next *)",
       "Bash(npx tsc *)",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(cd \"c:\\\\Users\\\\Jean.PR\\\\Projects\\\\tracer-dashboard\" && rm -rf app/reports components/ReportTypes types/Reports.ts && echo done)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Jean.PR\\Projects\\tracer-dashboard\\app\\reports"
     ]
   }
 }

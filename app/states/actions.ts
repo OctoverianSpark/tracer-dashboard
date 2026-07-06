@@ -10,13 +10,11 @@ const fetcher = async <T>(url: string): Promise<T> => {
   return res.json()
 }
 
-// GET /states y GET /state-categories ya existen en el backend para el catálogo por defecto
-// (sin group_id). Cada grupo puede tener su propio catálogo, totalmente independiente del
-// default y del de otros grupos — el código (0-6) sigue siendo el mismo que usa el agente en
-// POST /tracer/states, pero qué estados existen, su nombre/categoría/orden y si el código está
-// presente o no en ese catálogo es libre por grupo. El soporte de `?group_id=` y los endpoints
-// de escritura (save/delete de states) aún no fueron confirmados por el backend — quedan como
-// scaffold, mismo patrón que el resto de este archivo.
+// GET/POST/DELETE de /states y /state-categories (incluyendo `?group_id=` y el save/delete)
+// ya están implementados en el backend. Cada grupo puede tener su propio catálogo, totalmente
+// independiente del default y del de otros grupos — el código (0-6) sigue siendo el mismo que
+// usa el agente en POST /tracer/states, pero qué estados existen, su nombre/categoría/orden y
+// si el código está presente o no en ese catálogo es libre por grupo.
 
 export const getStates = async (groupId?: number | null): Promise<WorkState[]> =>
   fetcher(`${API}/states${groupId != null ? `?group_id=${groupId}` : ''}`)
@@ -30,6 +28,7 @@ export const saveState = async (body: WorkState): Promise<WorkState> => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
+  if (!res.ok) throw new Error(`HTTP ${res.status} — /states/save`)
   revalidatePath('/states/control')
   return res.json()
 }
@@ -45,6 +44,7 @@ export const saveStateCategory = async (body: StateCategory): Promise<StateCateg
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
+  if (!res.ok) throw new Error(`HTTP ${res.status} — /state-categories/save`)
   revalidatePath('/states/control')
   return res.json()
 }
