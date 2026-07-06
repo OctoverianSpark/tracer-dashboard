@@ -24,13 +24,14 @@ export const getStates = async (groupId?: number | null): Promise<WorkState[]> =
 export const getStateCategories = async (groupId?: number | null): Promise<StateCategory[]> =>
   fetcher(`${API}/state-categories${groupId != null ? `?group_id=${groupId}` : ''}`)
 
-export const saveState = async (body: WorkState) => {
-  await fetch(`${API}/states/save`, {
+export const saveState = async (body: WorkState): Promise<WorkState> => {
+  const res = await fetch(`${API}/states/save`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
   revalidatePath('/states/control')
+  return res.json()
 }
 
 export const deleteState = async (id: number) => {
@@ -38,16 +39,37 @@ export const deleteState = async (id: number) => {
   revalidatePath('/states/control')
 }
 
-export const saveStateCategory = async (body: StateCategory) => {
-  await fetch(`${API}/state-categories/save`, {
+export const saveStateCategory = async (body: StateCategory): Promise<StateCategory> => {
+  const res = await fetch(`${API}/state-categories/save`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
   revalidatePath('/states/control')
+  return res.json()
 }
 
 export const deleteStateCategory = async (id: number) => {
   await fetch(`${API}/state-categories/delete/${id}`, { method: 'DELETE' })
   revalidatePath('/states/control')
+}
+
+// Copia todas las categorías y estados de un catálogo (por defecto o de otro grupo) hacia el
+// catálogo del grupo destino, como punto de partida editable — no crea una referencia viva
+// entre ambos, son filas nuevas e independientes desde el momento en que se clonan.
+export const cloneStateCatalog = async (fromGroupId: number | null, toGroupId: number | null) => {
+  const [sourceCategories, sourceStates] = await Promise.all([
+    getStateCategories(fromGroupId),
+    getStates(fromGroupId),
+  ])
+
+  const categoryIdMap = new Map<number, number>()
+  for (const { id: oldId, ...rest } of sourceCategories) {
+    const created = await saveStateCategory({ ...rest, group_id: toGroupId })
+    if (oldId != null && created.id != null) categoryIdMap.set(oldId, created.id)
+  }
+
+  for (const { id, category_id, ...rest } of sourceStates) {
+    await saveState({ ...rest, category_id: categoryIdMap.get(category_id) ?? category_id, group_id: toGroupId })
+  }
 }
