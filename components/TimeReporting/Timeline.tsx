@@ -12,9 +12,9 @@ export interface Log {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const WORKDAY_START = 6
-const WORKDAY_END   = 22
-const WORKDAY_MINS  = (WORKDAY_END - WORKDAY_START) * 60
+const DEFAULT_WORKDAY_START = 6
+const DEFAULT_WORKDAY_END   = 22
+const BUFFER_MINS           = 2 * 60 // margen para ver llegadas tempranas / salidas tardías
 
 function toMinutes(ts: string) {
   const d = new Date(ts)
@@ -26,9 +26,9 @@ function timeStringToMins(time: string): number {
   return h * 60 + m
 }
 
-function pct(mins: number) {
-  const clamped = Math.min(Math.max(mins - WORKDAY_START * 60, 0), WORKDAY_MINS)
-  return (clamped / WORKDAY_MINS) * 100
+function pct(mins: number, workdayStartMins: number, workdayMins: number) {
+  const clamped = Math.min(Math.max(mins - workdayStartMins, 0), workdayMins)
+  return (clamped / workdayMins) * 100
 }
 
 function formatDuration(mins: number) {
@@ -70,7 +70,7 @@ function stateLabel(state: string): string {
   }
 }
 
-function buildBlocks(logs: Log[]): Block[] {
+function buildBlocks(logs: Log[], workdayStartMins: number, workdayMins: number): Block[] {
   const sorted = [...logs].sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   )
@@ -85,8 +85,8 @@ function buildBlocks(logs: Log[]): Block[] {
     const endMins   = toMinutes(next.timestamp)
     if (endMins <= startMins) continue
 
-    const leftPct  = pct(startMins)
-    const endPct   = pct(endMins)
+    const leftPct  = pct(startMins, workdayStartMins, workdayMins)
+    const endPct   = pct(endMins, workdayStartMins, workdayMins)
     const widthPct = endPct - leftPct
     if (widthPct <= 0) continue
 
@@ -124,21 +124,36 @@ interface ProductiveTimelineProps {
 }
 
 export function Timeline({ logs, scheduleStart, scheduleEnd, className }: ProductiveTimelineProps) {
-  const blocks = buildBlocks(logs)
+  // ── Rango de la malla según el horario asignado al usuario ─────────────────
+
+  const scheduleStartMins = scheduleStart ? timeStringToMins(scheduleStart) : null
+  const scheduleEndMins   = scheduleEnd   ? timeStringToMins(scheduleEnd)   : null
+
+  const rawStart = scheduleStartMins !== null
+    ? scheduleStartMins - BUFFER_MINS
+    : DEFAULT_WORKDAY_START * 60
+  const rawEnd = scheduleEndMins !== null
+    ? scheduleEndMins + BUFFER_MINS
+    : DEFAULT_WORKDAY_END * 60
+
+  const workdayStartMins = Math.max(0, Math.floor(rawStart / 60) * 60)
+  const workdayEndMins   = Math.min(24 * 60, Math.ceil(rawEnd / 60) * 60)
+  const workdayMins      = workdayEndMins - workdayStartMins
+  const workdayStartHour = workdayStartMins / 60
+  const workdayEndHour   = workdayEndMins / 60
+
+  const blocks = buildBlocks(logs, workdayStartMins, workdayMins)
 
   const productiveMins = blocks
     .filter(b => b.category === "active")
     .reduce((acc, b) => acc + b.durationMins, 0)
 
   const hours = Array.from(
-    { length: WORKDAY_END - WORKDAY_START + 1 },
-    (_, i) => WORKDAY_START + i
+    { length: workdayEndHour - workdayStartHour + 1 },
+    (_, i) => workdayStartHour + i
   )
 
   // ── Cálculo de alertas ──────────────────────────────────────────────────────
-
-  const scheduleStartMins = scheduleStart ? timeStringToMins(scheduleStart) : null
-  const scheduleEndMins   = scheduleEnd   ? timeStringToMins(scheduleEnd)   : null
 
   const firstBlock = blocks[0]
   const lateMins =
@@ -224,7 +239,7 @@ export function Timeline({ logs, scheduleStart, scheduleEnd, className }: Produc
                 "absolute top-0 h-full z-20 pointer-events-none border-l-2 border-dashed",
                 isLate ? "border-orange-400" : "border-emerald-500"
               )}
-              style={{ left: `${pct(scheduleStartMins)}%` }}
+              style={{ left: `${pct(scheduleStartMins, workdayStartMins, workdayMins)}%` }}
             >
               <span className={cn(
                 "absolute top-1 left-1 text-[9px] font-sans font-semibold whitespace-nowrap",
@@ -242,7 +257,7 @@ export function Timeline({ logs, scheduleStart, scheduleEnd, className }: Produc
                 "absolute top-0 h-full z-20 pointer-events-none border-l-2 border-dashed",
                 isOvertime ? "border-red-400" : "border-muted-foreground/50"
               )}
-              style={{ left: `${pct(scheduleEndMins)}%` }}
+              style={{ left: `${pct(scheduleEndMins, workdayStartMins, workdayMins)}%` }}
             >
               <span className={cn(
                 "absolute top-1 left-1 text-[9px] font-sans font-semibold whitespace-nowrap",
@@ -257,7 +272,7 @@ export function Timeline({ logs, scheduleStart, scheduleEnd, className }: Produc
         {/* Hour ticks */}
         <div className="relative mt-1 h-4 overflow-x-hidden">
           {hours.map(h => {
-            const leftPct = ((h - WORKDAY_START) / (WORKDAY_END - WORKDAY_START)) * 100
+            const leftPct = ((h - workdayStartHour) / (workdayEndHour - workdayStartHour)) * 100
             return (
               <span
                 key={h}
