@@ -44,8 +44,11 @@ export default function Page() {
   const currentGroup    = groups.find(g => g.id === session?.appUser?.group_id)
   const blockOwn        = currentGroup?.block_own_reports === true
 
+  // "Grupos visibles" es una lista de grupos ADICIONALES al propio, no un reemplazo — si no
+  // se incluye explícitamente el propio group_id, uno termina sin poder verse ni a sí mismo.
+  const ownGroupId = session?.appUser?.group_id != null ? Number(session.appUser.group_id) : null
   const visibilityFiltered = visibleGroupIds.length > 0
-    ? appuser.filter(u => u.group_id != null && visibleGroupIds.includes(Number(u.group_id)))
+    ? appuser.filter(u => u.group_id != null && (visibleGroupIds.includes(Number(u.group_id)) || Number(u.group_id) === ownGroupId))
     : appuser
   const selectableUsers = blockOwn
     ? visibilityFiltered.filter(u => Number(u.id) !== currentUserId)

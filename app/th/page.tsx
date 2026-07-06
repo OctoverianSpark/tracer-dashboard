@@ -35,8 +35,11 @@ export default function THPage() {
     }
   }, [session?.appUser?.group_id])
 
+  // "Grupos visibles" es una lista de grupos ADICIONALES al propio, no un reemplazo — si no
+  // se incluye explícitamente el propio group_id, uno termina sin poder verse ni a sí mismo.
+  const ownGroupId = session?.appUser?.group_id != null ? Number(session.appUser.group_id) : null
   const visibilityFiltered = visibleGroupIds.length > 0
-    ? rows.filter(r => r.user.group_id != null && visibleGroupIds.includes(Number(r.user.group_id)))
+    ? rows.filter(r => r.user.group_id != null && (visibleGroupIds.includes(Number(r.user.group_id)) || Number(r.user.group_id) === ownGroupId))
     : rows
   const visibleRows = blockOwn
     ? visibilityFiltered.filter(r => Number(r.user.id) !== currentUserId)
