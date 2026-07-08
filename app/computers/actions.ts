@@ -5,6 +5,15 @@ import { revalidatePath } from "next/cache"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+// Con un solo equipo, si la acción falla el backend responde con un status de error y
+// { error: "..." } (ej. 409 "Maquina apagada o fuera de linea") — hay que leer ese mensaje
+// en vez de tirar un genérico "HTTP 409", que no le dice nada útil al usuario.
+async function parseActionResponse<T>(res: Response, label: string): Promise<T> {
+  const data = await res.json().catch(() => null)
+  if (!res.ok) throw new Error(data?.error || `HTTP ${res.status} — ${label}`)
+  return data
+}
+
 export const getMachines = async (): Promise<Machine[]> => {
   const data = await (await fetch(`${API_URL}/machines/list`, { cache: 'no-store' })).json()
   return data.machines
@@ -26,7 +35,7 @@ export const findAsignedMachines = async (appuser_id: number): Promise<Machine[]
 export const deleteComputer = async (serial_number: string) => {
   const res = await fetch(`${API_URL}/machines/delete/${serial_number}`, { method: 'DELETE' })
   if (!res.ok) throw new Error(`Error al eliminar computadora: ${res.status}`)
-  revalidatePath('/computers')
+  revalidatePath('/computers/dashboard')
 }
 
 export const getMachineReport = async (computerName: string, date: string) => {
@@ -38,20 +47,17 @@ export const getMachineReport = async (computerName: string, date: string) => {
 // '*' (todas las máquinas) o 'group:<id>' (todas las de ese grupo).
 export const lockMachine = async (machineId: string): Promise<MachineActionResult> => {
   const res = await fetch(`${API_URL}/machines/${machineId}/lock`, { method: 'POST' })
-  if (!res.ok) throw new Error(`HTTP ${res.status} — lock`)
-  return res.json()
+  return parseActionResponse(res, 'lock')
 }
 
 export const shutdownMachine = async (machineId: string): Promise<MachineActionResult> => {
   const res = await fetch(`${API_URL}/machines/${machineId}/shutdown`, { method: 'POST' })
-  if (!res.ok) throw new Error(`HTTP ${res.status} — shutdown`)
-  return res.json()
+  return parseActionResponse(res, 'shutdown')
 }
 
 export const restartMachine = async (machineId: string): Promise<MachineActionResult> => {
   const res = await fetch(`${API_URL}/machines/${machineId}/restart`, { method: 'POST' })
-  if (!res.ok) throw new Error(`HTTP ${res.status} — restart`)
-  return res.json()
+  return parseActionResponse(res, 'restart')
 }
 
 // El agente responde al sync con un SyncDataMessage que el backend traduce a un
@@ -59,8 +65,7 @@ export const restartMachine = async (machineId: string): Promise<MachineActionRe
 // Con targeting en bloque ('*' o 'group:<id>') viene el shape de batch (sent/failed/results).
 export const syncMachine = async (machineId: string): Promise<MachineSyncResult> => {
   const res = await fetch(`${API_URL}/machines/${machineId}/sync`, { method: 'POST' })
-  if (!res.ok) throw new Error(`HTTP ${res.status} — sync`)
-  return res.json()
+  return parseActionResponse(res, 'sync')
 }
 
 export const sendFileToMachine = async (machineId: string, formData: FormData): Promise<MachineActionResult> => {
@@ -68,8 +73,7 @@ export const sendFileToMachine = async (machineId: string, formData: FormData): 
     method: 'POST',
     body: formData,
   })
-  if (!res.ok) throw new Error(`HTTP ${res.status} — send-file`)
-  return res.json()
+  return parseActionResponse(res, 'send-file')
 }
 
 export const getIPInfo = async (IP: string) => {
@@ -83,8 +87,7 @@ export const sendNotice = async (machineId: string, notification: Notification):
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(notification),
   })
-  if (!res.ok) throw new Error(`HTTP ${res.status} — notify`)
-  return res.json()
+  return parseActionResponse(res, 'notify')
 }
 
 export const setTakeScreenshots = async (serial: string, enabled: boolean) => {
@@ -95,6 +98,6 @@ export const setTakeScreenshots = async (serial: string, enabled: boolean) => {
   })
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || `Error ${res.status}`)
-  revalidatePath('/computers')
+  revalidatePath('/computers/dashboard')
   return data
 }
