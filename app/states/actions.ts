@@ -21,10 +21,21 @@ export const getStateCategories = async (): Promise<StateCategory[]> =>
   fetcher(`${API}/state-categories`)
 
 export const saveState = async (body: WorkState): Promise<WorkState> => {
+  // GET /states devuelve las filas con relaciones anidadas de Prisma incluidas (category: {...})
+  // y probablemente todavía la columna group_id. Si reenviáramos el objeto tal cual llegó, esos
+  // campos extra viajarían de vuelta al backend y Prisma los rechaza. Se arma el body explícito.
+  const payload: WorkState = {
+    ...(body.id != null && { id: body.id }),
+    code: body.code,
+    name: body.name,
+    category_id: body.category_id,
+    sort_order: body.sort_order,
+    show_in_menu: body.show_in_menu,
+  }
   const res = await fetch(`${API}/states/save`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status} — /states/save`)
   revalidatePath('/states/control')
@@ -37,10 +48,19 @@ export const deleteState = async (id: number) => {
 }
 
 export const saveStateCategory = async (body: StateCategory): Promise<StateCategory> => {
+  // Mismo motivo que saveState: no reenviar el objeto tal cual vino de un GET (puede traer
+  // relaciones anidadas de Prisma, ej. un array de states, que el endpoint de save no espera).
+  const payload: StateCategory = {
+    ...(body.id != null && { id: body.id }),
+    key: body.key,
+    name: body.name,
+    color: body.color,
+    sort_order: body.sort_order,
+  }
   const res = await fetch(`${API}/state-categories/save`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status} — /state-categories/save`)
   revalidatePath('/states/control')
