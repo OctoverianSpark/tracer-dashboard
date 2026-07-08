@@ -23,3 +23,20 @@ export function machineLabel(m: Machine): string {
   if (model) return model
   return m.hostname
 }
+
+// Respuesta de las acciones sobre /machines/:serial/*. Con un serial concreto viene solo `ok`;
+// con `*` o `group:<id>` (targeting en bloque) además trae sent/failed/results por equipo.
+export interface MachineActionResult {
+  ok: boolean
+  sent?: number
+  failed?: number
+  results?: { serial: string; ok: boolean; error?: string }[]
+}
+
+// Respuesta de POST /machines/:serial/sync para un serial concreto: el agente contesta con un
+// SyncDataMessage que el backend traduce a este UserInfoMessage.
+export interface MachineSyncResult extends MachineActionResult {
+  group?: string
+  group_id?: number
+  access_level?: string
+}

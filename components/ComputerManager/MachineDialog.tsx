@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/app/_components/_ui/dialog'
-import { getIPInfo, lockMachine, restartMachine, shutdownMachine, sendFileToMachine, sendNotice, setTakeScreenshots } from '@/app/computers/actions'
+import { getIPInfo, lockMachine, restartMachine, shutdownMachine, sendFileToMachine, sendNotice, setTakeScreenshots, syncMachine } from '@/app/computers/actions'
 import { Machine, machineLabel } from '@/types/Machine'
 import MachineActions from './MachineActions'
 
@@ -68,10 +68,15 @@ export default function MachineDialog({ machine }: MachineDialogProps) {
       .catch(() => {})
   }, [open, machine.ip_address])
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = async (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
-    sendFileToMachine(machine.serial_number, formData)
+    try {
+      await sendFileToMachine(machine.serial_number, formData)
+      toast.success('Archivo enviado')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error al enviar el archivo')
+    }
   }
 
   const locationValue = !machine.ip_address
@@ -122,6 +127,7 @@ export default function MachineDialog({ machine }: MachineDialogProps) {
             onRestart={() => restartMachine(machine.serial_number)}
             onShutdown={() => shutdownMachine(machine.serial_number)}
             onLogoff={() => {}}
+            onSync={() => syncMachine(machine.serial_number)}
           />
         </div>
 

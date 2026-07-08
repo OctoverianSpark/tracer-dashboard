@@ -1,5 +1,5 @@
 'use server'
-import { Machine } from "@/types/Machine"
+import { Machine, MachineActionResult, MachineSyncResult } from "@/types/Machine"
 import { Notification } from "@/types/Notification"
 import { revalidatePath } from "next/cache"
 
@@ -34,23 +34,42 @@ export const getMachineReport = async (computerName: string, date: string) => {
   return data
 }
 
-export const lockMachine = async (machineId: string) => {
-  await fetch(`${API_URL}/machines/${machineId}/lock`, { method: 'POST' })
+// `machineId` acepta un serial concreto, o el targeting en bloque que resuelve el backend:
+// '*' (todas las máquinas) o 'group:<id>' (todas las de ese grupo).
+export const lockMachine = async (machineId: string): Promise<MachineActionResult> => {
+  const res = await fetch(`${API_URL}/machines/${machineId}/lock`, { method: 'POST' })
+  if (!res.ok) throw new Error(`HTTP ${res.status} — lock`)
+  return res.json()
 }
 
-export const shutdownMachine = async (machineId: string) => {
-  await fetch(`${API_URL}/machines/${machineId}/shutdown`, { method: 'POST' })
+export const shutdownMachine = async (machineId: string): Promise<MachineActionResult> => {
+  const res = await fetch(`${API_URL}/machines/${machineId}/shutdown`, { method: 'POST' })
+  if (!res.ok) throw new Error(`HTTP ${res.status} — shutdown`)
+  return res.json()
 }
 
-export const restartMachine = async (machineId: string) => {
-  await fetch(`${API_URL}/machines/${machineId}/restart`, { method: 'POST' })
+export const restartMachine = async (machineId: string): Promise<MachineActionResult> => {
+  const res = await fetch(`${API_URL}/machines/${machineId}/restart`, { method: 'POST' })
+  if (!res.ok) throw new Error(`HTTP ${res.status} — restart`)
+  return res.json()
 }
 
-export const sendFileToMachine = async (machineId: string, formData: FormData) => {
-  await fetch(`${API_URL}/machines/${machineId}/send-file`, {
+// El agente responde al sync con un SyncDataMessage que el backend traduce a un
+// UserInfoMessage (group, group_id, access_level) cuando `machineId` es un serial concreto.
+// Con targeting en bloque ('*' o 'group:<id>') viene el shape de batch (sent/failed/results).
+export const syncMachine = async (machineId: string): Promise<MachineSyncResult> => {
+  const res = await fetch(`${API_URL}/machines/${machineId}/sync`, { method: 'POST' })
+  if (!res.ok) throw new Error(`HTTP ${res.status} — sync`)
+  return res.json()
+}
+
+export const sendFileToMachine = async (machineId: string, formData: FormData): Promise<MachineActionResult> => {
+  const res = await fetch(`${API_URL}/machines/${machineId}/send-file`, {
     method: 'POST',
     body: formData,
   })
+  if (!res.ok) throw new Error(`HTTP ${res.status} — send-file`)
+  return res.json()
 }
 
 export const getIPInfo = async (IP: string) => {
@@ -58,12 +77,14 @@ export const getIPInfo = async (IP: string) => {
   return res.json()
 }
 
-export const sendNotice = async (machineId: string, notification: Notification) => {
-  await fetch(`${API_URL}/machines/${machineId}/notify`, {
+export const sendNotice = async (machineId: string, notification: Notification): Promise<MachineActionResult> => {
+  const res = await fetch(`${API_URL}/machines/${machineId}/notify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(notification),
   })
+  if (!res.ok) throw new Error(`HTTP ${res.status} — notify`)
+  return res.json()
 }
 
 export const setTakeScreenshots = async (serial: string, enabled: boolean) => {

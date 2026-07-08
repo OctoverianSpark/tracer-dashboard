@@ -2,7 +2,9 @@ import { Button } from '@/app/_components/_ui/button'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/app/_components/_ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/app/_components/_ui/alert-dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/app/_components/_ui/tooltip'
-import { LayoutDashboard, LockIcon, Power, RefreshCw, Send, Bell } from 'lucide-react'
+import { MachineSyncResult } from '@/types/Machine'
+import { LayoutDashboard, LockIcon, Power, RefreshCw, Send, Bell, Satellite, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import React, { useState } from 'react'
 
 interface MachineActionsProps {
@@ -12,6 +14,7 @@ interface MachineActionsProps {
   onLogoff: () => void
   onSendFile: (file: File) => void
   onSendNotice: (title: string, message: string) => void
+  onSync: () => Promise<MachineSyncResult>
 }
 
 interface ActionItem {
@@ -30,12 +33,31 @@ export default function MachineActions({
   onLogoff,
   onSendFile,
   onSendNotice,
+  onSync,
 }: MachineActionsProps) {
   const [notifOpen, setNotifOpen]       = useState(false)
   const [confirmAction, setConfirmAction] = useState<'shutdown' | 'restart' | null>(null)
   const [title, setTitle]               = useState('')
   const [message, setMessage]           = useState('')
+  const [syncOpen, setSyncOpen]         = useState(false)
+  const [syncing, setSyncing]           = useState(false)
+  const [syncResult, setSyncResult]     = useState<MachineSyncResult | null>(null)
   const fileRef = React.useRef<HTMLInputElement>(null)
+
+  async function handleSync() {
+    setSyncOpen(true)
+    setSyncing(true)
+    setSyncResult(null)
+    try {
+      const result = await onSync()
+      setSyncResult(result)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error al sincronizar')
+      setSyncOpen(false)
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const actions: ActionItem[] = [
     {
@@ -76,6 +98,14 @@ export default function MachineActions({
       onClick: () => setConfirmAction('shutdown'),
       bg: 'bg-red-500/15 hover:bg-red-500/25',
       iconColor: 'text-red-400',
+      shadow: 'shadow-black/20',
+    },
+    {
+      icon: <Satellite size={26} />,
+      label: 'Sincronizar',
+      onClick: handleSync,
+      bg: 'bg-violet-500/15 hover:bg-violet-500/25',
+      iconColor: 'text-violet-400',
       shadow: 'shadow-black/20',
     },
   ]
@@ -201,6 +231,47 @@ export default function MachineActions({
               Enviar
             </button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sync result sub-dialog */}
+      <Dialog open={syncOpen} onOpenChange={setSyncOpen}>
+        <DialogContent className="max-w-xs border border-border rounded-3xl p-6 shadow-xl" style={{ background: 'oklch(0.240 0.032 278)' }}>
+          <DialogTitle className="text-muted-foreground text-xs font-semibold tracking-widest uppercase mb-4">
+            Sincronización
+          </DialogTitle>
+
+          {syncing ? (
+            <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Esperando respuesta del equipo…
+            </div>
+          ) : syncResult ? (
+            syncResult.ok ? (
+              <div className="flex flex-col gap-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Grupo</span>
+                  <span className="font-medium">{syncResult.group ?? '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Group ID</span>
+                  <span className="font-medium font-mono">{syncResult.group_id ?? '—'}</span>
+                </div>
+                {syncResult.access_level && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-muted-foreground">Access level</span>
+                    <pre className="bg-secondary border border-border rounded-xl px-3 py-2 text-xs whitespace-pre-wrap break-all">
+                      {syncResult.access_level}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                El equipo no respondió a la sincronización.
+              </p>
+            )
+          ) : null}
         </DialogContent>
       </Dialog>
     </>

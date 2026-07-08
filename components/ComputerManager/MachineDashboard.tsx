@@ -1,12 +1,13 @@
 'use client'
 import { motion } from 'framer-motion'
 import { Machine } from '@/types/Machine'
-import { AppUser } from '@/types/AppUser'
+import { AppUser, Group } from '@/types/AppUser'
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { getMachines, getMachinesWithAppUser } from '@/app/computers/actions'
 import { Card, CardContent } from '@/app/_components/_ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
 import MachineList from './MachineList'
+import GlobalMachineActions from './GlobalMachineActions'
 import AppCategorization from '@/components/Supervisors/AppCategorization'
 import UncategorizedApps from '@/components/Supervisors/UncategorizedApps'
 import { staggerContainer, staggerItem } from '@/lib/motion'
@@ -14,6 +15,7 @@ import { staggerContainer, staggerItem } from '@/lib/motion'
 interface Props {
   machines: Machine[]
   appusers: AppUser[]
+  groups: Group[]
 }
 
 const POLL_INTERVAL = 30_000
@@ -28,7 +30,7 @@ const StatCard = ({ label, value, sub }: { label: string; value: number; sub: st
   </Card>
 )
 
-export default function ComputersDashboard({ machines: initial, appusers }: Props) {
+export default function ComputersDashboard({ machines: initial, appusers, groups }: Props) {
   const [machines, setMachines]         = useState<Machine[]>(initial)
   const [lastUpdated, setLastUpdated]   = useState<Date>(new Date())
   const [polling, setPolling]           = useState(false)
@@ -118,19 +120,23 @@ export default function ComputersDashboard({ machines: initial, appusers }: Prop
                 : `Actualizado ${lastUpdated.toLocaleTimeString('es-CO', { timeStyle: 'short' })}`}
             </div>
 
-            <div className='flex gap-0.5 bg-muted/50 rounded-lg p-0.5 ml-auto'>
-              {(['all', 'online', 'offline'] as const).map(f => (
-                <button
-                  key={f}
-                  onClick={() => setStatusFilter(f)}
-                  className={`px-3 py-1 text-xs rounded-md transition-colors cursor-pointer
-                    ${statusFilter === f
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}
-                >
-                  {f === 'all' ? 'Todos' : f === 'online' ? 'En línea' : 'Fuera de línea'}
-                </button>
-              ))}
+            <div className='flex items-center gap-3 ml-auto'>
+              <GlobalMachineActions groups={groups} />
+
+              <div className='flex gap-0.5 bg-muted/50 rounded-lg p-0.5'>
+                {(['all', 'online', 'offline'] as const).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setStatusFilter(f)}
+                    className={`px-3 py-1 text-xs rounded-md transition-colors cursor-pointer
+                      ${statusFilter === f
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}
+                  >
+                    {f === 'all' ? 'Todos' : f === 'online' ? 'En línea' : 'Fuera de línea'}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
