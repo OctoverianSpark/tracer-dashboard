@@ -54,22 +54,33 @@ export const deleteStateCategory = async (id: number) => {
   revalidatePath('/states/control')
 }
 
-// Copia todas las categorías y estados de un catálogo (por defecto o de otro grupo) hacia el
-// catálogo del grupo destino, como punto de partida editable — no crea una referencia viva
-// entre ambos, son filas nuevas e independientes desde el momento en que se clonan.
+// Completa el catálogo del grupo destino con lo que le falte, tomándolo de un catálogo origen
+// (el default u otro grupo) — no es un reemplazo: si el destino ya tiene una categoría con la
+// misma `key`, o un estado con el mismo `code`, esa fila no se toca (podría ya estar
+// personalizada); solo se crean las que faltan. Deja todo como filas nuevas e independientes,
+// sin referencia viva al origen — funciona igual con un catálogo destino vacío o parcial.
 export const cloneStateCatalog = async (fromGroupId: number | null, toGroupId: number | null) => {
-  const [sourceCategories, sourceStates] = await Promise.all([
+  const [sourceCategories, sourceStates, destCategories, destStates] = await Promise.all([
     getStateCategories(fromGroupId),
     getStates(fromGroupId),
+    getStateCategories(toGroupId),
+    getStates(toGroupId),
   ])
 
   const categoryIdMap = new Map<number, number>()
   for (const { id: oldId, ...rest } of sourceCategories) {
+    const existing = destCategories.find(c => c.key === rest.key)
+    if (existing) {
+      if (oldId != null && existing.id != null) categoryIdMap.set(oldId, existing.id)
+      continue
+    }
     const created = await saveStateCategory({ ...rest, group_id: toGroupId })
     if (oldId != null && created.id != null) categoryIdMap.set(oldId, created.id)
   }
 
+  const destCodes = new Set(destStates.map(s => s.code))
   for (const { id, category_id, ...rest } of sourceStates) {
+    if (destCodes.has(rest.code)) continue
     await saveState({ ...rest, category_id: categoryIdMap.get(category_id) ?? category_id, group_id: toGroupId })
   }
 }

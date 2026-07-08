@@ -40,6 +40,7 @@ export default function Page() {
   useEffect(reload, [groupId])
 
   const isEmpty = !loading && states.length === 0 && categories.length === 0
+  const missingCodes = 7 - new Set(states.map(s => s.code)).size
   const currentValue = groupId === null ? 'default' : groupId.toString()
   const cloneSources = [
     { value: 'default', label: 'Por defecto' },
@@ -52,9 +53,9 @@ export default function Page() {
     try {
       await cloneStateCatalog(sourceGroupId, groupId)
       reload()
-      toast.success('Catálogo clonado, ya lo puedes editar')
+      toast.success(isEmpty ? 'Catálogo clonado, ya lo puedes editar' : 'Catálogo completado con lo que faltaba')
     } catch {
-      toast.error('Ocurrió un error al clonar el catálogo')
+      toast.error('Ocurrió un error al completar el catálogo')
     } finally {
       setCloning(false)
     }
@@ -91,10 +92,10 @@ export default function Page() {
           </Select>
         </div>
 
-        {isEmpty && cloneSources.length > 0 && (
+        {cloneSources.length > 0 && (
           <div className="flex items-end gap-2">
             <div className="grid gap-2 w-48">
-              <Label>Copiar estados desde</Label>
+              <Label>Completar estados desde</Label>
               <Select value={cloneSource} onValueChange={setCloneSource}>
                 <SelectTrigger>
                   <SelectValue />
@@ -108,17 +109,22 @@ export default function Page() {
             </div>
             <Button variant="secondary" onClick={handleClone} disabled={cloning} className="cursor-pointer">
               <Copy className="size-4" />
-              {cloning ? 'Clonando...' : 'Clonar aquí'}
+              {cloning ? 'Completando...' : 'Completar aquí'}
             </Button>
           </div>
         )}
       </div>
 
-      {isEmpty && (
+      {isEmpty ? (
         <p className="text-xs text-muted-foreground -mt-4">
-          Este catálogo está vacío. Puedes crear categorías y estados desde cero, o clonar los de
-          otro catálogo como punto de partida y luego editarlos — quedan como copias independientes,
-          no como una referencia al original.
+          Este catálogo está vacío. Puedes crear categorías y estados desde cero, o traerlos de
+          otro catálogo con "Completar aquí" — quedan como copias independientes, no como una
+          referencia al original.
+        </p>
+      ) : missingCodes > 0 && (
+        <p className="text-xs text-muted-foreground -mt-4">
+          A este catálogo le faltan {missingCodes} de 7 estados. "Completar aquí" solo trae los que
+          faltan — no toca ni duplica los que ya tienes.
         </p>
       )}
 
