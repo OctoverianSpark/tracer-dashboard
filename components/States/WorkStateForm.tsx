@@ -14,12 +14,12 @@ import { toast } from 'sonner'
 
 interface Props {
   state?: WorkState
-  groupId: number | null   // catálogo al que pertenece: null = por defecto
   categories: StateCategory[]
-  usedCodes: number[]      // códigos ya presentes en este catálogo, para no duplicarlos al crear
+  usedCodes: number[]      // códigos ya presentes en el catálogo, para no duplicarlos al crear
+  onChanged: () => void
 }
 
-export default function WorkStateForm({ state, groupId, categories, usedCodes }: Props) {
+export default function WorkStateForm({ state, categories, usedCodes, onChanged }: Props) {
   const isEdit = !!state?.id
   const availableCodes = STATE_CODES.filter(c => !usedCodes.includes(c) || c === state?.code)
 
@@ -28,7 +28,6 @@ export default function WorkStateForm({ state, groupId, categories, usedCodes }:
     name: '',
     category_id: categories[0]?.id ?? 0,
     sort_order: 0,
-    group_id: groupId,
     show_in_menu: true,
   }
 
@@ -53,10 +52,11 @@ export default function WorkStateForm({ state, groupId, categories, usedCodes }:
     }
     try {
       setLoading(true)
-      await saveState({ ...values, group_id: groupId })
+      await saveState(values)
       toast.success(isEdit ? 'Estado actualizado!' : 'Estado agregado!')
       reset()
       setOpen(false)
+      onChanged()
     } catch {
       toast.error('Ocurrió un error al guardar el estado')
     } finally {
@@ -77,7 +77,7 @@ export default function WorkStateForm({ state, groupId, categories, usedCodes }:
           </DialogTrigger>
         </TooltipTrigger>
         <TooltipContent>
-          {disabledCreate ? 'Ya están los 7 códigos en este catálogo' : isEdit ? 'Editar estado' : 'Agregar estado a este catálogo'}
+          {disabledCreate ? 'Ya están los 7 códigos definidos' : isEdit ? 'Editar estado' : 'Agregar estado'}
         </TooltipContent>
       </Tooltip>
 
@@ -133,7 +133,7 @@ export default function WorkStateForm({ state, groupId, categories, usedCodes }:
             </SelectContent>
           </Select>
           {categories.length === 0 && (
-            <p className="text-xs text-amber-500">Crea primero una categoría en este catálogo.</p>
+            <p className="text-xs text-amber-500">Crea primero una categoría.</p>
           )}
         </div>
 

@@ -17,11 +17,10 @@ import WorkStateForm from './WorkStateForm'
 interface Props {
   states: WorkState[]
   categories: StateCategory[]
-  groupId: number | null
   onChanged: () => void
 }
 
-export default function WorkStateTable({ states, categories, groupId, onChanged }: Props) {
+export default function WorkStateTable({ states, categories, onChanged }: Props) {
   const [confirmId, setConfirmId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [draggedId, setDraggedId] = useState<number | null>(null)
@@ -148,7 +147,7 @@ export default function WorkStateTable({ states, categories, groupId, onChanged 
                   <TableCell className="text-center text-sm text-muted-foreground">{state.sort_order}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1 justify-end">
-                      <WorkStateForm state={state} groupId={groupId} categories={categories} usedCodes={usedCodes} />
+                      <WorkStateForm state={state} categories={categories} usedCodes={usedCodes} onChanged={onChanged} />
                       <Button variant="ghost" size="icon" className="cursor-pointer" onClick={() => setConfirmId(state.id!)}>
                         <Trash2 className="size-4 text-destructive" />
                       </Button>

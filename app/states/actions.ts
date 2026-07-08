@@ -1,5 +1,5 @@
 'use server'
-import { StateCategory, WorkState } from '@/types/States'
+import { GroupStateVisibility, StateCategory, WorkState } from '@/types/States'
 import { revalidatePath } from 'next/cache'
 
 const API = process.env.NEXT_PUBLIC_API_URL
@@ -10,17 +10,15 @@ const fetcher = async <T>(url: string): Promise<T> => {
   return res.json()
 }
 
-// GET/POST/DELETE de /states y /state-categories (incluyendo `?group_id=` y el save/delete)
-// ya están implementados en el backend. Cada grupo puede tener su propio catálogo, totalmente
-// independiente del default y del de otros grupos — el código (0-6) sigue siendo el mismo que
-// usa el agente en POST /tracer/states, pero qué estados existen, su nombre/categoría/orden y
-// si el código está presente o no en ese catálogo es libre por grupo.
+// Catálogo único y global — GET/POST/DELETE de /states y /state-categories ya están
+// implementados en el backend. El código (0-6) es el mismo que usa el agente en
+// POST /tracer/states.
 
-export const getStates = async (groupId?: number | null): Promise<WorkState[]> =>
-  fetcher(`${API}/states${groupId != null ? `?group_id=${groupId}` : ''}`)
+export const getStates = async (): Promise<WorkState[]> =>
+  fetcher(`${API}/states`)
 
-export const getStateCategories = async (groupId?: number | null): Promise<StateCategory[]> =>
-  fetcher(`${API}/state-categories${groupId != null ? `?group_id=${groupId}` : ''}`)
+export const getStateCategories = async (): Promise<StateCategory[]> =>
+  fetcher(`${API}/state-categories`)
 
 export const saveState = async (body: WorkState): Promise<WorkState> => {
   const res = await fetch(`${API}/states/save`, {
@@ -54,33 +52,25 @@ export const deleteStateCategory = async (id: number) => {
   revalidatePath('/states/control')
 }
 
-// Completa el catálogo del grupo destino con lo que le falte, tomándolo de un catálogo origen
-// (el default u otro grupo) — no es un reemplazo: si el destino ya tiene una categoría con la
-// misma `key`, o un estado con el mismo `code`, esa fila no se toca (podría ya estar
-// personalizada); solo se crean las que faltan. Deja todo como filas nuevas e independientes,
-// sin referencia viva al origen — funciona igual con un catálogo destino vacío o parcial.
-export const cloneStateCatalog = async (fromGroupId: number | null, toGroupId: number | null) => {
-  const [sourceCategories, sourceStates, destCategories, destStates] = await Promise.all([
-    getStateCategories(fromGroupId),
-    getStates(fromGroupId),
-    getStateCategories(toGroupId),
-    getStates(toGroupId),
-  ])
+// Visibilidad por grupo: la presencia de una fila { group_id, code } significa que ese estado
+// está oculto del menú del agente para ese grupo puntual. No existen aún en el backend — quedan
+// como scaffold hasta que se implementen, mismo patrón que el resto de este archivo.
 
-  const categoryIdMap = new Map<number, number>()
-  for (const { id: oldId, ...rest } of sourceCategories) {
-    const existing = destCategories.find(c => c.key === rest.key)
-    if (existing) {
-      if (oldId != null && existing.id != null) categoryIdMap.set(oldId, existing.id)
-      continue
-    }
-    const created = await saveStateCategory({ ...rest, group_id: toGroupId })
-    if (oldId != null && created.id != null) categoryIdMap.set(oldId, created.id)
-  }
+export const getGroupStateVisibility = async (groupId: number): Promise<GroupStateVisibility[]> =>
+  fetcher(`${API}/group-state-visibility?group_id=${groupId}`)
 
-  const destCodes = new Set(destStates.map(s => s.code))
-  for (const { id, category_id, ...rest } of sourceStates) {
-    if (destCodes.has(rest.code)) continue
-    await saveState({ ...rest, category_id: categoryIdMap.get(category_id) ?? category_id, group_id: toGroupId })
-  }
+export const hideStateForGroup = async (groupId: number, code: number): Promise<GroupStateVisibility> => {
+  const res = await fetch(`${API}/group-state-visibility/save`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ group_id: groupId, code }),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status} — /group-state-visibility/save`)
+  revalidatePath('/states/control')
+  return res.json()
+}
+
+export const unhideStateForGroup = async (id: number) => {
+  await fetch(`${API}/group-state-visibility/delete/${id}`, { method: 'DELETE' })
+  revalidatePath('/states/control')
 }

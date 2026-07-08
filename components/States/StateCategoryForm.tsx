@@ -12,12 +12,12 @@ import { toast } from 'sonner'
 
 interface Props {
   category?: StateCategory
-  groupId: number | null  // catálogo al que pertenece: null = por defecto
+  onChanged: () => void
 }
 
-export default function StateCategoryForm({ category, groupId }: Props) {
+export default function StateCategoryForm({ category, onChanged }: Props) {
   const isEdit = !!category?.id
-  const emptyCategory: StateCategory = { key: '', name: '', color: '#22c55e', sort_order: 0, group_id: groupId }
+  const emptyCategory: StateCategory = { key: '', name: '', color: '#22c55e', sort_order: 0 }
 
   const [values, setValues] = useState<StateCategory>(category ?? emptyCategory)
   const [open, setOpen] = useState(false)
@@ -44,10 +44,11 @@ export default function StateCategoryForm({ category, groupId }: Props) {
     }
     try {
       setLoading(true)
-      await saveStateCategory({ ...values, group_id: groupId })
+      await saveStateCategory(values)
       toast.success('Categoría guardada!')
       reset()
       setOpen(false)
+      onChanged()
     } catch {
       toast.error('Ocurrió un error al guardar la categoría')
     } finally {

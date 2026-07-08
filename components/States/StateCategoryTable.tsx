@@ -12,10 +12,10 @@ import StateCategoryForm from './StateCategoryForm'
 
 interface Props {
   categories: StateCategory[]
-  groupId: number | null
+  onChanged: () => void
 }
 
-export default function StateCategoryTable({ categories, groupId }: Props) {
+export default function StateCategoryTable({ categories, onChanged }: Props) {
   const [confirmId, setConfirmId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -28,6 +28,7 @@ export default function StateCategoryTable({ categories, groupId }: Props) {
     await deleteStateCategory(confirmId)
     setLoading(false)
     setConfirmId(null)
+    onChanged()
   }
 
   return (
@@ -59,7 +60,7 @@ export default function StateCategoryTable({ categories, groupId }: Props) {
               <TableCell className="text-center text-sm text-muted-foreground">{cat.sort_order}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-1 justify-end">
-                  <StateCategoryForm category={cat} groupId={groupId} />
+                  <StateCategoryForm category={cat} onChanged={onChanged} />
                   <Button variant="ghost" size="icon" className="cursor-pointer" onClick={() => setConfirmId(cat.id!)}>
                     <Trash2 className="size-4 text-destructive" />
                   </Button>
