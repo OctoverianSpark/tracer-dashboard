@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
+import { Switch } from '@/app/_components/_ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { saveState } from '@/app/states/actions'
 import { STATE_CODES, StateCategory, WorkState } from '@/types/States'
@@ -28,6 +29,7 @@ export default function WorkStateForm({ state, groupId, categories, usedCodes }:
     category_id: categories[0]?.id ?? 0,
     sort_order: 0,
     group_id: groupId,
+    show_in_menu: true,
   }
 
   const [values, setValues] = useState<WorkState>(state ?? emptyState)
@@ -146,6 +148,23 @@ export default function WorkStateForm({ state, groupId, categories, usedCodes }:
             value={values.sort_order}
             onChange={e => setValues(prev => ({ ...prev, sort_order: Number(e.target.value) }))}
           />
+        </div>
+
+        <div className="flex items-start gap-3 rounded-md border p-3">
+          <Switch
+            id="show_in_menu"
+            checked={values.show_in_menu ?? true}
+            onCheckedChange={checked => setValues(prev => ({ ...prev, show_in_menu: checked }))}
+          />
+          <div className="grid gap-0.5">
+            <Label htmlFor="show_in_menu" className="cursor-pointer">
+              Mostrar en el menú del agente
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Si se desactiva, este estado sigue existiendo en el catálogo pero el agente no lo lista
+              como opción elegible en el menú del tray — solo puede activarse por otra vía (automática o API).
+            </p>
+          </div>
         </div>
 
         <DialogFooter>

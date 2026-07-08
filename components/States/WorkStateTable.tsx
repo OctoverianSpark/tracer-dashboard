@@ -6,7 +6,8 @@ import { staggerContainer, staggerItem } from '@/lib/motion'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/app/_components/_ui/alert-dialog'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
-import { Trash2 } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/app/_components/_ui/tooltip'
+import { EyeOff, Trash2 } from 'lucide-react'
 import { deleteState } from '@/app/states/actions'
 import { StateCategory, WorkState } from '@/types/States'
 import WorkStateForm from './WorkStateForm'
@@ -82,7 +83,19 @@ export default function WorkStateTable({ states, categories, groupId }: Props) {
               {group.states.map(state => (
                 <MotionTableRow key={state.id} variants={staggerItem}>
                   <TableCell className="font-mono text-sm text-muted-foreground">{state.code}</TableCell>
-                  <TableCell className="font-medium">{state.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-1.5">
+                      {state.name}
+                      {state.show_in_menu === false && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <EyeOff className="size-3.5 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>Oculto del menú del agente</TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-center text-sm text-muted-foreground">{state.sort_order}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1 justify-end">

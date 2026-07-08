@@ -16,4 +16,5 @@ export interface WorkState {
   name: string
   category_id: number
   sort_order: number  // posición relativa dentro de su categoría (se reinicia en 0 por cada category_id), no un orden global
+  show_in_menu?: boolean // false = el agente no lo lista como opción elegible en el menú del tray. Sigue existiendo en el catálogo y puede activarse por otra vía (automática/API). Default true si no se define.
 }
