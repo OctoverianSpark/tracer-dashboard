@@ -54,41 +54,6 @@ export const deleteStateCategory = async (id: number) => {
   revalidatePath('/states/control')
 }
 
-// "Promueve" un estado heredado del catálogo por defecto a una fila propia de `groupId`, con
-// category_id apuntando a una categoría también propia de ese grupo (reusando una existente con
-// la misma `key` si ya hay una, o clonando la categoría heredada si no). Se usa al recategorizar
-// por drag & drop un estado que hoy solo existe en el default — no se puede simplemente cambiarle
-// el category_id porque esa fila es compartida con todos los grupos que no tienen override.
-export const materializeInheritedState = async (
-  state: WorkState,
-  category: StateCategory,
-  groupId: number | null,
-  ownCategories: StateCategory[],
-): Promise<WorkState> => {
-  let categoryId = category.id!
-  if ((category.group_id ?? null) !== groupId) {
-    const ownMatch = ownCategories.find(c => (c.group_id ?? null) === groupId && c.key === category.key)
-    categoryId = ownMatch
-      ? ownMatch.id!
-      : (await saveStateCategory({
-          key: category.key,
-          name: category.name,
-          color: category.color,
-          sort_order: category.sort_order,
-          group_id: groupId,
-        })).id!
-  }
-
-  return saveState({
-    code: state.code,
-    name: state.name,
-    sort_order: state.sort_order,
-    show_in_menu: state.show_in_menu,
-    category_id: categoryId,
-    group_id: groupId,
-  })
-}
-
 // Copia todas las categorías y estados de un catálogo (por defecto o de otro grupo) hacia el
 // catálogo del grupo destino, como punto de partida editable — no crea una referencia viva
 // entre ambos, son filas nuevas e independientes desde el momento en que se clonan.

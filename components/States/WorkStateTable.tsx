@@ -10,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/app/_components/_ui/t
 import { cn } from '@/app/_components/_lib/utils'
 import { EyeOff, GripVertical, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { deleteState, materializeInheritedState, saveState } from '@/app/states/actions'
+import { deleteState, saveState } from '@/app/states/actions'
 import { StateCategory, WorkState } from '@/types/States'
 import WorkStateForm from './WorkStateForm'
 
@@ -31,7 +31,6 @@ export default function WorkStateTable({ states, categories, groupId, onChanged 
   const categoryOf = (id: number) => categories.find(c => c.id === id)
   const confirmState = states.find(s => s.id === confirmId)
   const usedCodes = states.map(s => s.code)
-  const ownCategories = categories.filter(c => (c.group_id ?? null) === groupId)
 
   async function handleDelete() {
     if (!confirmId) return
@@ -46,18 +45,11 @@ export default function WorkStateTable({ states, categories, groupId, onChanged 
     setDragOverCategoryId(null)
     const state = states.find(s => s.id === draggedId)
     setDraggedId(null)
-    if (!state) return
-    if (state.category_id === targetCategory.id && (state.group_id ?? null) === groupId) return
+    if (!state || state.category_id === targetCategory.id) return
 
     setMoving(true)
     try {
-      if ((state.group_id ?? null) === groupId) {
-        await saveState({ ...state, category_id: targetCategory.id! })
-      } else {
-        // Heredado del default: no se le puede cambiar el category_id a esa fila compartida —
-        // se clona hacia este grupo ya con la categoría destino, "promoviéndolo" a fila propia.
-        await materializeInheritedState(state, targetCategory, groupId, ownCategories)
-      }
+      await saveState({ ...state, category_id: targetCategory.id! })
       onChanged()
       toast.success('Estado recategorizado')
     } catch {
@@ -125,63 +117,45 @@ export default function WorkStateTable({ states, categories, groupId, onChanged 
                   )}
                 </TableCell>
               </TableRow>
-              {group.states.map(state => {
-                const isOwn = (state.group_id ?? null) === groupId
-                return (
-                  // TableRow nativo (no MotionTableRow): framer-motion tipa onDragStart/onDragEnd
-                  // para su propio gesto de arrastre por puntero (PanInfo), no para el DnD nativo
-                  // de HTML que necesitamos acá para soltar sobre otra fila/categoría.
-                  <TableRow
-                    key={state.id}
-                    draggable={!moving}
-                    onDragStart={e => { setDraggedId(state.id!); e.dataTransfer.effectAllowed = 'move' }}
-                    onDragEnd={() => { setDraggedId(null); setDragOverCategoryId(null) }}
-                    className={cn('transition-opacity', draggedId === state.id && 'opacity-40')}
-                  >
-                    <TableCell className="cursor-grab active:cursor-grabbing text-muted-foreground">
-                      <GripVertical className="size-4" />
-                    </TableCell>
-                    <TableCell className="font-mono text-sm text-muted-foreground">{state.code}</TableCell>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-1.5">
-                        {state.name}
-                        {state.show_in_menu === false && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <EyeOff className="size-3.5 text-muted-foreground" />
-                            </TooltipTrigger>
-                            <TooltipContent>Oculto del menú del agente</TooltipContent>
-                          </Tooltip>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center text-sm text-muted-foreground">{state.sort_order}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 justify-end">
-                        {isOwn ? (
-                          <>
-                            <WorkStateForm state={state} groupId={groupId} categories={categories} usedCodes={usedCodes} />
-                            <Button variant="ghost" size="icon" className="cursor-pointer" onClick={() => setConfirmId(state.id!)}>
-                              <Trash2 className="size-4 text-destructive" />
-                            </Button>
-                          </>
-                        ) : (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge variant="outline" className="font-normal text-muted-foreground cursor-grab">Heredado del default</Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              Este código no tiene override en este catálogo — se está mostrando el del catálogo
-                              por defecto. Arrástralo a una categoría (o "Clonar aquí" el catálogo completo)
-                              para volverlo editable en este grupo.
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
+              {group.states.map(state => (
+                // TableRow nativo (no MotionTableRow): framer-motion tipa onDragStart/onDragEnd
+                // para su propio gesto de arrastre por puntero (PanInfo), no para el DnD nativo
+                // de HTML que necesitamos acá para soltar sobre otra fila/categoría.
+                <TableRow
+                  key={state.id}
+                  draggable={!moving}
+                  onDragStart={e => { setDraggedId(state.id!); e.dataTransfer.effectAllowed = 'move' }}
+                  onDragEnd={() => { setDraggedId(null); setDragOverCategoryId(null) }}
+                  className={cn('transition-opacity', draggedId === state.id && 'opacity-40')}
+                >
+                  <TableCell className="cursor-grab active:cursor-grabbing text-muted-foreground">
+                    <GripVertical className="size-4" />
+                  </TableCell>
+                  <TableCell className="font-mono text-sm text-muted-foreground">{state.code}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-1.5">
+                      {state.name}
+                      {state.show_in_menu === false && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <EyeOff className="size-3.5 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>Oculto del menú del agente</TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center text-sm text-muted-foreground">{state.sort_order}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1 justify-end">
+                      <WorkStateForm state={state} groupId={groupId} categories={categories} usedCodes={usedCodes} />
+                      <Button variant="ghost" size="icon" className="cursor-pointer" onClick={() => setConfirmId(state.id!)}>
+                        <Trash2 className="size-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
             </Fragment>
           ))}
         </MotionTableBody>
