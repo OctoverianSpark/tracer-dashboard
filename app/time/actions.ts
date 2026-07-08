@@ -39,8 +39,12 @@ export const saveProgramation = async (body: Programation) => {
 export const getSchedules = async (): Promise<Schedule[]> =>
   fetcher(`${API}/schedules`)
 
-export const getScheduleByappuserId = async (appuser_id: number): Promise<Schedule[]> =>
-  fetcher(`${API}/schedules?appuser_id=${appuser_id}`)
+// Igual que findAsignedMachines en app/computers/actions.ts: re-filtramos del lado del cliente
+// por si el backend no respeta el ?appuser_id= en este endpoint de lista, como ya pasó con /machines.
+export const getScheduleByappuserId = async (appuser_id: number): Promise<Schedule[]> => {
+  const data = await fetcher<Schedule[]>(`${API}/schedules?appuser_id=${appuser_id}`)
+  return data.filter(s => Number(s.appuser_id) === appuser_id)
+}
 
 export const saveSchedule = async (body: Schedule[]) => {
   await fetch(`${API}/schedules/save`, {

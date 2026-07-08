@@ -135,7 +135,7 @@ export default function Page() {
           <h2 className="text-lg font-medium">Estados</h2>
           <WorkStateForm groupId={groupId} categories={categories} usedCodes={states.map(s => s.code)} />
         </div>
-        <WorkStateTable states={states} categories={categories} groupId={groupId} />
+        <WorkStateTable states={states} categories={categories} groupId={groupId} onChanged={reload} />
       </div>
     </div>
   )
