@@ -1,7 +1,7 @@
 'use client'
 import { motion } from 'framer-motion'
 import { Machine, machineLabel } from '@/types/Machine'
-import { AppUser } from '@/types/AppUser'
+import { AppUser, Group } from '@/types/AppUser'
 import MachineCard from './MachineCard'
 import MachineDialog from './MachineDialog'
 import Paginator from './Paginator'
@@ -20,6 +20,7 @@ import * as XLSX from 'xlsx'
 interface MachineListProps {
   machines: Machine[]
   appusers: AppUser[]
+  groups: Group[]
 }
 
 const PAGE_SIZE_GRID  = 12
@@ -30,25 +31,31 @@ function formatDate(raw: string | undefined) {
   return new Date(raw).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })
 }
 
-function exportXLSX(machines: Machine[]) {
-  const rows = machines.map(m => ({
-    'Hostname':        m.hostname,
-    'Marca/Modelo':    machineLabel(m),
-    'Estado':          (m.alive || m.isAlive) ? 'Online' : 'Offline',
-    'Usuario':         m.username || '',
-    'Nombre completo': m.displayName || '',
-    'IP':              m.ip_address || '',
-    'Número de serie': m.serial_number,
-    'Último visto':    formatDate(m.last_seen),
-  }))
+function exportXLSX(machines: Machine[], appusers: AppUser[], groups: Group[]) {
+  const rows = machines.map(m => {
+    const appuser = appusers.find(u => String(u.id) === String(m.appuser_id))
+    const group   = groups.find(g => g.id === appuser?.group_id)
+    return {
+      'Hostname':        m.hostname,
+      'Marca/Modelo':    machineLabel(m),
+      'Estado':          (m.alive || m.isAlive) ? 'Online' : 'Offline',
+      'Usuario':         m.username || '',
+      'Nombre completo': m.displayName || '',
+      'Empleado asignado': appuser?.full_name || '',
+      'Grupo':           group?.name || '',
+      'IP':              m.ip_address || '',
+      'Número de serie': m.serial_number,
+      'Último visto':    formatDate(m.last_seen),
+    }
+  })
   const ws = XLSX.utils.json_to_sheet(rows)
-  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: 7 } }) }
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: 9 } }) }
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Equipos')
   XLSX.writeFile(wb, `equipos_${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
-export default function MachineList({ machines, appusers }: MachineListProps) {
+export default function MachineList({ machines, appusers, groups }: MachineListProps) {
   const [search, setSearch]             = useState('')
   const [view, setView]                 = useState<'grid' | 'table'>('grid')
   const [page, setPage]                 = useState(1)
@@ -102,7 +109,7 @@ export default function MachineList({ machines, appusers }: MachineListProps) {
         <div className="flex items-center gap-2 ml-auto shrink-0">
           {filtered.length > 0 && (
             <button
-              onClick={() => exportXLSX(filtered)}
+              onClick={() => exportXLSX(filtered, appusers, groups)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer"
             >
               <FileDown className="size-3.5" />

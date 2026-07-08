@@ -21,17 +21,25 @@ export default function Page() {
   const [categories, setCategories] = useState<StateCategory[]>([])
   const [cloneSource, setCloneSource] = useState<string>('default')
   const [cloning, setCloning]       = useState(false)
+  const [loading, setLoading]       = useState(false)
 
   useEffect(() => { getGroups().then(setGroups) }, [])
 
   function reload() {
-    getStates(groupId).then(setStates)
-    getStateCategories(groupId).then(setCategories)
+    // Limpia antes de pedir el nuevo catálogo — si no, mientras la petición está en vuelo
+    // la tabla sigue mostrando los ids del catálogo anterior bajo el groupId ya cambiado,
+    // y un click de eliminar/editar en esa ventana termina actuando sobre el catálogo equivocado.
+    setLoading(true)
+    setStates([])
+    setCategories([])
+    Promise.all([getStates(groupId), getStateCategories(groupId)])
+      .then(([s, c]) => { setStates(s); setCategories(c) })
+      .finally(() => setLoading(false))
   }
 
   useEffect(reload, [groupId])
 
-  const isEmpty = states.length === 0 && categories.length === 0
+  const isEmpty = !loading && states.length === 0 && categories.length === 0
   const currentValue = groupId === null ? 'default' : groupId.toString()
   const cloneSources = [
     { value: 'default', label: 'Por defecto' },

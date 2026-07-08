@@ -99,10 +99,24 @@ export default function WorkStateTable({ states, categories, groupId }: Props) {
                   <TableCell className="text-center text-sm text-muted-foreground">{state.sort_order}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1 justify-end">
-                      <WorkStateForm state={state} groupId={groupId} categories={categories} usedCodes={usedCodes} />
-                      <Button variant="ghost" size="icon" className="cursor-pointer" onClick={() => setConfirmId(state.id!)}>
-                        <Trash2 className="size-4 text-destructive" />
-                      </Button>
+                      {(state.group_id ?? null) === groupId ? (
+                        <>
+                          <WorkStateForm state={state} groupId={groupId} categories={categories} usedCodes={usedCodes} />
+                          <Button variant="ghost" size="icon" className="cursor-pointer" onClick={() => setConfirmId(state.id!)}>
+                            <Trash2 className="size-4 text-destructive" />
+                          </Button>
+                        </>
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className="font-normal text-muted-foreground">Heredado del default</Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Este código no tiene override en este catálogo — se está mostrando el del catálogo
+                            por defecto. Usa "Clonar aquí" para poder editarlo sin afectar al default.
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
                     </div>
                   </TableCell>
                 </MotionTableRow>

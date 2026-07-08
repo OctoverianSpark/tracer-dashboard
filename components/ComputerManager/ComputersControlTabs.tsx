@@ -1,6 +1,6 @@
 'use client'
 import { Machine } from '@/types/Machine'
-import { AppUser } from '@/types/AppUser'
+import { AppUser, Group } from '@/types/AppUser'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
 import MachineList from './MachineList'
 import AppCategorization from '@/components/Supervisors/AppCategorization'
@@ -9,9 +9,10 @@ import UncategorizedApps from '@/components/Supervisors/UncategorizedApps'
 interface Props {
   machines: Machine[]
   appusers: AppUser[]
+  groups: Group[]
 }
 
-export default function ComputersControlTabs({ machines, appusers }: Props) {
+export default function ComputersControlTabs({ machines, appusers, groups }: Props) {
   return (
     <Tabs defaultValue="machines">
       <TabsList>
@@ -20,7 +21,7 @@ export default function ComputersControlTabs({ machines, appusers }: Props) {
         <TabsTrigger value="uncategorized">Apps sin categorizar</TabsTrigger>
       </TabsList>
       <TabsContent value="machines" className="mt-4">
-        <MachineList machines={machines} appusers={appusers} />
+        <MachineList machines={machines} appusers={appusers} groups={groups} />
       </TabsContent>
       <TabsContent value="categorization" className="mt-4">
         <AppCategorization />

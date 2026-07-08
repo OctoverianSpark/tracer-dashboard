@@ -23,13 +23,10 @@ export const getStateCategories = async (groupId?: number | null): Promise<State
   fetcher(`${API}/state-categories${groupId != null ? `?group_id=${groupId}` : ''}`)
 
 export const saveState = async (body: WorkState): Promise<WorkState> => {
-  // El modelo Prisma del backend expone el campo como `group`, no `group_id`
-  // ("Unknown argument `group_id`. Did you mean `group`?").
-  const { group_id, ...rest } = body
   const res = await fetch(`${API}/states/save`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...rest, group: group_id }),
+    body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status} — /states/save`)
   revalidatePath('/states/control')
@@ -42,12 +39,10 @@ export const deleteState = async (id: number) => {
 }
 
 export const saveStateCategory = async (body: StateCategory): Promise<StateCategory> => {
-  // Mismo modelo/convención que StatesController: el campo es `group`, no `group_id`.
-  const { group_id, ...rest } = body
   const res = await fetch(`${API}/state-categories/save`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...rest, group: group_id }),
+    body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status} — /state-categories/save`)
   revalidatePath('/states/control')

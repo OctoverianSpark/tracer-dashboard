@@ -140,7 +140,7 @@ export default function ComputersDashboard({ machines: initial, appusers, groups
             </div>
           </div>
 
-          <MachineList machines={byStatus} appusers={appusers} />
+          <MachineList machines={byStatus} appusers={appusers} groups={groups} />
 
         </TabsContent>
 
