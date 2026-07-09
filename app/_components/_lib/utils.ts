@@ -41,6 +41,7 @@ export const PERMISSION_GROUPS = [
     label: 'Aplicacion',
     permissions: [
       { id: 'use_app', label: 'Puede usar la aplicación', default: true },
+      { id: 'create_tickets', label: 'Puede crear tickets', default: true },
     ]
   },
   {
