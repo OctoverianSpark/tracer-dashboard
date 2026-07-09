@@ -90,8 +90,13 @@ export const sendNotice = async (machineId: string, notification: Notification):
   return parseActionResponse(res, 'notify')
 }
 
-export const syncHelpdesk = async (): Promise<{ ok: boolean; sent: number; helpdesk?: unknown; error?: string }> => {
-  const res = await fetch(`${API_URL}/machines/sync-helpdesk`, { method: 'POST' })
+// `target` acepta '*' (todos los equipos) o 'group:<id>' para limitar el envio a un grupo.
+export const syncHelpdesk = async (target: string = '*'): Promise<{ ok: boolean; sent: number; target?: string; helpdesk?: unknown; error?: string }> => {
+  const res = await fetch(`${API_URL}/machines/sync-helpdesk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target }),
+  })
   return parseActionResponse(res, 'sync-helpdesk')
 }
 

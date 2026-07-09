@@ -123,7 +123,7 @@ export default function ComputersDashboard({ machines: initial, appusers, groups
 
             <div className='flex items-center gap-3 ml-auto'>
               <GlobalMachineActions groups={groups} />
-              <SyncHelpdeskButton />
+              <SyncHelpdeskButton groups={groups} />
 
               <div className='flex gap-0.5 bg-muted/50 rounded-lg p-0.5'>
                 {(['all', 'online', 'offline'] as const).map(f => (
