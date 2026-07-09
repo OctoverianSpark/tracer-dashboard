@@ -90,6 +90,11 @@ export const sendNotice = async (machineId: string, notification: Notification):
   return parseActionResponse(res, 'notify')
 }
 
+export const syncHelpdesk = async (): Promise<{ ok: boolean; sent: number; helpdesk?: unknown; error?: string }> => {
+  const res = await fetch(`${API_URL}/machines/sync-helpdesk`, { method: 'POST' })
+  return parseActionResponse(res, 'sync-helpdesk')
+}
+
 export const setTakeScreenshots = async (serial: string, enabled: boolean) => {
   const res = await fetch(`${API_URL}/machines/${serial}/take-screenshots`, {
     method: 'PATCH',

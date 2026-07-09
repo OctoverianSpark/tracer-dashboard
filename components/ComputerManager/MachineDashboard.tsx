@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/app/_components/_ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
 import MachineList from './MachineList'
 import GlobalMachineActions from './GlobalMachineActions'
+import SyncHelpdeskButton from './SyncHelpdeskButton'
 import AppCategorization from '@/components/Supervisors/AppCategorization'
 import UncategorizedApps from '@/components/Supervisors/UncategorizedApps'
 import { staggerContainer, staggerItem } from '@/lib/motion'
@@ -122,6 +123,7 @@ export default function ComputersDashboard({ machines: initial, appusers, groups
 
             <div className='flex items-center gap-3 ml-auto'>
               <GlobalMachineActions groups={groups} />
+              <SyncHelpdeskButton />
 
               <div className='flex gap-0.5 bg-muted/50 rounded-lg p-0.5'>
                 {(['all', 'online', 'offline'] as const).map(f => (
