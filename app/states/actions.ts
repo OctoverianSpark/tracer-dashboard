@@ -30,7 +30,6 @@ export const saveState = async (body: WorkState): Promise<WorkState> => {
     name: body.name,
     category_id: body.category_id,
     sort_order: body.sort_order,
-    show_in_menu: body.show_in_menu,
   }
   const res = await fetch(`${API}/states/save`, {
     method: 'POST',
@@ -75,9 +74,11 @@ export const deleteStateCategory = async (id: number) => {
 // Visibilidad por grupo: la presencia de una fila { group_id, code } significa que ese estado
 // está oculto del menú del agente para ese grupo puntual. No existen aún en el backend — quedan
 // como scaffold hasta que se implementen, mismo patrón que el resto de este archivo.
+// Se edita desde el formulario del estado (elige qué grupos lo ven), no desde un panel por grupo,
+// así que hace falta traer TODAS las filas de una vez para saber el estado de cada grupo.
 
-export const getGroupStateVisibility = async (groupId: number): Promise<GroupStateVisibility[]> =>
-  fetcher(`${API}/group-state-visibility?group_id=${groupId}`)
+export const getAllGroupStateVisibility = async (): Promise<GroupStateVisibility[]> =>
+  fetcher(`${API}/group-state-visibility`)
 
 export const hideStateForGroup = async (groupId: number, code: number): Promise<GroupStateVisibility> => {
   const res = await fetch(`${API}/group-state-visibility/save`, {

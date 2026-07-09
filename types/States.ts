@@ -17,7 +17,6 @@ export interface WorkState {
   name: string
   category_id: number
   sort_order: number  // posición relativa dentro de su categoría (se reinicia en 0 por cada category_id), no un orden global
-  show_in_menu?: boolean // false = oculto del menú del agente para TODOS los grupos. Default true si no se define.
 }
 
 // Visibilidad de un estado para un grupo puntual. La presencia de una fila significa que ese
