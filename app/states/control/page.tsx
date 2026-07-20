@@ -8,6 +8,8 @@ import StateCategoryForm from '@/components/States/StateCategoryForm'
 import StateCategoryTable from '@/components/States/StateCategoryTable'
 import WorkStateForm from '@/components/States/WorkStateForm'
 import WorkStateTable from '@/components/States/WorkStateTable'
+import AgentPreferencesPanel from '@/components/AgentPreferences/AgentPreferencesPanel'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
 
 export default function Page() {
   const [groups, setGroups]         = useState<Group[]>([])
@@ -25,43 +27,59 @@ export default function Page() {
   useEffect(reload, [])
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-xl sm:text-2xl font-semibold">Estados de Trabajo</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold">Configuración del Agente</h1>
         <p className="text-sm text-muted-foreground">
-          Catálogo único: nombre, categoría, color y orden se definen aquí una sola vez para
-          todos los grupos. El código que envía el agente (0-6) no cambia. Al crear o editar un
-          estado eliges qué grupos lo ven en su menú del tray.
+          Administra el catálogo de estados de trabajo y las preferencias generales que usa la
+          aplicación de escritorio, por grupo.
         </p>
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-medium">Categorías</h2>
-          <StateCategoryForm onChanged={reload} />
-        </div>
-        <StateCategoryTable categories={categories} onChanged={reload} />
-      </div>
+      <Tabs defaultValue="states">
+        <TabsList>
+          <TabsTrigger value="states">Estados de Trabajo</TabsTrigger>
+          <TabsTrigger value="preferences">Preferencias del Agente</TabsTrigger>
+        </TabsList>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-medium">Estados</h2>
-          <WorkStateForm
-            categories={categories}
-            usedCodes={states.map(s => s.code)}
-            groups={groups}
-            visibility={visibility}
-            onChanged={reload}
-          />
-        </div>
-        <WorkStateTable
-          states={states}
-          categories={categories}
-          groups={groups}
-          visibility={visibility}
-          onChanged={reload}
-        />
-      </div>
+        <TabsContent value="states" className="space-y-8">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium">Categorías</h2>
+              <StateCategoryForm onChanged={reload} />
+            </div>
+            <StateCategoryTable categories={categories} onChanged={reload} />
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium">Estados</h2>
+              <WorkStateForm
+                categories={categories}
+                usedCodes={states.map(s => s.code)}
+                groups={groups}
+                visibility={visibility}
+                onChanged={reload}
+              />
+            </div>
+            <WorkStateTable
+              states={states}
+              categories={categories}
+              groups={groups}
+              visibility={visibility}
+              onChanged={reload}
+            />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="preferences" className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            La aplicación de escritorio recibe estas preferencias al conectarse por socket,
+            junto con la información del usuario asignado.
+          </p>
+          <AgentPreferencesPanel groups={groups} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

@@ -11,10 +11,15 @@ export interface AppUser {
   absence_status?: AbsenceStatus
 }
 
+export interface AgentPreferences {
+  auto_shutdown_enabled?: boolean
+}
+
 export interface Group {
   id?: number
   name: string
   block_own_reports?: boolean
+  agent_preferences?: AgentPreferences
   visible_group_ids?: number[]
 }
 

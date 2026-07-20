@@ -35,6 +35,16 @@ export const updateUserGroup = async (userId: number, groupId: number | null) =>
   })
 }
 
+export const updateGroupPreferences = async (groupId: number, preferences: Group['agent_preferences']) => {
+  const res = await fetch(`${API}/groups/update/${groupId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agent_preferences: preferences }),
+  })
+  if (!res.ok) throw new Error(`Error al actualizar preferencias del grupo: ${res.status}`)
+  revalidatePath('/states/control')
+}
+
 export const getGroupVisibility = async (groupId: number): Promise<number[]> => {
   try {
     const res = await fetch(`${API}/groups/${groupId}/visibility`)
