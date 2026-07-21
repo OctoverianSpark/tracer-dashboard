@@ -261,7 +261,7 @@ export default function MachineActions({
                   <div className="flex flex-col gap-1">
                     <span className="text-muted-foreground">Access level</span>
                     <pre className="bg-secondary border border-border rounded-xl px-3 py-2 text-xs whitespace-pre-wrap break-all">
-                      {syncResult.access_level}
+                      {JSON.stringify(syncResult.access_level, null, 2)}
                     </pre>
                   </div>
                 )}

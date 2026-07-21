@@ -24,9 +24,7 @@ export default function RolesList({ roles }: RolesListProps) {
       animate="animate"
     >
       {roles.map(role => {
-        const permissions: [string, boolean][] = role.access_level
-          ? Object.entries(JSON.parse(role.access_level))
-          : []
+        const permissions: [string, boolean][] = Object.entries(role.access_level ?? {})
 
         return (
           <motion.div key={role.id} variants={staggerItem}>

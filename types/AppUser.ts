@@ -23,10 +23,12 @@ export interface Group {
   visible_group_ids?: number[]
 }
 
+export type AccessLevel = Record<string, boolean>
+
 export interface Role {
   id?: number,
   name: string,
-  access_level: string,
+  access_level: AccessLevel,
 }
 
 // types/AppUser.ts - agrega esto

@@ -1,3 +1,4 @@
+import { AccessLevel } from './AppUser'
 
 export type Machine = {
   id?: number;
@@ -38,5 +39,5 @@ export interface MachineActionResult {
 export interface MachineSyncResult extends MachineActionResult {
   group?: string
   group_id?: number
-  access_level?: string
+  access_level?: AccessLevel
 }

@@ -19,7 +19,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!session) return
-    const perms = JSON.parse(session.role?.access_level ?? '{}')
+    const perms = session.role?.access_level ?? {}
     if (Object.values(perms).some(Boolean)) redirect('/home')
   }, [session, router])
 

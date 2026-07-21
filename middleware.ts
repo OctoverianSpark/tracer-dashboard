@@ -57,7 +57,7 @@ export async function middleware(req: NextRequest) {
 
   if (!token.role?.access_level) return NextResponse.redirect(new URL('/', req.url))
 
-  const perms = JSON.parse(token.role.access_level)
+  const perms = token.role.access_level
 
   const hasOperationalAccess = OPERATIONAL_PERMISSIONS.some(perm => perms[perm])
   if (!hasOperationalAccess) return NextResponse.redirect(new URL('/', req.url))

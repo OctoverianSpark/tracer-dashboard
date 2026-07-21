@@ -20,7 +20,7 @@ export function AppSidebar() {
   const { setOpen } = useSidebar()
   const { data: session } = useSession()
 
-  const perms = JSON.parse(session?.role?.access_level ?? '{}')
+  const perms = session?.role?.access_level ?? {}
 
   const allowedSections = SECTIONS
     .map(section => ({

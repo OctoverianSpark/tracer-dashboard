@@ -20,7 +20,7 @@ interface RoleFormProps {
 
 const EMPTY_ROLE: Role = {
   name: '',
-  access_level: '',
+  access_level: {},
 }
 
 
@@ -34,7 +34,7 @@ export default function RoleForm({ role = EMPTY_ROLE }: RoleFormProps) {
   
   const [values, setValues] = useState<Role>({
     ...(role),
-    access_level: role?.access_level || JSON.stringify(buildDefaultAccessLevel())
+    access_level: role?.access_level ?? buildDefaultAccessLevel()
   })
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -53,22 +53,19 @@ export default function RoleForm({ role = EMPTY_ROLE }: RoleFormProps) {
   }
 
   const getPermission = (key: string): boolean => {
-    if (!values.access_level) return false
-    return JSON.parse(values.access_level)[key] ?? false
+    return values.access_level?.[key] ?? false
   }
 
   const onCheckboxChange = (key: string, checked: boolean) => {
-    const current = values.access_level ? JSON.parse(values.access_level) : {}
     setValues(prev => ({
       ...prev,
-      access_level: JSON.stringify({ ...current, [key]: checked })
+      access_level: { ...prev.access_level, [key]: checked }
     }))
   }
 
   const onGroupChange = (permissions: { id: string }[], checked: boolean) => {
-    const current = values.access_level ? JSON.parse(values.access_level) : {}
-    const updated = permissions.reduce((acc, { id }) => ({ ...acc, [id]: checked }), current)
-    setValues(prev => ({ ...prev, access_level: JSON.stringify(updated) }))
+    const updated = permissions.reduce((acc, { id }) => ({ ...acc, [id]: checked }), values.access_level ?? {})
+    setValues(prev => ({ ...prev, access_level: updated }))
   }
 
   const isGroupAllChecked = (permissions: { id: string }[]) =>
