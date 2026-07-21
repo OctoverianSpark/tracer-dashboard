@@ -30,6 +30,11 @@ export interface UserProductivity {
   topApps: UserAppUsage[]
 }
 
+// Vista TH: mismos datos que UserProductivity sin machine/topApps (definida acá, no en
+// app/th/actions.ts, porque los archivos 'use server' solo deben exportar funciones async —
+// exportar un tipo desde ahí rompe en runtime bajo Turbopack: "X is not defined").
+export type THProductivity = Omit<UserProductivity, 'machine' | 'topApps'>
+
 export const timeToMinutes = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number)
   return h * 60 + m

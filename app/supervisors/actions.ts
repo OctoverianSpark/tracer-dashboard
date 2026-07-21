@@ -3,12 +3,10 @@ import { getappuser } from '../app/actions'
 import { getMachines, findAsignedMachines } from '../computers/actions'
 import { getSchedules, getProgramations, getRawAppUsageLogs, getAllRotations } from '../time/actions'
 import { resolveEffectiveProgramation } from '@/lib/scheduleResolver'
-import { computeProductivityRange, type UserProductivity, type UserAppUsage } from '@/lib/productivity'
+import { computeProductivityRange, type UserProductivity } from '@/lib/productivity'
 import { AppUser } from '@/types/AppUser'
 import { Machine } from '@/types/Machine'
 import { Programation } from '@/types/Schedules'
-
-export type { UserProductivity, UserAppUsage }
 
 const DAY_KEYS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'] as const
 

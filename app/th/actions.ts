@@ -15,7 +15,7 @@ export const setAbsenceStatus = async (userId: number, status: AbsenceStatus): P
 
 import { getSchedules, getProgramations, getAllRotations } from '../time/actions'
 import { resolveEffectiveProgramation } from '@/lib/scheduleResolver'
-import { computeProductivityRange, loadMachinesAndStateLogs, type UserProductivity } from '@/lib/productivity'
+import { computeProductivityRange, loadMachinesAndStateLogs, type THProductivity } from '@/lib/productivity'
 import { AppUser } from '@/types/AppUser'
 import { LunchSkip, Programation } from '@/types/Schedules'
 import { StateLog } from '@/types/StateLog'
@@ -173,8 +173,6 @@ export const getLateArrivals = async (date: string): Promise<LateArrival[]> => {
 }
 
 // ─── Productividad TH ─────────────────────────────────────────────────────────
-
-export type THProductivity = Omit<UserProductivity, 'machine' | 'topApps'>
 
 // Rango de un solo día (dateFrom === dateTo) reproduce el reporte histórico de un día; un rango
 // más amplio suma totales por día en vez de promediar porcentajes (computeProductivityRange en

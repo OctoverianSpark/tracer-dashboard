@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { UserProductivity, getProductivityReport } from '@/app/supervisors/actions'
+import { getProductivityReport } from '@/app/supervisors/actions'
+import { UserProductivity } from '@/lib/productivity'
 import { getGroups } from '@/app/app/groups/actions'
 import { getappuser } from '@/app/app/actions'
 import { AppUser, Group } from '@/types/AppUser'
