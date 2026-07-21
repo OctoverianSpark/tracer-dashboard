@@ -1,19 +1,21 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { THProductivity, getTHProductivityReport } from '@/app/th/actions'
 import { getGroups } from '@/app/app/groups/actions'
-import { Group } from '@/types/AppUser'
+import { getappuser } from '@/app/app/actions'
+import { AppUser, Group } from '@/types/AppUser'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
+import { UserSelect } from '@/components/UserSelect'
 import {
   Table, TableCell, TableHead, TableHeader, TableRow,
 } from '@/app/_components/_ui/table'
 import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
 import { staggerContainer, staggerItem } from '@/lib/motion'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/app/_components/_ui/tooltip'
-import { Loader2, Download } from 'lucide-react'
+import { Loader2, Download, X } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
 // Usa Bogotá (UTC-5) para que "hoy" coincida con la zona horaria de los timestamps en BD,
@@ -47,7 +49,7 @@ const pctBadge = (pct: number, tip: string) => {
   )
 }
 
-function exportXLSX(rows: THProductivity[], groups: Group[], date: string) {
+function exportXLSX(rows: THProductivity[], groups: Group[], dateFrom: string, dateTo: string) {
   const groupMap  = new Map(groups.map(g => [g.id!, g.name]))
   const groupName = (d: THProductivity) =>
     d.user.group_id ? (groupMap.get(d.user.group_id) ?? 'Sin grupo') : 'Sin grupo'
@@ -98,19 +100,31 @@ function exportXLSX(rows: THProductivity[], groups: Group[], date: string) {
     XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31).replace(/[/\\?*[\]]/g, '_'))
   }
 
-  XLSX.writeFile(wb, `productividad_th_${date}.xlsx`)
+  const suffix = dateFrom === dateTo ? dateFrom : `${dateFrom}_a_${dateTo}`
+  XLSX.writeFile(wb, `productividad_th_${suffix}.xlsx`)
 }
 
 export default function THProductivityReport() {
-  const [date, setDate] = useState(today())
+  const [dateFrom, setDateFrom] = useState(today())
+  const [dateTo, setDateTo] = useState(today())
+  const [userId, setUserId] = useState('')
   const [data, setData] = useState<THProductivity[] | null>(null)
   const [groups, setGroups] = useState<Group[]>([])
+  const [users, setUsers] = useState<AppUser[]>([])
   const [loading, setLoading] = useState(false)
 
+  const rangeInvalid = dateTo < dateFrom
+
+  useEffect(() => { getappuser().then(setUsers) }, [])
+
   const load = async () => {
+    if (rangeInvalid) return
     setLoading(true)
     try {
-      const [report, grps] = await Promise.all([getTHProductivityReport(date), getGroups()])
+      const [report, grps] = await Promise.all([
+        getTHProductivityReport(dateFrom, dateTo, userId ? Number(userId) : undefined),
+        getGroups(),
+      ])
       setData(report)
       setGroups(grps)
     } finally {
@@ -129,19 +143,45 @@ export default function THProductivityReport() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-4">
         <div className="grid gap-1.5">
-          <Label>Fecha</Label>
-          <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-44" />
+          <Label>Desde</Label>
+          <Input
+            type="date" value={dateFrom}
+            onChange={e => { setDateFrom(e.target.value); if (e.target.value > dateTo) setDateTo(e.target.value) }}
+            className="w-44"
+          />
         </div>
-        <Button onClick={load} disabled={loading}>
+        <div className="grid gap-1.5">
+          <Label>Hasta</Label>
+          <Input
+            type="date" value={dateTo}
+            onChange={e => setDateTo(e.target.value)}
+            className={`w-44 ${rangeInvalid ? 'border-destructive' : ''}`}
+          />
+        </div>
+        <div className="grid gap-1.5 w-56">
+          <Label>Usuario</Label>
+          <div className="flex items-center gap-1">
+            <UserSelect users={users} value={userId} onValueChange={setUserId} placeholder="Todos los usuarios" />
+            {userId && (
+              <Button type="button" variant="ghost" size="icon-sm" className="shrink-0 cursor-pointer" onClick={() => setUserId('')}>
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+        <Button onClick={load} disabled={loading || rangeInvalid}>
           {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Cargando…</> : 'Generar reporte'}
         </Button>
         {withActivity.length > 0 && (
-          <Button variant="outline" onClick={() => exportXLSX(withActivity, groups, date)}>
+          <Button variant="outline" onClick={() => exportXLSX(withActivity, groups, dateFrom, dateTo)}>
             <Download className="h-4 w-4 mr-2" />
             Exportar Excel
           </Button>
         )}
       </div>
+      {rangeInvalid && (
+        <p className="text-xs text-destructive">La fecha &quot;Hasta&quot; no puede ser anterior a &quot;Desde&quot;.</p>
+      )}
 
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground border rounded-md p-3">
         <span><span className="font-semibold text-foreground">Apps prod.</span> = productivas / (prod + improd)</span>

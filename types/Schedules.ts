@@ -10,6 +10,13 @@ export interface Programation {
 }
 
 
+// Presencia de fila = ese usuario no tiene almuerzo en esa fecha. No toca la Programation base.
+export interface LunchSkip {
+  id?: number
+  appuser_id: number
+  date: string
+}
+
 export interface Schedule {
   id?: number
   appuser_id: number

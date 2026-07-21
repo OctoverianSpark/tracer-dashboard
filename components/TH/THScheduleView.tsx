@@ -1,13 +1,15 @@
 'use client'
 import { useState } from 'react'
-import { UserScheduleRow, setAbsenceStatus } from '@/app/th/actions'
+import { UserScheduleRow, setAbsenceStatus, saveLunchSkip, deleteLunchSkip } from '@/app/th/actions'
 import { AbsenceStatus } from '@/types/AppUser'
+import { LunchSkip } from '@/types/Schedules'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
 import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
 import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
 import { staggerContainer, staggerItem } from '@/lib/motion'
+import { UtensilsCrossed } from 'lucide-react'
 
 const DAY_LABELS: Record<string, string> = {
   D: 'Dom', L: 'Lun', M: 'Mar', X: 'Mié', J: 'Jue', V: 'Vie', S: 'Sáb',
@@ -53,6 +55,31 @@ export default function THScheduleView({ rows }: Props) {
     const status: AbsenceStatus = value === 'ACTIVO' ? null : (value as AbsenceStatus)
     setOverrides(prev => new Map(prev).set(userId, status))
     await setAbsenceStatus(userId, status)
+  }
+
+  // Overrides optimistas de almuerzo: clave `${userId}_${date}` → LunchSkip si está desactivado
+  const [lunchSkips, setLunchSkips] = useState<Map<string, LunchSkip>>(() => {
+    const m = new Map<string, LunchSkip>()
+    for (const { user, days } of rows) {
+      for (const entry of Object.values(days)) {
+        if (entry?.lunchSkip) m.set(`${user.id}_${entry.date}`, entry.lunchSkip)
+      }
+    }
+    return m
+  })
+
+  const handleToggleLunch = async (userId: number, date: string) => {
+    const key = `${userId}_${date}`
+    const existing = lunchSkips.get(key)
+
+    if (existing) {
+      setLunchSkips(prev => { const m = new Map(prev); m.delete(key); return m })
+      if (existing.id != null) await deleteLunchSkip(existing.id)
+    } else {
+      setLunchSkips(prev => new Map(prev).set(key, { appuser_id: userId, date }))
+      const saved = await saveLunchSkip(userId, date)
+      setLunchSkips(prev => new Map(prev).set(key, saved))
+    }
   }
 
   if (rows.length === 0) {
@@ -140,18 +167,38 @@ export default function THScheduleView({ rows }: Props) {
 
                     {DAY_KEYS.map(k => {
                       const entry = days[k]
+                      if (!entry) {
+                        return (
+                          <TableCell key={k} className="text-center">
+                            <span className="text-muted-foreground text-xs">—</span>
+                          </TableCell>
+                        )
+                      }
+
+                      const hasLunchBlock = !!(entry.programation.start_lunch && entry.programation.end_lunch)
+                      const skipped = lunchSkips.get(`${uid}_${entry.date}`)
+
                       return (
                         <TableCell key={k} className="text-center">
-                          {entry ? (
-                            <div className="space-y-0.5">
-                              <Badge variant="secondary" className="text-xs font-normal">
-                                {entry.programation.start_day} – {entry.programation.end_day ?? '—'}
-                              </Badge>
-                              <p className="text-xs text-muted-foreground">{entry.programation.name}</p>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
-                          )}
+                          <div className="space-y-0.5">
+                            <Badge variant="secondary" className="text-xs font-normal">
+                              {entry.programation.start_day} – {entry.programation.end_day ?? '—'}
+                            </Badge>
+                            <p className="text-xs text-muted-foreground">{entry.programation.name}</p>
+                            {hasLunchBlock && (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleLunch(uid, entry.date)}
+                                className={`flex items-center gap-1 mx-auto text-[10px] cursor-pointer ${
+                                  skipped
+                                    ? 'text-amber-500 hover:text-amber-400'
+                                    : 'text-muted-foreground hover:text-foreground underline decoration-dotted'
+                                }`}
+                              >
+                                {skipped ? <><UtensilsCrossed className="h-3 w-3" />Sin almuerzo</> : 'Quitar almuerzo'}
+                              </button>
+                            )}
+                          </div>
                         </TableCell>
                       )
                     })}

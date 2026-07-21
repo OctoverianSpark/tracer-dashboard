@@ -27,6 +27,7 @@ import {
   ShieldCheck,
   UserRoundCog,
   PackageOpen,
+  ShieldAlert,
 } from 'lucide-react'
 import { join } from 'path'
 import UserForm from '../UserManager/UserForm'
@@ -217,6 +218,21 @@ const TH: NavSection = {
   ]
 }
 
+const ADMIN: NavSection = {
+  title: 'Administración',
+  icon: ShieldAlert,
+  items: [
+    {
+      title: 'Sesiones',
+      type: NavTypes.LINK,
+      icon: ShieldAlert,
+      url: '/app/admin/sessions',
+      desc: 'Cerrar la sesión de un usuario o de todos',
+      perm: 'manage_sessions'
+    }
+  ]
+}
+
 export function NavItemRenderer({ item }: { item: NavItem }) {
   const pathname = usePathname()
 
@@ -247,4 +263,4 @@ export function NavItemRenderer({ item }: { item: NavItem }) {
       return null
   }
 }
-export const SECTIONS = [TIME_MESH, APPLICATION, COMPUTERS, REPORTS, SUPERVISORS, TH]
+export const SECTIONS = [TIME_MESH, APPLICATION, COMPUTERS, REPORTS, SUPERVISORS, TH, ADMIN]

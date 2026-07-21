@@ -40,6 +40,9 @@ export const authOptions: NextAuthOptions = {
 
         token.appUser = appUser
         token.role = await roleRes.json()
+        // Valor "congelado" al momento del login/refresh — middleware.ts lo compara en cada
+        // request contra el force_logout_at actual del backend para detectar revocación.
+        token.forceLogoutAt = appUser.force_logout_at ?? null
       } catch { }
 
       return token

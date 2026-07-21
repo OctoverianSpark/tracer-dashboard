@@ -1,13 +1,15 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { UserProductivity, getProductivityReport } from '@/app/supervisors/actions'
 import { getGroups } from '@/app/app/groups/actions'
-import { Group } from '@/types/AppUser'
+import { getappuser } from '@/app/app/actions'
+import { AppUser, Group } from '@/types/AppUser'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
 import { Switch } from '@/app/_components/_ui/switch'
+import { UserSelect } from '@/components/UserSelect'
 import {
   Table, TableCell, TableHead, TableHeader, TableRow,
 } from '@/app/_components/_ui/table'
@@ -15,7 +17,7 @@ import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable
 import { staggerContainer, staggerItem } from '@/lib/motion'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/app/_components/_ui/collapsible'
-import { Loader2, ChevronDown, Download } from 'lucide-react'
+import { Loader2, ChevronDown, Download, X } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
 // Usa Bogotá (UTC-5) para que "hoy" coincida con la zona horaria de los timestamps en BD,
@@ -81,7 +83,7 @@ function TopAppsRow({ data }: { data: UserProductivity }) {
   )
 }
 
-function exportXLSX(rows: UserProductivity[], groups: Group[], date: string) {
+function exportXLSX(rows: UserProductivity[], groups: Group[], dateFrom: string, dateTo: string) {
   const groupMap   = new Map(groups.map(g => [g.id!, g.name]))
   const groupName  = (d: UserProductivity) =>
     d.user.group_id ? (groupMap.get(d.user.group_id) ?? 'Sin grupo') : 'Sin grupo'
@@ -132,21 +134,33 @@ function exportXLSX(rows: UserProductivity[], groups: Group[], date: string) {
     XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31).replace(/[/\\?*[\]]/g, '_'))
   }
 
-  XLSX.writeFile(wb, `productividad_${date}.xlsx`)
+  const suffix = dateFrom === dateTo ? dateFrom : `${dateFrom}_a_${dateTo}`
+  XLSX.writeFile(wb, `productividad_${suffix}.xlsx`)
 }
 
 export default function ProductivityReport() {
-  const [date, setDate]             = useState(today())
+  const [dateFrom, setDateFrom]     = useState(today())
+  const [dateTo, setDateTo]         = useState(today())
+  const [userId, setUserId]         = useState('')
   const [minPercent, setMinPercent] = useState(0)
   const [soloActivos, setSoloActivos] = useState(true)
   const [data, setData]             = useState<UserProductivity[] | null>(null)
   const [groups, setGroups]         = useState<Group[]>([])
+  const [users, setUsers]           = useState<AppUser[]>([])
   const [loading, setLoading]       = useState(false)
 
+  const rangeInvalid = dateTo < dateFrom
+
+  useEffect(() => { getappuser().then(setUsers) }, [])
+
   const load = async () => {
+    if (rangeInvalid) return
     setLoading(true)
     try {
-      const [report, grps] = await Promise.all([getProductivityReport(date), getGroups()])
+      const [report, grps] = await Promise.all([
+        getProductivityReport(dateFrom, dateTo, userId ? Number(userId) : undefined),
+        getGroups(),
+      ])
       setData(report)
       setGroups(grps)
     } finally {
@@ -164,8 +178,31 @@ export default function ProductivityReport() {
       {/* Controles */}
       <div className='flex flex-wrap items-end gap-3'>
         <div className='grid gap-1.5 w-full sm:w-auto'>
-          <Label>Fecha</Label>
-          <Input type='date' value={date} onChange={e => setDate(e.target.value)} className='w-full sm:w-44' />
+          <Label>Desde</Label>
+          <Input
+            type='date' value={dateFrom}
+            onChange={e => { setDateFrom(e.target.value); if (e.target.value > dateTo) setDateTo(e.target.value) }}
+            className='w-full sm:w-44'
+          />
+        </div>
+        <div className='grid gap-1.5 w-full sm:w-auto'>
+          <Label>Hasta</Label>
+          <Input
+            type='date' value={dateTo}
+            onChange={e => setDateTo(e.target.value)}
+            className={`w-full sm:w-44 ${rangeInvalid ? 'border-destructive' : ''}`}
+          />
+        </div>
+        <div className='grid gap-1.5 w-full sm:w-56'>
+          <Label>Usuario</Label>
+          <div className='flex items-center gap-1'>
+            <UserSelect users={users} value={userId} onValueChange={setUserId} placeholder='Todos los usuarios' />
+            {userId && (
+              <Button type='button' variant='ghost' size='icon-sm' className='shrink-0 cursor-pointer' onClick={() => setUserId('')}>
+                <X className='h-4 w-4' />
+              </Button>
+            )}
+          </div>
         </div>
         <div className='grid gap-1.5 w-full sm:w-auto'>
           <Label>Productividad global mínima (%)</Label>
@@ -179,16 +216,19 @@ export default function ProductivityReport() {
           <Switch id='solo-activos' checked={soloActivos} onCheckedChange={setSoloActivos} />
           <Label htmlFor='solo-activos' className='cursor-pointer'>Solo con actividad</Label>
         </div>
-        <Button onClick={load} disabled={loading}>
+        <Button onClick={load} disabled={loading || rangeInvalid}>
           {loading ? <><Loader2 className='h-4 w-4 animate-spin mr-2' />Cargando…</> : 'Generar reporte'}
         </Button>
         {filtered.length > 0 && (
-          <Button variant='outline' onClick={() => exportXLSX(filtered, groups, date)}>
+          <Button variant='outline' onClick={() => exportXLSX(filtered, groups, dateFrom, dateTo)}>
             <Download className='h-4 w-4 mr-2' />
             Exportar Excel
           </Button>
         )}
       </div>
+      {rangeInvalid && (
+        <p className='text-xs text-destructive'>La fecha &quot;Hasta&quot; no puede ser anterior a &quot;Desde&quot;.</p>
+      )}
 
       {/* Leyenda de métricas */}
       <div className='grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-muted-foreground border rounded-md p-3'>

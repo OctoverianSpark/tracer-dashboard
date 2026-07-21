@@ -157,6 +157,36 @@ export const getRawAppUsageLogs = async (date: string, computer_id?: number): Pr
   return filtered
 }
 
+export const getRawAppUsageLogsRange = async (dateFrom: string, dateTo: string, computer_id?: number): Promise<AppUsageLog[]> => {
+  const from = `${dateFrom} 00:00:00`
+  const to   = `${dateTo} 23:59:59`
+  const params = new URLSearchParams({ from, to })
+  if (computer_id != null) params.set('computer_id', String(computer_id))
+
+  const raw = await fetcher<any>(`${API}/app-usage-logs/by-date?${params}`)
+  const list: AppUsageLog[] = Array.isArray(raw) ? raw : (raw?.data ?? raw?.logs ?? [])
+
+  const normalized = list.map(log => ({
+    ...log,
+    interval_start: log.interval_start?.replace(' ', 'T') ?? log.interval_start,
+    interval_end:   log.interval_end?.replace(' ', 'T')   ?? log.interval_end,
+  }))
+
+  // Igual que getRawAppUsageLogs pero por rango: conserva cualquier intervalo cuyo día caiga
+  // dentro de [dateFrom, dateTo] (comparación por prefijo de fecha, sin conversión UTC).
+  const filtered = normalized.filter(log => {
+    const day = log.interval_start?.slice(0, 10)
+    return day >= dateFrom && day <= dateTo
+  })
+
+  console.log(
+    `[getRawAppUsageLogsRange] ${dateFrom} → ${dateTo} computer_id=${computer_id ?? 'ALL'}`,
+    `| raw=${list.length} → filtered=${filtered.length}`,
+  )
+
+  return filtered
+}
+
 export const getAppUsageLogs = async (date: string, computer_id?: number): Promise<FlatAppUsageLog[]> => {
   const { from, to } = colDayRange(date)
   const params = new URLSearchParams({ from, to })

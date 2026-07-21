@@ -39,3 +39,13 @@ export const deleteappuser = async (selected: number[]) => {
 
   revalidatePath('/users/get')
 }
+
+export const revokeUserSession = async (userId: number): Promise<void> => {
+  const res = await fetch(`${API_URL}/appuser/${userId}/revoke-session`, { method: 'POST' })
+  if (!res.ok) throw new Error(`Error al cerrar la sesión: ${res.status}`)
+}
+
+export const revokeAllSessions = async (): Promise<void> => {
+  const res = await fetch(`${API_URL}/appuser/revoke-all-sessions`, { method: 'POST' })
+  if (!res.ok) throw new Error(`Error al cerrar las sesiones: ${res.status}`)
+}

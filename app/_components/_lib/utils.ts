@@ -71,5 +71,12 @@ export const PERMISSION_GROUPS = [
     permissions: [
       { id: 'manage_states', label: 'Puede gestionar estados y categorías de la malla', default: false }
     ]
+  },
+  {
+    id: 'admin_group',
+    label: 'Administración',
+    permissions: [
+      { id: 'manage_sessions', label: 'Puede cerrar sesiones de usuarios', default: false }
+    ]
   }
 ]

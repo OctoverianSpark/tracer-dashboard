@@ -1,4 +1,5 @@
 'use server'
+import { revalidatePath } from 'next/cache'
 import { AbsenceStatus } from '@/types/AppUser'
 import { getappuser } from '../app/actions'
 
@@ -12,111 +13,47 @@ export const setAbsenceStatus = async (userId: number, status: AbsenceStatus): P
   })
 }
 
-import { findAsignedMachines } from '../computers/actions'
-import { getSchedules, getProgramations, getStateLog, getRawAppUsageLogs, getAllRotations } from '../time/actions'
-import { getCategorizationApps } from '../supervisors/categorization-actions'
+import { getSchedules, getProgramations, getAllRotations } from '../time/actions'
 import { resolveEffectiveProgramation } from '@/lib/scheduleResolver'
-import { AppUser, AppUsageLog } from '@/types/AppUser'
-import { Machine } from '@/types/Machine'
-import { Programation } from '@/types/Schedules'
+import { computeProductivityRange, loadMachinesAndStateLogs, type UserProductivity } from '@/lib/productivity'
+import { AppUser } from '@/types/AppUser'
+import { LunchSkip, Programation } from '@/types/Schedules'
 import { StateLog } from '@/types/StateLog'
 
 const DAY_KEYS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'] as const
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Almuerzo — excepción puntual por usuario+fecha ──────────────────────────
 
-const timeToMinutes = (hhmm: string) => {
-  const [h, m] = hhmm.split(':').map(Number)
-  return h * 60 + m
+export const getLunchSkips = async (from: string, to: string): Promise<LunchSkip[]> => {
+  const res = await fetch(`${API_URL}/lunch-skips?from=${from}&to=${to}`)
+  if (!res.ok) return []
+  return res.json()
 }
 
-const scheduledWorkMinutes = (prog: Programation): number => {
-  if (!prog.start_day || !prog.end_day) return 0
-  let total = timeToMinutes(prog.end_day) - timeToMinutes(prog.start_day)
-  if (prog.start_lunch && prog.end_lunch) {
-    total -= timeToMinutes(prog.end_lunch) - timeToMinutes(prog.start_lunch)
-  }
-  return Math.max(0, total)
+export const saveLunchSkip = async (appuser_id: number, date: string): Promise<LunchSkip> => {
+  const res = await fetch(`${API_URL}/lunch-skips/save`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ appuser_id, date }),
+  })
+  if (!res.ok) throw new Error(`Error al quitar el almuerzo: ${res.status}`)
+  revalidatePath('/th')
+  return res.json()
 }
 
-const buildActiveWindows = (stateLogs: StateLog[]): Array<{ start: number; end: number }> => {
-  const sorted = [...stateLogs].sort((a, b) =>
-    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  )
-  const windows: Array<{ start: number; end: number }> = []
-  for (let i = 0; i < sorted.length; i++) {
-    if (sorted[i].category?.key !== 'active') continue
-    const start = new Date(sorted[i].timestamp).getTime()
-    const end   = i + 1 < sorted.length
-      ? new Date(sorted[i + 1].timestamp).getTime()
-      : Infinity
-    windows.push({ start, end })
-  }
-  return windows
-}
-
-const isIntervalActive = (log: AppUsageLog, windows: Array<{ start: number; end: number }>): boolean => {
-  if (windows.length === 0) return true
-  const mid = (new Date(log.interval_start).getTime() + new Date(log.interval_end).getTime()) / 2
-  return windows.some(w => mid >= w.start && mid < w.end)
-}
-
-// Carga las máquinas y state logs de una lista de usuarios en dos rondas paralelas.
-const loadMachinesAndStateLogs = async (
-  users: AppUser[],
-  date: string
-): Promise<{
-  machinesByUser: Map<number, Machine[]>
-  stateByMachine: Map<number, StateLog[]>
-}> => {
-  const machinesPerUser = await Promise.all(
-    users.map(u =>
-      findAsignedMachines(Number(u.id))
-        .then(ms => ({ userId: Number(u.id), machines: ms }))
-        .catch(() => ({ userId: Number(u.id), machines: [] as Machine[] }))
-    )
-  )
-  const machinesByUser = new Map(machinesPerUser.map(r => [r.userId, r.machines]))
-
-  const pairs: Array<{ userId: number; machine: Machine }> = []
-  for (const [userId, machines] of machinesByUser) {
-    for (const m of machines) {
-      if (m.id != null) pairs.push({ userId, machine: m })
-    }
-  }
-
-  const stateLogResults = await Promise.all(
-    pairs.map(async ({ userId, machine }) => {
-      try {
-        const raw = await getStateLog(userId, Number(machine.id))
-        const logs: StateLog[] = (Array.isArray(raw) ? raw : [])
-          .filter((l: StateLog) => l.timestamp?.slice(0, 10) === date)
-        return { machineId: Number(machine.id), logs }
-      } catch {
-        return { machineId: Number(machine.id), logs: [] as StateLog[] }
-      }
-    })
-  )
-  const stateByMachine = new Map(stateLogResults.map(r => [r.machineId, r.logs]))
-
-  return { machinesByUser, stateByMachine }
+export const deleteLunchSkip = async (id: number): Promise<void> => {
+  await fetch(`${API_URL}/lunch-skips/delete/${id}`, { method: 'DELETE' })
+  revalidatePath('/th')
 }
 
 // ─── Malla horaria ────────────────────────────────────────────────────────────
 
 export interface UserScheduleRow {
   user: AppUser
-  days: Record<string, { programation: Programation } | null>
+  days: Record<string, { programation: Programation; date: string; lunchSkip?: LunchSkip } | null>
 }
 
 export const getUserSchedules = async (): Promise<{ rows: UserScheduleRow[]; dayKeys: string[] }> => {
-  const [users, schedules, programations, rotations] = await Promise.all([
-    getappuser(),
-    getSchedules(),
-    getProgramations(),
-    getAllRotations(),
-  ])
-
   // Cada day_of_week se ancla a su fecha real dentro de la semana actual: la rotación
   // depende de la fecha, no solo del día de la semana, así que hace falta esa fecha para
   // saber qué Programation aplica hoy en cada columna del grid.
@@ -128,14 +65,31 @@ export const getUserSchedules = async (): Promise<{ rows: UserScheduleRow[]; day
     d.setDate(d.getDate() + (i - todayDow))
     return d.toLocaleDateString('sv')
   }
+  const weekFrom = dateForDayIndex(0) // domingo de la semana visible
+  const weekTo   = dateForDayIndex(6) // sábado de la semana visible
+
+  const [users, schedules, programations, rotations, lunchSkips] = await Promise.all([
+    getappuser(),
+    getSchedules(),
+    getProgramations(),
+    getAllRotations(),
+    getLunchSkips(weekFrom, weekTo),
+  ])
+
+  const lunchSkipByKey = new Map(
+    lunchSkips.map(ls => [`${ls.appuser_id}_${ls.date.slice(0, 10)}`, ls])
+  )
 
   const rows: UserScheduleRow[] = users.map(user => {
     const days: UserScheduleRow['days'] = {}
     DAY_KEYS.forEach((key, i) => {
+      const date = dateForDayIndex(i)
       const programation = resolveEffectiveProgramation(
-        schedules, rotations, programations, Number(user.id), key, dateForDayIndex(i)
+        schedules, rotations, programations, Number(user.id), key, date
       )
-      days[key] = programation ? { programation } : null
+      days[key] = programation
+        ? { programation, date, lunchSkip: lunchSkipByKey.get(`${user.id}_${date}`) }
+        : null
     })
     return { user, days }
   })
@@ -167,7 +121,9 @@ export const getLateArrivals = async (date: string): Promise<LateArrival[]> => {
     resolveEffectiveProgramation(schedules, rotations, programations, Number(user.id), dayKey, date) != null
   )
 
-  const { machinesByUser, stateByMachine } = await loadMachinesAndStateLogs(scheduledUsers, date)
+  // loadMachinesAndStateLogs ya no filtra por fecha (trae el historial completo por par
+  // usuario-máquina) — se filtra aquí al día pedido, mismo criterio que antes.
+  const { machinesByUser, stateByMachine } = await loadMachinesAndStateLogs(scheduledUsers)
 
   return scheduledUsers.map(user => {
     const userId       = Number(user.id)
@@ -181,7 +137,7 @@ export const getLateArrivals = async (date: string): Promise<LateArrival[]> => {
     // Toma el primer log activo (no OFFLINE) de cualquier máquina del usuario
     const allLogs: StateLog[] = []
     for (const m of userMachines) {
-      allLogs.push(...(stateByMachine.get(Number(m.id)) ?? []))
+      allLogs.push(...(stateByMachine.get(Number(m.id)) ?? []).filter(l => l.timestamp?.slice(0, 10) === date))
     }
 
     const activeLogs = allLogs
@@ -218,122 +174,18 @@ export const getLateArrivals = async (date: string): Promise<LateArrival[]> => {
 
 // ─── Productividad TH ─────────────────────────────────────────────────────────
 
-export interface THProductivity {
-  user: AppUser
-  programation?: Programation
-  scheduledMinutes: number
-  productiveSeconds: number
-  unproductiveSeconds: number
-  uncategorizedSeconds: number
-  totalSeconds: number
-  appProductivityPercent: number
-  workCompliancePercent: number
-  overallProductivityPercent: number
-}
+export type THProductivity = Omit<UserProductivity, 'machine' | 'topApps'>
 
-export const getTHProductivityReport = async (date: string): Promise<THProductivity[]> => {
-  const dayKey = DAY_KEYS[new Date(`${date}T12:00:00`).getDay()]
-
-  // Si la fecha consultada es "hoy", la ventana de jornada no puede extenderse más allá del
-  // momento actual: evita contar intervalos con timestamp futuro (ej. por desincronización de
-  // reloj en el equipo monitoreado).
-  const bogotaNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
-  const nowMs     = date === bogotaNow.toLocaleDateString('sv') ? bogotaNow.getTime() : Infinity
-
-  const [users, schedules, programations, rawLogs, categorizationApps, rotations] = await Promise.all([
-    getappuser(),
-    getSchedules(),
-    getProgramations(),
-    getRawAppUsageLogs(date),
-    getCategorizationApps(),
-    getAllRotations(),
-  ])
-
-  const { machinesByUser, stateByMachine } = await loadMachinesAndStateLogs(users, date)
-
-  const categoryMap = new Map(categorizationApps.map(a => [a.name.toLowerCase(), a.category]))
-
-  const logsByMachine = new Map<number, AppUsageLog[]>()
-  for (const log of rawLogs) {
-    const cid = Number(log.computer_id)
-    if (!logsByMachine.has(cid)) logsByMachine.set(cid, [])
-    logsByMachine.get(cid)!.push(log)
-  }
-
-  return users.map(user => {
-    const userId       = Number(user.id)
-    const userMachines = machinesByUser.get(userId) ?? []
-    const programation = resolveEffectiveProgramation(schedules, rotations, programations, userId, dayKey, date)
-    const scheduledMinutes = programation ? scheduledWorkMinutes(programation) : 0
-
-    const empty: THProductivity = {
-      user, programation, scheduledMinutes,
-      productiveSeconds: 0, unproductiveSeconds: 0, uncategorizedSeconds: 0, totalSeconds: 0,
-      appProductivityPercent: 0, workCompliancePercent: 0, overallProductivityPercent: 0,
-    }
-
-    if (!userMachines.length) return empty
-
-    const allIntervals: AppUsageLog[] = []
-    const allActiveWindows: Array<{ start: number; end: number }> = []
-    for (const m of userMachines) {
-      const mid = Number(m.id)
-      allIntervals.push(...(logsByMachine.get(mid) ?? []))
-      allActiveWindows.push(...buildActiveWindows(stateByMachine.get(mid) ?? []))
-    }
-
-    if (!allIntervals.length) return empty
-
-    // Ventana de jornada laboral — descarta intervalos fuera del horario programado
-    const schedWinStart = programation?.start_day
-      ? new Date(`${date}T${programation.start_day}:00`).getTime()
-      : new Date(`${date}T06:00:00`).getTime()
-    const schedWinEnd = Math.min(
-      programation?.end_day
-        ? new Date(`${date}T${programation.end_day}:00`).getTime()
-        : new Date(`${date}T23:00:00`).getTime(),
-      nowMs,
-    )
-
-    let productive = 0, unproductive = 0, uncategorized = 0, totalIntervalSecs = 0
-    for (const interval of allIntervals) {
-      const startMs = new Date(interval.interval_start).getTime()
-      const endMs   = new Date(interval.interval_end).getTime()
-      if (startMs < schedWinStart || startMs >= schedWinEnd) continue
-      if (!isIntervalActive(interval, allActiveWindows)) continue
-
-      const intervalSecs = endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
-      totalIntervalSecs += intervalSecs
-
-      for (const a of interval.apps ?? []) {
-        const cat = categoryMap.get(a.app.toLowerCase())
-        if (cat === 'ignore') continue
-
-        // Cap defensivo: los segundos de una app no pueden superar la duración del intervalo
-        const secs = Math.min(a.seconds, intervalSecs)
-
-        if (cat === 'productive')        productive    += secs
-        else if (cat === 'unproductive') unproductive  += secs
-        else                             uncategorized += secs
-      }
-    }
-
-    // totalIntervalSecs = suma de duraciones de intervalos activos (bloques de ~5 min)
-    const total         = totalIntervalSecs
-    const categorized   = productive + unproductive
-    const scheduledSecs = scheduledMinutes * 60
-    // efectivo: productivo 100% + sin-categoría 30% (beneficio de la duda al usuario)
-    const effective     = productive + uncategorized * 0.3
-
-    return {
-      user, programation, scheduledMinutes,
-      productiveSeconds:    Math.round(productive),
-      unproductiveSeconds:  Math.round(unproductive),
-      uncategorizedSeconds: Math.round(uncategorized),
-      totalSeconds:         Math.round(total),
-      appProductivityPercent:     categorized > 0   ? Math.round((productive / categorized)  * 100) : 0,
-      workCompliancePercent:      scheduledSecs > 0 ? Math.min(100, Math.round((total      / scheduledSecs) * 100)) : 0,
-      overallProductivityPercent: scheduledSecs > 0 ? Math.min(100, Math.round((effective  / scheduledSecs) * 100)) : 0,
-    }
-  })
+// Rango de un solo día (dateFrom === dateTo) reproduce el reporte histórico de un día; un rango
+// más amplio suma totales por día en vez de promediar porcentajes (computeProductivityRange en
+// lib/productivity.ts). appuserId acota el cálculo a un solo usuario.
+export const getTHProductivityReport = async (
+  dateFrom: string,
+  dateTo: string,
+  appuserId?: number,
+): Promise<THProductivity[]> => {
+  const allUsers = await getappuser()
+  const users = appuserId != null ? allUsers.filter(u => Number(u.id) === appuserId) : allUsers
+  const report = await computeProductivityRange(users, dateFrom, dateTo)
+  return report.map(({ machine: _machine, topApps: _topApps, ...rest }) => rest)
 }

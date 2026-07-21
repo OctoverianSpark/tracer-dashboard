@@ -12,6 +12,7 @@ declare module 'next-auth/jwt' {
   interface JWT {
     appUser: AppUser
     role: Role
+    forceLogoutAt?: string | null
 
   }
 }
