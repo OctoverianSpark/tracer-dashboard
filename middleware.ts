@@ -1,5 +1,6 @@
 import { getToken } from 'next-auth/jwt'
 import { NextRequest, NextResponse } from 'next/server'
+import { normalizeAccessLevel } from '@/lib/accessLevel'
 
 const ROUTE_PERMISSIONS: Record<string, string> = {
   '/app/users': 'manage_users',
@@ -57,7 +58,7 @@ export async function middleware(req: NextRequest) {
 
   if (!token.role?.access_level) return NextResponse.redirect(new URL('/', req.url))
 
-  const perms = token.role.access_level
+  const perms = normalizeAccessLevel(token.role.access_level)
 
   const hasOperationalAccess = OPERATIONAL_PERMISSIONS.some(perm => perms[perm])
   if (!hasOperationalAccess) return NextResponse.redirect(new URL('/', req.url))

@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Role } from '@/types/AppUser'
 import RoleForm from './RoleForm'
 import { staggerContainer, staggerItem } from '@/lib/motion'
+import { normalizeAccessLevel } from '@/lib/accessLevel'
 
 interface RolesListProps {
   roles: Role[]
@@ -24,7 +25,7 @@ export default function RolesList({ roles }: RolesListProps) {
       animate="animate"
     >
       {roles.map(role => {
-        const permissions: [string, boolean][] = Object.entries(role.access_level ?? {})
+        const permissions: [string, boolean][] = Object.entries(normalizeAccessLevel(role.access_level))
 
         return (
           <motion.div key={role.id} variants={staggerItem}>

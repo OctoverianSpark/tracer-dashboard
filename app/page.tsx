@@ -6,6 +6,7 @@ import { TracerLogo } from '@/components/TracerLogo'
 import { redirect, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { normalizeAccessLevel } from '@/lib/accessLevel'
 
 const fadeUp = (delay: number) => ({
   initial:    { opacity: 0, y: 24 },
@@ -19,7 +20,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!session) return
-    const perms = session.role?.access_level ?? {}
+    const perms = normalizeAccessLevel(session.role?.access_level)
     if (Object.values(perms).some(Boolean)) redirect('/home')
   }, [session, router])
 

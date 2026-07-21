@@ -9,6 +9,7 @@ import { Input } from "@/app/_components/_ui/input"
 import { Label } from "@/app/_components/_ui/label"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/_components/_ui/tooltip"
 import { saveRole } from "@/app/app/roles/actions"
+import { normalizeAccessLevel } from "@/lib/accessLevel"
 import { Role } from "@/types/AppUser"
 import { Pencil, Plus } from "lucide-react"
 import { useState } from "react"
@@ -34,7 +35,7 @@ export default function RoleForm({ role = EMPTY_ROLE }: RoleFormProps) {
   
   const [values, setValues] = useState<Role>({
     ...(role),
-    access_level: role?.access_level ?? buildDefaultAccessLevel()
+    access_level: role?.access_level ? normalizeAccessLevel(role.access_level) : buildDefaultAccessLevel()
   })
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)

@@ -11,6 +11,7 @@ import {
   useSidebar
 } from '@/app/_components/_ui/sidebar'
 import { generateId } from '@/app/_components/_lib/utils'
+import { normalizeAccessLevel } from '@/lib/accessLevel'
 import { useSession } from 'next-auth/react'
 import { AnimatedInfinityLogo } from '@/components/AnimatedLogo'
 import { NavItemRenderer, SECTIONS } from './NavItems'
@@ -20,7 +21,7 @@ export function AppSidebar() {
   const { setOpen } = useSidebar()
   const { data: session } = useSession()
 
-  const perms = session?.role?.access_level ?? {}
+  const perms = normalizeAccessLevel(session?.role?.access_level)
 
   const allowedSections = SECTIONS
     .map(section => ({
