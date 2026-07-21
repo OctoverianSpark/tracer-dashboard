@@ -45,8 +45,12 @@ export default function BulkScheduleAssigner({ appuser, programations, schedules
   }
 
   function toggleAll() {
+    const filteredIds = filteredUsers.map(u => u.id!)
+    const allFilteredSelected = filteredIds.length > 0 && filteredIds.every(id => selectedUsers.includes(id))
     setSelectedUsers(prev =>
-      prev.length === appuser.length ? [] : appuser.map(u => u.id!)
+      allFilteredSelected
+        ? prev.filter(id => !filteredIds.includes(id))
+        : [...new Set([...prev, ...filteredIds])]
     )
   }
 
@@ -129,7 +133,7 @@ export default function BulkScheduleAssigner({ appuser, programations, schedules
     }
   }
 
-  const allSelected = selectedUsers.length === appuser.length
+  const allSelected = filteredUsers.length > 0 && filteredUsers.every(u => selectedUsers.includes(u.id!))
   const hasRotatingDay = Object.values(dayAssignments).some(c => c.mode === 'rotating')
 
   return (
