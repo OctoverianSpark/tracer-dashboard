@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getProductivityReport } from '@/app/supervisors/actions'
 import { getDailyProductivity, getGlobalDailyProductivity, getGroupDailyProductivity } from '@/app/productivity/actions'
 import { DailyProductivity, UserProductivity } from '@/lib/productivity'
@@ -14,7 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
 import ProductivityPodium from './ProductivityPodium'
 import ProductivityCurveChart from './ProductivityCurveChart'
-import { Loader2 } from 'lucide-react'
+import { Loader2, FileDown } from 'lucide-react'
 
 interface ProductivityDashboardProps {
   users: AppUser[]
@@ -54,6 +54,8 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
   const [report, setReport] = useState<UserProductivity[] | null>(null)
   const [daily, setDaily] = useState<DailyProductivity[] | null>(null)
   const [loading, setLoading] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
+  const curveSectionRef = useRef<HTMLDivElement>(null)
 
   const rangeInvalid = dateTo < dateFrom
 
@@ -146,6 +148,39 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
     }
   }
 
+  const handleExportPdf = async () => {
+    if (!curveSectionRef.current) return
+    setExportingPdf(true)
+    try {
+      // Import dinámico: html2canvas/jsPDF tocan `document`/`window` — deben cargar solo en el
+      // cliente, nunca durante el render en el servidor de un componente 'use client'.
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ])
+
+      const canvas = await html2canvas(curveSectionRef.current, {
+        scale: 2,
+        backgroundColor: getComputedStyle(document.body).backgroundColor || '#ffffff',
+      })
+
+      const imgData = canvas.toDataURL('image/png')
+      const orientation = canvas.width >= canvas.height ? 'landscape' : 'portrait'
+      const pdf = new jsPDF({ orientation, unit: 'pt', format: [canvas.width, canvas.height] })
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height)
+
+      const scopeLabel = viewMode === 'global'
+        ? 'global'
+        : viewMode === 'group'
+          ? (selectedGroup?.name ?? 'grupo').toLowerCase().replace(/\s+/g, '_')
+          : (selectedUser?.full_name ?? 'usuario').toLowerCase().replace(/\s+/g, '_')
+
+      pdf.save(`curva_productividad_${scopeLabel}_${dateFrom}_a_${dateTo}.pdf`)
+    } finally {
+      setExportingPdf(false)
+    }
+  }
+
   const top3 = (report ?? [])
     .filter(r => r.totalSeconds > 0)
     .sort((a, b) => b.overallProductivityPercent - a.overallProductivityPercent)
@@ -221,6 +256,14 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
                 </SelectContent>
               </Select>
             )}
+            <Button
+              variant="outline" size="sm" className="cursor-pointer"
+              onClick={handleExportPdf}
+              disabled={exportingPdf || !daily || daily.length === 0}
+            >
+              {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileDown className="h-4 w-4 mr-2" />}
+              Exportar PDF
+            </Button>
           </div>
         </div>
 
@@ -228,7 +271,15 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
           <p className="text-sm text-muted-foreground py-10 text-center">Genera el reporte para ver la curva.</p>
         ) : (
           <>
-            <ProductivityCurveChart data={daily} />
+            <div ref={curveSectionRef} className="bg-background p-2">
+              <p className="text-sm font-medium text-muted-foreground mb-2">
+                {viewMode === 'global' && 'Global — todos los usuarios'}
+                {viewMode === 'group' && `Grupo: ${selectedGroup?.name ?? ''}`}
+                {viewMode === 'user' && `Usuario: ${selectedUser?.full_name ?? ''}`}
+                {' · '}{fmtDate(dateFrom)} a {fmtDate(dateTo)}
+              </p>
+              <ProductivityCurveChart data={daily} />
+            </div>
 
             <div className="rounded-md border overflow-x-auto mt-6">
               <Table>
