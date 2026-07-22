@@ -1,6 +1,7 @@
 import { findAsignedMachines } from '@/app/computers/actions'
 import { getRawAppUsageLogsRange, getSchedules, getProgramations, getStateLog, getAllRotations } from '@/app/time/actions'
 import { getCategorizationApps } from '@/app/supervisors/categorization-actions'
+import { getLunchSkips } from '@/app/th/actions'
 import { resolveEffectiveProgramation } from '@/lib/scheduleResolver'
 import { AppUser, AppUsageLog } from '@/types/AppUser'
 import { Machine } from '@/types/Machine'
@@ -40,10 +41,12 @@ export const timeToMinutes = (hhmm: string) => {
   return h * 60 + m
 }
 
-export const scheduledWorkMinutes = (prog: Programation): number => {
+// skipLunch: excepción puntual de un usuario+fecha (ver lunch_skips / THScheduleView "Quitar
+// almuerzo") — ese día no se resta el bloque de almuerzo de la jornada programada.
+export const scheduledWorkMinutes = (prog: Programation, skipLunch = false): number => {
   if (!prog.start_day || !prog.end_day) return 0
   let total = timeToMinutes(prog.end_day) - timeToMinutes(prog.start_day)
-  if (prog.start_lunch && prog.end_lunch) {
+  if (!skipLunch && prog.start_lunch && prog.end_lunch) {
     total -= timeToMinutes(prog.end_lunch) - timeToMinutes(prog.start_lunch)
   }
   return Math.max(0, total)
@@ -132,6 +135,8 @@ interface DayContext {
   categoryMap: Map<string, string>
   todayStr: string
   nowMs: number
+  // Claves `${appuser_id}_${date}` con excepción "sin almuerzo" ese día (ver lunch_skips).
+  lunchSkipDates: Set<string>
 }
 
 interface UserDayStats {
@@ -163,7 +168,8 @@ function computeUserDayStats(
 ): UserDayStats {
   const dayKey = DAY_KEYS[new Date(`${date}T12:00:00`).getDay()]
   const programation = resolveEffectiveProgramation(ctx.schedules, ctx.rotations, ctx.programations, userId, dayKey, date)
-  const scheduledMinutes = programation ? scheduledWorkMinutes(programation) : 0
+  const skipLunch = ctx.lunchSkipDates.has(`${userId}_${date}`)
+  const scheduledMinutes = programation ? scheduledWorkMinutes(programation, skipLunch) : 0
 
   if (scheduledMinutes === 0 || !userMachines.length) return { ...EMPTY_DAY_STATS, programation }
 
@@ -229,7 +235,7 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
   const todayStr = bogotaNow.toLocaleDateString('sv')
   const nowMs = bogotaNow.getTime()
 
-  const [schedules, programations, rawLogs, categorizationApps, rotations, { machinesByUser, stateByMachine }] =
+  const [schedules, programations, rawLogs, categorizationApps, rotations, { machinesByUser, stateByMachine }, lunchSkips] =
     await Promise.all([
       getSchedules(),
       getProgramations(),
@@ -237,9 +243,11 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
       getCategorizationApps(),
       getAllRotations(),
       loadMachinesAndStateLogs(users),
+      getLunchSkips(dateFrom, dateTo),
     ])
 
   const categoryMap = new Map(categorizationApps.map(a => [a.name.toLowerCase(), a.category]))
+  const lunchSkipDates = new Set(lunchSkips.map(ls => `${ls.appuser_id}_${ls.date.slice(0, 10)}`))
 
   const logsByMachineByDate = new Map<string, Map<number, AppUsageLog[]>>()
   for (const date of dates) logsByMachineByDate.set(date, new Map())
@@ -264,7 +272,7 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
     }
   }
 
-  const ctx: DayContext = { schedules, rotations, programations, categoryMap, todayStr, nowMs }
+  const ctx: DayContext = { schedules, rotations, programations, categoryMap, todayStr, nowMs, lunchSkipDates }
   return { dates, ctx, machinesByUser, logsByMachineByDate, stateByMachineByDate }
 }
 
