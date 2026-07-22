@@ -5,7 +5,6 @@ import { getUserSchedules, UserScheduleRow } from './actions'
 import { getGroups, getGroupVisibility } from '@/app/app/groups/actions'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
 import THScheduleView from '@/components/TH/THScheduleView'
-import THProductivityReport from '@/components/TH/THProductivityReport'
 import LateArrivalsLog from '@/components/TH/LateArrivalsLog'
 import InfinitySpinner from '@/components/InfinitySpinner'
 import { Group } from '@/types/AppUser'
@@ -55,7 +54,6 @@ export default function THPage() {
       <Tabs defaultValue="schedule">
         <TabsList>
           <TabsTrigger value="schedule">Malla Horaria</TabsTrigger>
-          <TabsTrigger value="productivity">Productividad</TabsTrigger>
           <TabsTrigger value="late">Llegadas tarde</TabsTrigger>
         </TabsList>
 
@@ -64,10 +62,6 @@ export default function THPage() {
             ? <div className="flex justify-center py-10"><InfinitySpinner size={56} /></div>
             : <THScheduleView rows={visibleRows} />
           }
-        </TabsContent>
-
-        <TabsContent value="productivity" className="mt-4">
-          <THProductivityReport />
         </TabsContent>
 
         <TabsContent value="late" className="mt-4">

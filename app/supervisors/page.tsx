@@ -5,7 +5,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/_components/_ui/
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
 import ConnectedUsersTable from '@/components/Supervisors/ConnectedUsersTable'
-import ProductivityReport from '@/components/Supervisors/ProductivityReport'
 import { RefreshCw, Wifi, WifiOff, Loader2 } from 'lucide-react'
 import InfinitySpinner from '@/components/InfinitySpinner'
 
@@ -79,7 +78,6 @@ export default function SupervisorsPage() {
               <Badge variant="destructive">{disconnected}</Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="productivity">Productividad</TabsTrigger>
         </TabsList>
 
         <TabsContent value="connected" className="mt-4">
@@ -94,10 +92,6 @@ export default function SupervisorsPage() {
             ? <div className="flex justify-center py-10"><InfinitySpinner size={56} /></div>
             : <ConnectedUsersTable statuses={statuses} mode="disconnected" />
           }
-        </TabsContent>
-
-        <TabsContent value="productivity" className="mt-4">
-          <ProductivityReport />
         </TabsContent>
 
       </Tabs>

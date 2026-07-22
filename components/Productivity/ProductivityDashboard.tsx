@@ -1,25 +1,28 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { getProductivityReport } from '@/app/supervisors/actions'
-import { getDailyProductivity, getGlobalDailyProductivity } from '@/app/productivity/actions'
+import { getDailyProductivity, getGlobalDailyProductivity, getGroupDailyProductivity } from '@/app/productivity/actions'
 import { DailyProductivity, UserProductivity } from '@/lib/productivity'
-import { AppUser } from '@/types/AppUser'
+import { AppUser, Group } from '@/types/AppUser'
 import { Card } from '@/app/_components/_ui/card'
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
 import { Button } from '@/app/_components/_ui/button'
 import { UserSelect } from '@/components/UserSelect'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
 import ProductivityPodium from './ProductivityPodium'
 import ProductivityCurveChart from './ProductivityCurveChart'
+import ProductivityReport from './ProductivityReport'
 import { Loader2 } from 'lucide-react'
 
 interface ProductivityDashboardProps {
   users: AppUser[]
+  groups: Group[]
 }
 
-type ViewMode = 'global' | 'user'
+type ViewMode = 'global' | 'user' | 'group'
 
 const today = () => {
   const bogota = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
@@ -43,24 +46,37 @@ const fmtDate = (date: string) => {
   return `${y}-${m}-${d}`
 }
 
-export default function ProductivityDashboard({ users }: ProductivityDashboardProps) {
+export default function ProductivityDashboard({ users, groups }: ProductivityDashboardProps) {
   const [dateFrom, setDateFrom] = useState(daysAgo(6))
   const [dateTo, setDateTo] = useState(today())
   const [viewMode, setViewMode] = useState<ViewMode>('global')
   const [userId, setUserId] = useState('')
+  const [groupId, setGroupId] = useState('')
   const [report, setReport] = useState<UserProductivity[] | null>(null)
   const [daily, setDaily] = useState<DailyProductivity[] | null>(null)
   const [loading, setLoading] = useState(false)
 
   const rangeInvalid = dateTo < dateFrom
 
-  const loadDaily = async (mode: ViewMode, selectedUserId: string) => {
+  const loadDaily = async (mode: ViewMode, selectedUserId: string, selectedGroupId: string) => {
     if (mode === 'global') {
       setDaily(await getGlobalDailyProductivity(dateFrom, dateTo))
       return
     }
+    if (mode === 'group') {
+      if (selectedGroupId) setDaily(await getGroupDailyProductivity(Number(selectedGroupId), dateFrom, dateTo))
+      else setDaily([])
+      return
+    }
     if (selectedUserId) setDaily(await getDailyProductivity(Number(selectedUserId), dateFrom, dateTo))
     else setDaily([])
+  }
+
+  const defaultTopUserId = (rep: UserProductivity[]) => {
+    const topUser = [...rep]
+      .filter(r => r.totalSeconds > 0)
+      .sort((a, b) => b.overallProductivityPercent - a.overallProductivityPercent)[0]?.user.id
+    return topUser ? String(topUser) : ''
   }
 
   const load = async () => {
@@ -72,16 +88,16 @@ export default function ProductivityDashboard({ users }: ProductivityDashboardPr
 
       let effectiveUserId = userId
       if (viewMode === 'user' && !effectiveUserId) {
-        const topUser = [...rep]
-          .filter(r => r.totalSeconds > 0)
-          .sort((a, b) => b.overallProductivityPercent - a.overallProductivityPercent)[0]?.user.id
-        if (topUser) {
-          effectiveUserId = String(topUser)
-          setUserId(effectiveUserId)
-        }
+        effectiveUserId = defaultTopUserId(rep)
+        if (effectiveUserId) setUserId(effectiveUserId)
+      }
+      let effectiveGroupId = groupId
+      if (viewMode === 'group' && !effectiveGroupId && groups[0]?.id != null) {
+        effectiveGroupId = String(groups[0].id)
+        setGroupId(effectiveGroupId)
       }
 
-      await loadDaily(viewMode, effectiveUserId)
+      await loadDaily(viewMode, effectiveUserId, effectiveGroupId)
     } finally {
       setLoading(false)
     }
@@ -96,15 +112,15 @@ export default function ProductivityDashboard({ users }: ProductivityDashboardPr
     try {
       let effectiveUserId = userId
       if (mode === 'user' && !effectiveUserId) {
-        const topUser = [...(report ?? [])]
-          .filter(r => r.totalSeconds > 0)
-          .sort((a, b) => b.overallProductivityPercent - a.overallProductivityPercent)[0]?.user.id
-        if (topUser) {
-          effectiveUserId = String(topUser)
-          setUserId(effectiveUserId)
-        }
+        effectiveUserId = defaultTopUserId(report ?? [])
+        if (effectiveUserId) setUserId(effectiveUserId)
       }
-      await loadDaily(mode, effectiveUserId)
+      let effectiveGroupId = groupId
+      if (mode === 'group' && !effectiveGroupId && groups[0]?.id != null) {
+        effectiveGroupId = String(groups[0].id)
+        setGroupId(effectiveGroupId)
+      }
+      await loadDaily(mode, effectiveUserId, effectiveGroupId)
     } finally {
       setLoading(false)
     }
@@ -115,7 +131,17 @@ export default function ProductivityDashboard({ users }: ProductivityDashboardPr
     if (!value) return
     setLoading(true)
     try {
-      await loadDaily('user', value)
+      await loadDaily('user', value, groupId)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGroupChange = async (value: string) => {
+    setGroupId(value)
+    setLoading(true)
+    try {
+      await loadDaily('group', userId, value)
     } finally {
       setLoading(false)
     }
@@ -127,6 +153,7 @@ export default function ProductivityDashboard({ users }: ProductivityDashboardPr
     .slice(0, 3)
 
   const selectedUser = users.find(u => String(u.id) === userId)
+  const selectedGroup = groups.find(g => String(g.id) === groupId)
 
   return (
     <div className="space-y-6">
@@ -166,7 +193,7 @@ export default function ProductivityDashboard({ users }: ProductivityDashboardPr
         )}
       </Card>
 
-      {/* Curva de productividad — global o por usuario */}
+      {/* Curva de productividad — global, por grupo o por usuario */}
       <Card className="p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <h2 className="text-lg font-medium">Curva de productividad</h2>
@@ -174,6 +201,7 @@ export default function ProductivityDashboard({ users }: ProductivityDashboardPr
             <Tabs value={viewMode} onValueChange={v => handleViewModeChange(v as ViewMode)}>
               <TabsList>
                 <TabsTrigger value="global" className="cursor-pointer">Global</TabsTrigger>
+                <TabsTrigger value="group" className="cursor-pointer">Por grupo</TabsTrigger>
                 <TabsTrigger value="user" className="cursor-pointer">Por usuario</TabsTrigger>
               </TabsList>
             </Tabs>
@@ -181,6 +209,18 @@ export default function ProductivityDashboard({ users }: ProductivityDashboardPr
               <div className="w-56">
                 <UserSelect users={users} value={userId} onValueChange={handleUserChange} placeholder="Seleccionar usuario" />
               </div>
+            )}
+            {viewMode === 'group' && (
+              <Select value={groupId} onValueChange={handleGroupChange}>
+                <SelectTrigger className="w-56">
+                  <SelectValue placeholder="Seleccionar grupo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {groups.map(g => (
+                    <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
           </div>
         </div>
@@ -222,9 +262,18 @@ export default function ProductivityDashboard({ users }: ProductivityDashboardPr
         {viewMode === 'user' && selectedUser && (
           <p className="text-xs text-muted-foreground mt-2">Mostrando la curva de {selectedUser.full_name}.</p>
         )}
+        {viewMode === 'group' && selectedGroup && (
+          <p className="text-xs text-muted-foreground mt-2">Suma de los usuarios del grupo {selectedGroup.name}.</p>
+        )}
         {viewMode === 'global' && daily !== null && (
           <p className="text-xs text-muted-foreground mt-2">Suma de todos los usuarios en el rango seleccionado.</p>
         )}
+      </Card>
+
+      {/* Cumplimiento y Productividad — reporte detallado por usuario, con sus propios filtros */}
+      <Card className="p-4 sm:p-6">
+        <h2 className="text-lg font-medium mb-4">Cumplimiento y Productividad</h2>
+        <ProductivityReport />
       </Card>
     </div>
   )

@@ -15,7 +15,7 @@ export const setAbsenceStatus = async (userId: number, status: AbsenceStatus): P
 
 import { getSchedules, getProgramations, getAllRotations } from '../time/actions'
 import { resolveEffectiveProgramation } from '@/lib/scheduleResolver'
-import { computeProductivityRange, loadMachinesAndStateLogs, type THProductivity } from '@/lib/productivity'
+import { loadMachinesAndStateLogs } from '@/lib/productivity'
 import { AppUser } from '@/types/AppUser'
 import { LunchSkip, Programation } from '@/types/Schedules'
 import { StateLog } from '@/types/StateLog'
@@ -170,20 +170,4 @@ export const getLateArrivals = async (date: string): Promise<LateArrival[]> => {
       status:        minutesLate > 5 ? ('late' as const) : ('on_time' as const),
     }
   })
-}
-
-// ─── Productividad TH ─────────────────────────────────────────────────────────
-
-// Rango de un solo día (dateFrom === dateTo) reproduce el reporte histórico de un día; un rango
-// más amplio suma totales por día en vez de promediar porcentajes (computeProductivityRange en
-// lib/productivity.ts). appuserId acota el cálculo a un solo usuario.
-export const getTHProductivityReport = async (
-  dateFrom: string,
-  dateTo: string,
-  appuserId?: number,
-): Promise<THProductivity[]> => {
-  const allUsers = await getappuser()
-  const users = appuserId != null ? allUsers.filter(u => Number(u.id) === appuserId) : allUsers
-  const report = await computeProductivityRange(users, dateFrom, dateTo)
-  return report.map(({ machine: _machine, topApps: _topApps, ...rest }) => rest)
 }
