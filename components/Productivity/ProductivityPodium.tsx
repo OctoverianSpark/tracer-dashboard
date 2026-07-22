@@ -8,9 +8,24 @@ interface ProductivityPodiumProps {
 }
 
 const RANK_STYLE = [
-  { order: 'sm:order-2', height: 'sm:h-40', ring: 'ring-2 ring-amber-400/70', badge: 'bg-amber-400 text-amber-950', label: '1°' },
-  { order: 'sm:order-1', height: 'sm:h-32', ring: 'ring-1 ring-border', badge: 'bg-slate-300 text-slate-800', label: '2°' },
-  { order: 'sm:order-3', height: 'sm:h-28', ring: 'ring-1 ring-border', badge: 'bg-orange-400/80 text-orange-950', label: '3°' },
+  {
+    order: 'sm:order-2', minHeight: 'sm:min-h-44',
+    ring: 'ring-2 ring-amber-400/70 dark:ring-amber-400/50',
+    badge: 'bg-amber-400 text-amber-950 size-9',
+    valueClass: 'text-3xl',
+  },
+  {
+    order: 'sm:order-1', minHeight: 'sm:min-h-36',
+    ring: 'ring-1 ring-border',
+    badge: 'bg-slate-300 text-slate-800 dark:bg-slate-400 dark:text-slate-950 size-7',
+    valueClass: 'text-2xl',
+  },
+  {
+    order: 'sm:order-3', minHeight: 'sm:min-h-32',
+    ring: 'ring-1 ring-border',
+    badge: 'bg-orange-300 text-orange-950 dark:bg-orange-400/90 size-7',
+    valueClass: 'text-2xl',
+  },
 ]
 
 export default function ProductivityPodium({ top3 }: ProductivityPodiumProps) {
@@ -25,13 +40,17 @@ export default function ProductivityPodium({ top3 }: ProductivityPodiumProps) {
         return (
           <Card
             key={entry.user.id}
-            className={`flex-1 sm:max-w-56 ${style.order} ${style.height} ${style.ring} flex flex-col items-center justify-center gap-1.5 p-4 text-center`}
+            className={`w-full sm:w-48 ${style.order} ${style.minHeight} ${style.ring} flex flex-col items-center justify-center gap-2 p-5 text-center`}
           >
-            <span className={`flex items-center justify-center size-7 rounded-full text-xs font-bold ${style.badge}`}>
-              {i === 0 ? <Trophy className="size-3.5" /> : style.label}
+            <span className={`flex items-center justify-center rounded-full text-sm font-bold shrink-0 ${style.badge}`}>
+              {i === 0 ? <Trophy className="size-4" /> : `${i + 1}°`}
             </span>
-            <span className="font-semibold text-sm truncate max-w-full">{entry.user.full_name}</span>
-            <span className="text-2xl font-bold tabular-nums">{entry.overallProductivityPercent}%</span>
+            <span className="font-semibold text-sm leading-tight truncate max-w-full" title={entry.user.full_name}>
+              {entry.user.full_name}
+            </span>
+            <span className={`font-bold tabular-nums leading-none ${style.valueClass}`}>
+              {entry.overallProductivityPercent}%
+            </span>
             <span className="text-xs text-muted-foreground">productividad</span>
           </Card>
         )

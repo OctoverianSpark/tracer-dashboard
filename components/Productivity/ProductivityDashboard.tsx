@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { getProductivityReport } from '@/app/supervisors/actions'
-import { getDailyProductivity } from '@/app/productivity/actions'
+import { getDailyProductivity, getGlobalDailyProductivity } from '@/app/productivity/actions'
 import { DailyProductivity, UserProductivity } from '@/lib/productivity'
 import { AppUser } from '@/types/AppUser'
 import { Card } from '@/app/_components/_ui/card'
@@ -9,6 +9,7 @@ import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
 import { Button } from '@/app/_components/_ui/button'
 import { UserSelect } from '@/components/UserSelect'
+import { Tabs, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
 import ProductivityPodium from './ProductivityPodium'
 import ProductivityCurveChart from './ProductivityCurveChart'
@@ -17,6 +18,8 @@ import { Loader2 } from 'lucide-react'
 interface ProductivityDashboardProps {
   users: AppUser[]
 }
+
+type ViewMode = 'global' | 'user'
 
 const today = () => {
   const bogota = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
@@ -43,12 +46,22 @@ const fmtDate = (date: string) => {
 export default function ProductivityDashboard({ users }: ProductivityDashboardProps) {
   const [dateFrom, setDateFrom] = useState(daysAgo(6))
   const [dateTo, setDateTo] = useState(today())
+  const [viewMode, setViewMode] = useState<ViewMode>('global')
   const [userId, setUserId] = useState('')
   const [report, setReport] = useState<UserProductivity[] | null>(null)
   const [daily, setDaily] = useState<DailyProductivity[] | null>(null)
   const [loading, setLoading] = useState(false)
 
   const rangeInvalid = dateTo < dateFrom
+
+  const loadDaily = async (mode: ViewMode, selectedUserId: string) => {
+    if (mode === 'global') {
+      setDaily(await getGlobalDailyProductivity(dateFrom, dateTo))
+      return
+    }
+    if (selectedUserId) setDaily(await getDailyProductivity(Number(selectedUserId), dateFrom, dateTo))
+    else setDaily([])
+  }
 
   const load = async () => {
     if (rangeInvalid) return
@@ -57,19 +70,18 @@ export default function ProductivityDashboard({ users }: ProductivityDashboardPr
       const rep = await getProductivityReport(dateFrom, dateTo)
       setReport(rep)
 
-      const activeSorted = [...rep]
-        .filter(r => r.totalSeconds > 0)
-        .sort((a, b) => b.overallProductivityPercent - a.overallProductivityPercent)
-
-      const selectedId = userId ? Number(userId) : activeSorted[0]?.user.id
-      if (!userId && selectedId) setUserId(String(selectedId))
-
-      if (selectedId) {
-        const dailyData = await getDailyProductivity(selectedId, dateFrom, dateTo)
-        setDaily(dailyData)
-      } else {
-        setDaily([])
+      let effectiveUserId = userId
+      if (viewMode === 'user' && !effectiveUserId) {
+        const topUser = [...rep]
+          .filter(r => r.totalSeconds > 0)
+          .sort((a, b) => b.overallProductivityPercent - a.overallProductivityPercent)[0]?.user.id
+        if (topUser) {
+          effectiveUserId = String(topUser)
+          setUserId(effectiveUserId)
+        }
       }
+
+      await loadDaily(viewMode, effectiveUserId)
     } finally {
       setLoading(false)
     }
@@ -78,12 +90,32 @@ export default function ProductivityDashboard({ users }: ProductivityDashboardPr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [])
 
+  const handleViewModeChange = async (mode: ViewMode) => {
+    setViewMode(mode)
+    setLoading(true)
+    try {
+      let effectiveUserId = userId
+      if (mode === 'user' && !effectiveUserId) {
+        const topUser = [...(report ?? [])]
+          .filter(r => r.totalSeconds > 0)
+          .sort((a, b) => b.overallProductivityPercent - a.overallProductivityPercent)[0]?.user.id
+        if (topUser) {
+          effectiveUserId = String(topUser)
+          setUserId(effectiveUserId)
+        }
+      }
+      await loadDaily(mode, effectiveUserId)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleUserChange = async (value: string) => {
     setUserId(value)
     if (!value) return
     setLoading(true)
     try {
-      setDaily(await getDailyProductivity(Number(value), dateFrom, dateTo))
+      await loadDaily('user', value)
     } finally {
       setLoading(false)
     }
@@ -134,17 +166,27 @@ export default function ProductivityDashboard({ users }: ProductivityDashboardPr
         )}
       </Card>
 
-      {/* Curva por usuario */}
+      {/* Curva de productividad — global o por usuario */}
       <Card className="p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <h2 className="text-lg font-medium">Curva de productividad</h2>
-          <div className="w-56">
-            <UserSelect users={users} value={userId} onValueChange={handleUserChange} placeholder="Seleccionar usuario" />
+          <div className="flex flex-wrap items-center gap-2">
+            <Tabs value={viewMode} onValueChange={v => handleViewModeChange(v as ViewMode)}>
+              <TabsList>
+                <TabsTrigger value="global" className="cursor-pointer">Global</TabsTrigger>
+                <TabsTrigger value="user" className="cursor-pointer">Por usuario</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            {viewMode === 'user' && (
+              <div className="w-56">
+                <UserSelect users={users} value={userId} onValueChange={handleUserChange} placeholder="Seleccionar usuario" />
+              </div>
+            )}
           </div>
         </div>
 
         {daily === null ? (
-          <p className="text-sm text-muted-foreground py-10 text-center">Selecciona un usuario para ver su curva.</p>
+          <p className="text-sm text-muted-foreground py-10 text-center">Genera el reporte para ver la curva.</p>
         ) : (
           <>
             <ProductivityCurveChart data={daily} />
@@ -177,8 +219,11 @@ export default function ProductivityDashboard({ users }: ProductivityDashboardPr
             </div>
           </>
         )}
-        {selectedUser && (
+        {viewMode === 'user' && selectedUser && (
           <p className="text-xs text-muted-foreground mt-2">Mostrando la curva de {selectedUser.full_name}.</p>
+        )}
+        {viewMode === 'global' && daily !== null && (
+          <p className="text-xs text-muted-foreground mt-2">Suma de todos los usuarios en el rango seleccionado.</p>
         )}
       </Card>
     </div>

@@ -340,36 +340,46 @@ export interface DailyProductivity {
 }
 
 /**
- * Desglose día por día (para la curva de productividad) de UN usuario sobre [dateFrom, dateTo].
- * A diferencia de computeProductivityRange, nunca salta un día — uno sin horario/actividad se
- * devuelve en cero, para que el gráfico tenga el eje de fechas continuo.
+ * Desglose día por día (para la curva de productividad) de uno o varios usuarios sobre
+ * [dateFrom, dateTo] — varios usuarios se suman en una sola curva combinada (uso: "global", con
+ * todos los usuarios activos). A diferencia de computeProductivityRange, nunca salta un día —
+ * uno sin horario/actividad aporta cero, para que el gráfico tenga el eje de fechas continuo.
  */
 export async function computeProductivityDaily(
-  user: AppUser,
+  users: AppUser[],
   dateFrom: string,
   dateTo: string,
 ): Promise<DailyProductivity[]> {
   const { dates, ctx, machinesByUser, logsByMachineByDate, stateByMachineByDate } =
-    await loadRangeContext([user], dateFrom, dateTo)
-
-  const userId = Number(user.id)
-  const userMachines = machinesByUser.get(userId) ?? []
+    await loadRangeContext(users, dateFrom, dateTo)
 
   return dates.map(date => {
-    const day = computeUserDayStats(
-      userId, userMachines, date, ctx,
-      logsByMachineByDate.get(date)!, stateByMachineByDate.get(date)!,
-    )
-    const scheduledSecs = day.scheduledMinutes * 60
-    const effective = day.productive + day.uncategorized * 0.3
+    let productive = 0, unproductive = 0, uncategorized = 0, total = 0, scheduledMinutes = 0
+
+    for (const user of users) {
+      const userId = Number(user.id)
+      const userMachines = machinesByUser.get(userId) ?? []
+      const day = computeUserDayStats(
+        userId, userMachines, date, ctx,
+        logsByMachineByDate.get(date)!, stateByMachineByDate.get(date)!,
+      )
+      productive += day.productive
+      unproductive += day.unproductive
+      uncategorized += day.uncategorized
+      total += day.total
+      scheduledMinutes += day.scheduledMinutes
+    }
+
+    const scheduledSecs = scheduledMinutes * 60
+    const effective = productive + uncategorized * 0.3
 
     return {
       date,
-      productiveSeconds: Math.round(day.productive),
-      unproductiveSeconds: Math.round(day.unproductive),
-      uncategorizedSeconds: Math.round(day.uncategorized),
-      totalSeconds: Math.round(day.total),
-      scheduledMinutes: day.scheduledMinutes,
+      productiveSeconds: Math.round(productive),
+      unproductiveSeconds: Math.round(unproductive),
+      uncategorizedSeconds: Math.round(uncategorized),
+      totalSeconds: Math.round(total),
+      scheduledMinutes,
       overallProductivityPercent: scheduledSecs > 0 ? Math.min(100, Math.round((effective / scheduledSecs) * 100)) : 0,
     }
   })
