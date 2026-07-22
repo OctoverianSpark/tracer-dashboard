@@ -29,6 +29,7 @@ import {
   PackageOpen,
   ShieldAlert,
   TrendingUp,
+  ClipboardCheck,
 } from 'lucide-react'
 import { join } from 'path'
 import UserForm from '../UserManager/UserForm'
@@ -229,6 +230,14 @@ const PRODUCTIVITY: NavSection = {
       icon: TrendingUp,
       url: '/productivity',
       desc: 'Podio y curva de productividad por usuario',
+      perm: 'view_productivity_dashboard'
+    },
+    {
+      title: 'Cumplimiento y Productividad',
+      type: NavTypes.LINK,
+      icon: ClipboardCheck,
+      url: '/productivity/compliance',
+      desc: 'Reporte detallado de cumplimiento y productividad por usuario',
       perm: 'view_productivity_dashboard'
     }
   ]

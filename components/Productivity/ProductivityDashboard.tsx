@@ -14,7 +14,6 @@ import { Tabs, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
 import ProductivityPodium from './ProductivityPodium'
 import ProductivityCurveChart from './ProductivityCurveChart'
-import ProductivityReport from './ProductivityReport'
 import { Loader2 } from 'lucide-react'
 
 interface ProductivityDashboardProps {
@@ -268,12 +267,6 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
         {viewMode === 'global' && daily !== null && (
           <p className="text-xs text-muted-foreground mt-2">Suma de todos los usuarios en el rango seleccionado.</p>
         )}
-      </Card>
-
-      {/* Cumplimiento y Productividad — reporte detallado por usuario, con sus propios filtros */}
-      <Card className="p-4 sm:p-6">
-        <h2 className="text-lg font-medium mb-4">Cumplimiento y Productividad</h2>
-        <ProductivityReport />
       </Card>
     </div>
   )
