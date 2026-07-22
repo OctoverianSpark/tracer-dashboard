@@ -154,8 +154,10 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
     try {
       // Import dinámico: html2canvas/jsPDF tocan `document`/`window` — deben cargar solo en el
       // cliente, nunca durante el render en el servidor de un componente 'use client'.
+      // html2canvas-pro (no el html2canvas original) — el proyecto usa colores oklch() (Tailwind
+      // v4/shadcn, ver app/globals.css) y el html2canvas clásico no sabe parsear ese formato.
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import('html2canvas'),
+        import('html2canvas-pro'),
         import('jspdf'),
       ])
 
