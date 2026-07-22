@@ -288,4 +288,4 @@ export function NavItemRenderer({ item }: { item: NavItem }) {
       return null
   }
 }
-export const SECTIONS = [TIME_MESH, APPLICATION, COMPUTERS, REPORTS, SUPERVISORS, TH, PRODUCTIVITY, ADMIN]
+export const SECTIONS = [TIME_MESH,ADMIN, PRODUCTIVITY,SUPERVISORS, TH, APPLICATION, COMPUTERS, REPORTS]
