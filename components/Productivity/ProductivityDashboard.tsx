@@ -272,16 +272,14 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
         {daily === null ? (
           <p className="text-sm text-muted-foreground py-10 text-center">Genera el reporte para ver la curva.</p>
         ) : (
-          <>
-            <div ref={curveSectionRef} className="bg-background p-2">
-              <p className="text-sm font-medium text-muted-foreground mb-2">
-                {viewMode === 'global' && 'Global — todos los usuarios'}
-                {viewMode === 'group' && `Grupo: ${selectedGroup?.name ?? ''}`}
-                {viewMode === 'user' && `Usuario: ${selectedUser?.full_name ?? ''}`}
-                {' · '}{fmtDate(dateFrom)} a {fmtDate(dateTo)}
-              </p>
-              <ProductivityCurveChart data={daily} />
-            </div>
+          <div ref={curveSectionRef} className="bg-background p-2">
+            <p className="text-sm font-medium text-muted-foreground mb-2">
+              {viewMode === 'global' && 'Global — todos los usuarios'}
+              {viewMode === 'group' && `Grupo: ${selectedGroup?.name ?? ''}`}
+              {viewMode === 'user' && `Usuario: ${selectedUser?.full_name ?? ''}`}
+              {' · '}{fmtDate(dateFrom)} a {fmtDate(dateTo)}
+            </p>
+            <ProductivityCurveChart data={daily} />
 
             <div className="rounded-md border overflow-x-auto mt-6">
               <Table>
@@ -309,7 +307,7 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
                 </TableBody>
               </Table>
             </div>
-          </>
+          </div>
         )}
         {viewMode === 'user' && selectedUser && (
           <p className="text-xs text-muted-foreground mt-2">Mostrando la curva de {selectedUser.full_name}.</p>
