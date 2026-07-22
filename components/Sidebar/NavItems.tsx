@@ -28,6 +28,7 @@ import {
   UserRoundCog,
   PackageOpen,
   ShieldAlert,
+  TrendingUp,
 } from 'lucide-react'
 import { join } from 'path'
 import UserForm from '../UserManager/UserForm'
@@ -218,6 +219,21 @@ const TH: NavSection = {
   ]
 }
 
+const PRODUCTIVITY: NavSection = {
+  title: 'Productividad',
+  icon: TrendingUp,
+  items: [
+    {
+      title: 'Dashboard',
+      type: NavTypes.LINK,
+      icon: TrendingUp,
+      url: '/productivity',
+      desc: 'Podio y curva de productividad por usuario',
+      perm: 'view_productivity_dashboard'
+    }
+  ]
+}
+
 const ADMIN: NavSection = {
   title: 'Administración',
   icon: ShieldAlert,
@@ -263,4 +279,4 @@ export function NavItemRenderer({ item }: { item: NavItem }) {
       return null
   }
 }
-export const SECTIONS = [TIME_MESH, APPLICATION, COMPUTERS, REPORTS, SUPERVISORS, TH, ADMIN]
+export const SECTIONS = [TIME_MESH, APPLICATION, COMPUTERS, REPORTS, SUPERVISORS, TH, PRODUCTIVITY, ADMIN]

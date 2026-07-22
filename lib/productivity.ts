@@ -4,7 +4,7 @@ import { getCategorizationApps } from '@/app/supervisors/categorization-actions'
 import { resolveEffectiveProgramation } from '@/lib/scheduleResolver'
 import { AppUser, AppUsageLog } from '@/types/AppUser'
 import { Machine } from '@/types/Machine'
-import { Programation } from '@/types/Schedules'
+import { Programation, Schedule, RotationData } from '@/types/Schedules'
 import { StateLog } from '@/types/StateLog'
 
 const DAY_KEYS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'] as const
@@ -125,19 +125,104 @@ const dateRange = (dateFrom: string, dateTo: string): string[] => {
   return dates
 }
 
-/**
- * Calcula productividad por usuario acumulada sobre [dateFrom, dateTo] (inclusive; un solo día
- * si dateFrom === dateTo). Reutiliza por día la misma lógica de ventana de jornada +
- * clasificación productivo/improductivo que existía para un solo día, y suma los totales en vez
- * de promediar los porcentajes. Un día sin `programation` para el usuario no aporta a la suma —
- * mismo criterio que ya aplicaba por día (scheduledSecs=0 → ese día no cuenta), para que un
- * rango con días libres no infle el porcentaje final.
- */
-export async function computeProductivityRange(
-  users: AppUser[],
-  dateFrom: string,
-  dateTo: string,
-): Promise<UserProductivity[]> {
+interface DayContext {
+  schedules: Schedule[]
+  rotations: RotationData[]
+  programations: Programation[]
+  categoryMap: Map<string, string>
+  todayStr: string
+  nowMs: number
+}
+
+interface UserDayStats {
+  programation?: Programation
+  scheduledMinutes: number
+  productive: number
+  unproductive: number
+  uncategorized: number
+  total: number
+  appUsage: Map<string, UserAppUsage>
+}
+
+const EMPTY_DAY_STATS: UserDayStats = {
+  scheduledMinutes: 0, productive: 0, unproductive: 0, uncategorized: 0, total: 0,
+  appUsage: new Map(),
+}
+
+// Un día puntual para un usuario: ventana de jornada, filtra intervalos activos, clasifica
+// productivo/improductivo/sin-categorizar. No decide si el día "cuenta" — computeProductivityRange
+// lo salta cuando scheduledMinutes=0; computeProductivityDaily lo devuelve igual (en cero) para
+// que la curva tenga el eje de fechas continuo.
+function computeUserDayStats(
+  userId: number,
+  userMachines: Machine[],
+  date: string,
+  ctx: DayContext,
+  dayLogsByMachine: Map<number, AppUsageLog[]>,
+  dayStateByMachine: Map<number, StateLog[]>,
+): UserDayStats {
+  const dayKey = DAY_KEYS[new Date(`${date}T12:00:00`).getDay()]
+  const programation = resolveEffectiveProgramation(ctx.schedules, ctx.rotations, ctx.programations, userId, dayKey, date)
+  const scheduledMinutes = programation ? scheduledWorkMinutes(programation) : 0
+
+  if (scheduledMinutes === 0 || !userMachines.length) return { ...EMPTY_DAY_STATS, programation }
+
+  const dayIntervals: AppUsageLog[] = []
+  const dayActiveWindows: Array<{ start: number; end: number }> = []
+  for (const m of userMachines) {
+    const mid = Number(m.id)
+    dayIntervals.push(...(dayLogsByMachine.get(mid) ?? []))
+    dayActiveWindows.push(...buildActiveWindows(dayStateByMachine.get(mid) ?? []))
+  }
+  if (!dayIntervals.length) return { ...EMPTY_DAY_STATS, programation, scheduledMinutes }
+
+  const dayNowMs = date === ctx.todayStr ? ctx.nowMs : Infinity
+  const schedWinStart = new Date(`${date}T${programation!.start_day}:00`).getTime()
+  const schedWinEnd = Math.min(
+    programation!.end_day
+      ? new Date(`${date}T${programation!.end_day}:00`).getTime()
+      : new Date(`${date}T23:00:00`).getTime(),
+    dayNowMs,
+  )
+
+  let productive = 0, unproductive = 0, uncategorized = 0, total = 0
+  const appUsage = new Map<string, UserAppUsage>()
+
+  for (const interval of dayIntervals) {
+    const startMs = new Date(interval.interval_start).getTime()
+    const endMs = new Date(interval.interval_end).getTime()
+    if (startMs < schedWinStart || startMs >= schedWinEnd) continue
+    if (!isIntervalActive(interval, dayActiveWindows)) continue
+
+    const intervalSecs = endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
+    total += intervalSecs
+
+    for (const a of interval.apps ?? []) {
+      const cat = ctx.categoryMap.get(a.app.toLowerCase())
+      if (cat === 'ignore') continue
+
+      const secs = Math.min(a.seconds, intervalSecs)
+      const resolved: UserAppUsage['category'] = cat === 'productive' ? 'productive'
+        : cat === 'unproductive' ? 'unproductive'
+          : 'uncategorized'
+
+      if (resolved === 'productive') productive += secs
+      else if (resolved === 'unproductive') unproductive += secs
+      else uncategorized += secs
+
+      const existing = appUsage.get(a.app)
+      if (existing) existing.seconds += secs
+      else appUsage.set(a.app, { app: a.app, seconds: secs, category: resolved })
+    }
+  }
+
+  return { programation, scheduledMinutes, productive, unproductive, uncategorized, total, appUsage }
+}
+
+// Prepara todo lo que no depende de un usuario puntual (catálogos, logs de app-usage y de
+// estado agrupados por fecha) — compartido entre computeProductivityRange y
+// computeProductivityDaily para no duplicar los mismos 5 fetches.
+async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: string) {
   const dates = dateRange(dateFrom, dateTo)
 
   const bogotaNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
@@ -179,6 +264,24 @@ export async function computeProductivityRange(
     }
   }
 
+  const ctx: DayContext = { schedules, rotations, programations, categoryMap, todayStr, nowMs }
+  return { dates, ctx, machinesByUser, logsByMachineByDate, stateByMachineByDate }
+}
+
+/**
+ * Calcula productividad por usuario acumulada sobre [dateFrom, dateTo] (inclusive; un solo día
+ * si dateFrom === dateTo). Suma los totales de cada día en vez de promediar porcentajes. Un día
+ * sin `programation` para el usuario no aporta a la suma (mismo criterio que ya aplicaba por
+ * día), para que un rango con días libres no infle el porcentaje final.
+ */
+export async function computeProductivityRange(
+  users: AppUser[],
+  dateFrom: string,
+  dateTo: string,
+): Promise<UserProductivity[]> {
+  const { dates, ctx, machinesByUser, logsByMachineByDate, stateByMachineByDate } =
+    await loadRangeContext(users, dateFrom, dateTo)
+
   return users.map(user => {
     const userId = Number(user.id)
     const userMachines = machinesByUser.get(userId) ?? []
@@ -189,64 +292,22 @@ export async function computeProductivityRange(
     const appMap = new Map<string, UserAppUsage>()
 
     for (const date of dates) {
-      const dayKey = DAY_KEYS[new Date(`${date}T12:00:00`).getDay()]
-      const programation = resolveEffectiveProgramation(schedules, rotations, programations, userId, dayKey, date)
-      const dayScheduledMinutes = programation ? scheduledWorkMinutes(programation) : 0
-      if (programation) lastProgramation = programation
-
-      // Sin programación ese día: no cuenta para el rango (mismo criterio que el cálculo de un
-      // solo día, donde scheduledSecs=0 ya deja los porcentajes en 0 sin usar `total`).
-      if (dayScheduledMinutes === 0 || !userMachines.length) continue
-
-      const dayLogsByMachine = logsByMachineByDate.get(date)!
-      const dayStateByMachine = stateByMachineByDate.get(date)!
-
-      const dayIntervals: AppUsageLog[] = []
-      const dayActiveWindows: Array<{ start: number; end: number }> = []
-      for (const m of userMachines) {
-        const mid = Number(m.id)
-        dayIntervals.push(...(dayLogsByMachine.get(mid) ?? []))
-        dayActiveWindows.push(...buildActiveWindows(dayStateByMachine.get(mid) ?? []))
-      }
-      if (!dayIntervals.length) continue
-
-      const dayNowMs = date === todayStr ? nowMs : Infinity
-      const schedWinStart = new Date(`${date}T${programation!.start_day}:00`).getTime()
-      const schedWinEnd = Math.min(
-        programation!.end_day
-          ? new Date(`${date}T${programation!.end_day}:00`).getTime()
-          : new Date(`${date}T23:00:00`).getTime(),
-        dayNowMs,
+      const day = computeUserDayStats(
+        userId, userMachines, date, ctx,
+        logsByMachineByDate.get(date)!, stateByMachineByDate.get(date)!,
       )
+      if (day.scheduledMinutes === 0) continue
+      if (day.programation) lastProgramation = day.programation
 
-      scheduledMinutes += dayScheduledMinutes
-
-      for (const interval of dayIntervals) {
-        const startMs = new Date(interval.interval_start).getTime()
-        const endMs = new Date(interval.interval_end).getTime()
-        if (startMs < schedWinStart || startMs >= schedWinEnd) continue
-        if (!isIntervalActive(interval, dayActiveWindows)) continue
-
-        const intervalSecs = endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
-        total += intervalSecs
-
-        for (const a of interval.apps ?? []) {
-          const cat = categoryMap.get(a.app.toLowerCase())
-          if (cat === 'ignore') continue
-
-          const secs = Math.min(a.seconds, intervalSecs)
-          const resolved: UserAppUsage['category'] = cat === 'productive' ? 'productive'
-            : cat === 'unproductive' ? 'unproductive'
-              : 'uncategorized'
-
-          if (resolved === 'productive') productive += secs
-          else if (resolved === 'unproductive') unproductive += secs
-          else uncategorized += secs
-
-          const existing = appMap.get(a.app)
-          if (existing) existing.seconds += secs
-          else appMap.set(a.app, { app: a.app, seconds: secs, category: resolved })
-        }
+      scheduledMinutes += day.scheduledMinutes
+      productive += day.productive
+      unproductive += day.unproductive
+      uncategorized += day.uncategorized
+      total += day.total
+      for (const [app, usage] of day.appUsage) {
+        const existing = appMap.get(app)
+        if (existing) existing.seconds += usage.seconds
+        else appMap.set(app, { ...usage })
       }
     }
 
@@ -264,6 +325,52 @@ export async function computeProductivityRange(
       workCompliancePercent: scheduledSecs > 0 ? Math.min(100, Math.round((total / scheduledSecs) * 100)) : 0,
       overallProductivityPercent: scheduledSecs > 0 ? Math.min(100, Math.round((effective / scheduledSecs) * 100)) : 0,
       topApps: [...appMap.values()].sort((a, b) => b.seconds - a.seconds).slice(0, 8),
+    }
+  })
+}
+
+export interface DailyProductivity {
+  date: string
+  productiveSeconds: number
+  unproductiveSeconds: number
+  uncategorizedSeconds: number
+  totalSeconds: number
+  scheduledMinutes: number
+  overallProductivityPercent: number
+}
+
+/**
+ * Desglose día por día (para la curva de productividad) de UN usuario sobre [dateFrom, dateTo].
+ * A diferencia de computeProductivityRange, nunca salta un día — uno sin horario/actividad se
+ * devuelve en cero, para que el gráfico tenga el eje de fechas continuo.
+ */
+export async function computeProductivityDaily(
+  user: AppUser,
+  dateFrom: string,
+  dateTo: string,
+): Promise<DailyProductivity[]> {
+  const { dates, ctx, machinesByUser, logsByMachineByDate, stateByMachineByDate } =
+    await loadRangeContext([user], dateFrom, dateTo)
+
+  const userId = Number(user.id)
+  const userMachines = machinesByUser.get(userId) ?? []
+
+  return dates.map(date => {
+    const day = computeUserDayStats(
+      userId, userMachines, date, ctx,
+      logsByMachineByDate.get(date)!, stateByMachineByDate.get(date)!,
+    )
+    const scheduledSecs = day.scheduledMinutes * 60
+    const effective = day.productive + day.uncategorized * 0.3
+
+    return {
+      date,
+      productiveSeconds: Math.round(day.productive),
+      unproductiveSeconds: Math.round(day.unproductive),
+      uncategorizedSeconds: Math.round(day.uncategorized),
+      totalSeconds: Math.round(day.total),
+      scheduledMinutes: day.scheduledMinutes,
+      overallProductivityPercent: scheduledSecs > 0 ? Math.min(100, Math.round((effective / scheduledSecs) * 100)) : 0,
     }
   })
 }

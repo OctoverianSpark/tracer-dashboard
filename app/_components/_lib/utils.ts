@@ -73,6 +73,13 @@ export const PERMISSION_GROUPS = [
     ]
   },
   {
+    id: 'productivity_group',
+    label: 'Productividad',
+    permissions: [
+      { id: 'view_productivity_dashboard', label: 'Puede acceder al dashboard de productividad', default: false }
+    ]
+  },
+  {
     id: 'admin_group',
     label: 'Administración',
     permissions: [
