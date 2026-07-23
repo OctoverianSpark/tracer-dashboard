@@ -36,6 +36,10 @@ export interface UserProductivity {
 // exportar un tipo desde ahí rompe en runtime bajo Turbopack: "X is not defined").
 export type THProductivity = Omit<UserProductivity, 'machine' | 'topApps'>
 
+// Crédito que aporta el tiempo en apps "sin categorizar" al cálculo de productividad Global —
+// no es 0% (no confirmado que sea improductivo) ni 100% (no confirmado que sea productivo).
+export const UNCATEGORIZED_CREDIT = 0.7
+
 export const timeToMinutes = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number)
   return h * 60 + m
@@ -322,7 +326,7 @@ export async function computeProductivityRange(
 
     const categorized = productive + unproductive
     const scheduledSecs = scheduledMinutes * 60
-    const effective = productive + uncategorized * 0.3
+    const effective = productive + uncategorized * UNCATEGORIZED_CREDIT
 
     return {
       user, machine: primaryMachine, programation: lastProgramation, scheduledMinutes,
@@ -386,7 +390,7 @@ export async function computeProductivityDaily(
 
       if (day.scheduledMinutes > 0) {
         const userScheduledSecs = day.scheduledMinutes * 60
-        const userEffective = day.productive + day.uncategorized * 0.3
+        const userEffective = day.productive + day.uncategorized * UNCATEGORIZED_CREDIT
         percentSum += Math.min(100, (userEffective / userScheduledSecs) * 100)
         scheduledUserCount++
       }
