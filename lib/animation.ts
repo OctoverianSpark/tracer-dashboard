@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, type CSSProperties, type RefObject } from 'react'
-import { animate, stagger } from 'animejs'
+import { animate, createSpring, stagger } from 'animejs'
 
 export const EASE = 'cubicBezier(0.22, 1, 0.36, 1)'
 
@@ -87,4 +87,45 @@ export function useStaggerChildren<T extends HTMLElement>(
       delay: stagger(opts?.each ?? STAGGER.each, { start: opts?.start ?? STAGGER.start }),
     })
   }, opts?.deps ?? [])
+}
+
+/**
+ * Anima la altura de un colapsable (ej. una sección del sidebar) con física de resorte al
+ * abrir/cerrar — reemplaza el snap instantáneo que tiene un Collapsible de Radix sin CSS de
+ * transición propio. `ref` va en el elemento que Radix expande/colapsa (usar `forceMount` en
+ * `CollapsibleContent` para que siga montado y este hook pueda medir/animar su altura real en
+ * vez de que Radix lo saque del DOM de golpe).
+ *
+ * `createSpring()` se instancia de nuevo en cada corrida (no una constante compartida) — una
+ * instancia de Spring guarda estado interno del solver, reutilizarla entre animaciones
+ * concurrentes (varias secciones del sidebar abriéndose/cerrándose a la vez) lo corrompería.
+ */
+export function useSpringHeight<T extends HTMLElement>(ref: RefObject<T | null>, open: boolean) {
+  const isFirst = useRef(true)
+
+  useIsomorphicLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    if (isFirst.current) {
+      isFirst.current = false
+      el.style.height = open ? 'auto' : '0px'
+      el.style.overflow = 'hidden'
+      return
+    }
+
+    const startHeight = el.getBoundingClientRect().height
+    const targetHeight = open ? el.scrollHeight : 0
+    el.style.height = `${startHeight}px`
+
+    const anim = animate(el, {
+      height: [startHeight, targetHeight],
+      ease: createSpring({ stiffness: 300, damping: 26 }),
+    })
+    anim.then(() => {
+      if (open) el.style.height = 'auto'
+    })
+
+    return () => { anim.revert() }
+  }, [open])
 }

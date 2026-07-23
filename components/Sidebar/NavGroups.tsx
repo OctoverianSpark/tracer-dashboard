@@ -1,3 +1,4 @@
+'use client'
 import {
   Collapsible,
   CollapsibleTrigger,
@@ -19,8 +20,9 @@ import {
   TooltipTrigger
 } from '@/app/_components/_ui/tooltip'
 import { NavSection, NavItem, NavTypes } from '@/types/Navigation'
+import { useSpringHeight } from '@/lib/animation'
 import { ChevronDown } from 'lucide-react'
-import React, { JSX } from 'react'
+import React, { JSX, useRef, useState } from 'react'
 
 interface NavGroupsProps {
   section: NavSection
@@ -33,9 +35,13 @@ export default function NavGroups ({
   children,
   onClick
 }: NavGroupsProps) {
+  const [open, setOpen] = useState(true)
+  const contentRef = useRef<HTMLDivElement>(null)
+  useSpringHeight(contentRef, open)
+
   return (
     <SidebarMenu>
-      <Collapsible asChild defaultOpen={true}>
+      <Collapsible asChild open={open} onOpenChange={setOpen}>
         <SidebarMenuItem>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -55,8 +61,14 @@ export default function NavGroups ({
             </TooltipContent>
           </Tooltip>
 
-          <CollapsibleContent>
-            <SidebarMenuSub>{children}</SidebarMenuSub>
+          {/* forceMount: se queda montado siempre — useSpringHeight anima su altura real al
+              abrir/cerrar en vez de que Radix lo saque del DOM de un salto. El ref va en el div
+              interno (no en CollapsibleContent) porque el wrapper de _ui/collapsible.tsx no
+              reenvía ref. */}
+          <CollapsibleContent forceMount>
+            <div ref={contentRef}>
+              <SidebarMenuSub>{children}</SidebarMenuSub>
+            </div>
           </CollapsibleContent>
         </SidebarMenuItem>
       </Collapsible>
