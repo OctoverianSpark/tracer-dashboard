@@ -1,9 +1,9 @@
 'use client'
+import { useRef } from 'react'
 import { UserConnectionStatus } from '@/app/supervisors/actions'
 import { Badge } from '@/app/_components/_ui/badge'
-import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
-import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
-import { staggerContainer, staggerItem } from '@/lib/motion'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
+import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import { Wifi, WifiOff, Clock, Activity, FileDown } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
@@ -44,6 +44,9 @@ export default function ConnectedUsersTable({ statuses, mode }: Props) {
       : s.shouldBeConnected && !s.wsConnected
   )
 
+  const bodyRef = useRef<HTMLTableSectionElement>(null)
+  useStaggerChildren(bodyRef, { deps: [filtered.map(s => s.user.id).join(',')] })
+
   if (filtered.length === 0) {
     return (
       <p className="text-center text-sm text-muted-foreground py-10">
@@ -76,9 +79,9 @@ export default function ConnectedUsersTable({ statuses, mode }: Props) {
             <TableHead>Estado</TableHead>
           </TableRow>
         </TableHeader>
-        <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
+        <TableBody ref={bodyRef}>
           {filtered.map(({ user, machine, startTime, endTime, wsConnected, todaySeconds }) => (
-            <MotionTableRow key={user.id} variants={staggerItem}>
+            <TableRow key={user.id} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
               <TableCell className="font-medium">{user.full_name}</TableCell>
               <TableCell className="text-muted-foreground text-sm font-mono">
                 {machine?.hostname ?? '—'}
@@ -110,9 +113,9 @@ export default function ConnectedUsersTable({ statuses, mode }: Props) {
                   </Badge>
                 )}
               </TableCell>
-            </MotionTableRow>
+            </TableRow>
           ))}
-        </MotionTableBody>
+        </TableBody>
       </Table>
       </div>
     </div>

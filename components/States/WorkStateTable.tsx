@@ -1,8 +1,6 @@
 'use client'
 import { Fragment, useState } from 'react'
-import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
-import { MotionTableBody } from '@/components/motion/MotionTable'
-import { staggerContainer } from '@/lib/motion'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/app/_components/_ui/alert-dialog'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
@@ -88,7 +86,7 @@ export default function WorkStateTable({ states, categories, groups, visibility,
             <TableHead />
           </TableRow>
         </TableHeader>
-        <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
+        <TableBody>
           {states.length === 0 ? (
             <TableRow>
               <TableCell colSpan={5} className="text-center h-24 text-muted-foreground text-sm">
@@ -123,9 +121,6 @@ export default function WorkStateTable({ states, categories, groups, visibility,
               {group.states.map(state => {
                 const hiddenCount = hiddenCountFor(state.code)
                 return (
-                  // TableRow nativo (no MotionTableRow): framer-motion tipa onDragStart/onDragEnd
-                  // para su propio gesto de arrastre por puntero (PanInfo), no para el DnD nativo
-                  // de HTML que necesitamos acá para soltar sobre otra fila/categoría.
                   <TableRow
                     key={state.id}
                     draggable={!moving}
@@ -166,7 +161,7 @@ export default function WorkStateTable({ states, categories, groups, visibility,
               })}
             </Fragment>
           ))}
-        </MotionTableBody>
+        </TableBody>
       </Table>
 
       <AlertDialog open={!!confirmId} onOpenChange={open => { if (!open) setConfirmId(null) }}>

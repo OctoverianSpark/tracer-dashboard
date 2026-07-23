@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getProductivityReport } from '@/app/supervisors/actions'
 import { UserProductivity } from '@/lib/productivity'
 import { getGroups } from '@/app/app/groups/actions'
@@ -12,10 +12,9 @@ import { Label } from '@/app/_components/_ui/label'
 import { Switch } from '@/app/_components/_ui/switch'
 import { UserSelect } from '@/components/UserSelect'
 import {
-  Table, TableCell, TableHead, TableHeader, TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/app/_components/_ui/table'
-import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
-import { staggerContainer, staggerItem } from '@/lib/motion'
+import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/app/_components/_ui/collapsible'
 import { Loader2, ChevronDown, Download, X } from 'lucide-react'
@@ -174,6 +173,9 @@ export default function ProductivityReport() {
     .filter(d => d.overallProductivityPercent >= minPercent)
     .sort((a, b) => b.overallProductivityPercent - a.overallProductivityPercent)
 
+  const bodyRef = useRef<HTMLTableSectionElement>(null)
+  useStaggerChildren(bodyRef, { deps: [filtered.map(d => d.user.id).join(',')] })
+
   return (
     <div className='space-y-4'>
       {/* Controles */}
@@ -286,9 +288,9 @@ export default function ProductivityReport() {
                 <TableHead className='text-right'>Sin categ.</TableHead>
               </TableRow>
             </TableHeader>
-            <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
+            <TableBody ref={bodyRef}>
               {filtered.flatMap(d => [
-                <MotionTableRow key={d.user.id ?? d.user.full_name} variants={staggerItem}>
+                <TableRow key={d.user.id ?? d.user.full_name} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
                   <TableCell className='font-medium whitespace-nowrap'>{d.user.full_name}</TableCell>
 
                   <TableCell className='text-right text-muted-foreground text-sm'>
@@ -325,10 +327,10 @@ export default function ProductivityReport() {
                   <TableCell className='text-right text-muted-foreground text-sm'>
                     {d.uncategorizedSeconds > 0 ? fmtSecs(d.uncategorizedSeconds) : '—'}
                   </TableCell>
-                </MotionTableRow>,
+                </TableRow>,
                 <TopAppsRow key={`apps-${d.user.id ?? d.user.full_name}`} data={d} />,
               ])}
-            </MotionTableBody>
+            </TableBody>
           </Table>
         </div>
       )}

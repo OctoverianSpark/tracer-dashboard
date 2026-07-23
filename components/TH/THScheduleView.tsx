@@ -1,14 +1,13 @@
 'use client'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { UserScheduleRow, setAbsenceStatus, saveLunchSkip, deleteLunchSkip } from '@/app/th/actions'
 import { AbsenceStatus } from '@/types/AppUser'
 import { LunchSkip } from '@/types/Schedules'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
-import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
-import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
-import { staggerContainer, staggerItem } from '@/lib/motion'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
+import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import { UtensilsCrossed } from 'lucide-react'
 
 const DAY_LABELS: Record<string, string> = {
@@ -82,14 +81,6 @@ export default function THScheduleView({ rows }: Props) {
     }
   }
 
-  if (rows.length === 0) {
-    return (
-      <p className="text-center text-sm text-muted-foreground py-10">
-        No hay usuarios registrados.
-      </p>
-    )
-  }
-
   const assignedCount   = rows.filter(hasSchedule).length
   const unassignedCount = rows.length - assignedCount
 
@@ -98,6 +89,17 @@ export default function THScheduleView({ rows }: Props) {
     : filter === 'unassigned'
     ? rows.filter(r => !hasSchedule(r))
     : rows
+
+  const bodyRef = useRef<HTMLTableSectionElement>(null)
+  useStaggerChildren(bodyRef, { deps: [filtered.map(r => r.user.id).join(',')] })
+
+  if (rows.length === 0) {
+    return (
+      <p className="text-center text-sm text-muted-foreground py-10">
+        No hay usuarios registrados.
+      </p>
+    )
+  }
 
   return (
     <div className="space-y-3">
@@ -129,13 +131,13 @@ export default function THScheduleView({ rows }: Props) {
                 ))}
               </TableRow>
             </TableHeader>
-            <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
+            <TableBody ref={bodyRef}>
               {filtered.map(({ user, days }) => {
                 const uid    = user.id!
                 const status = overrides.get(uid) ?? null
 
                 return (
-                  <MotionTableRow key={uid} variants={staggerItem}>
+                  <TableRow key={uid} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
                     <TableCell className="font-medium sticky left-0 bg-background">
                       <div className="flex flex-col gap-0.5">
                         <span>{user.full_name}</span>
@@ -208,10 +210,10 @@ export default function THScheduleView({ rows }: Props) {
                         </TableCell>
                       )
                     })}
-                  </MotionTableRow>
+                  </TableRow>
                 )
               })}
-            </MotionTableBody>
+            </TableBody>
           </Table>
         </div>
       )}

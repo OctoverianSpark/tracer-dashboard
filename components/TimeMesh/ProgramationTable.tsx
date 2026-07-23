@@ -1,15 +1,16 @@
 "use client"
+import { useRef } from 'react'
 import { Programation } from '@/types/Schedules'
 import { MallaHoraria } from './shared'
 import {
   Table,
+  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow
 } from '@/app/_components/_ui/table'
-import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
-import { staggerContainer, staggerItem } from '@/lib/motion'
+import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import { Button } from '@/app/_components/_ui/button';
 import { Trash2, FileDown } from 'lucide-react';
 import * as XLSX from 'xlsx'
@@ -41,6 +42,9 @@ export default function ProgramationTable({ programations }: Props) {
     await deleteProgramation(id)
   }
 
+  const bodyRef = useRef<HTMLTableSectionElement>(null)
+  useStaggerChildren(bodyRef, { deps: [programations.map(p => p.id).join(',')] })
+
   return (
     <div className='space-y-2'>
       {programations.length > 0 && (
@@ -65,9 +69,9 @@ export default function ProgramationTable({ programations }: Props) {
           <TableHead>Malla</TableHead>
         </TableRow>
       </TableHeader>
-      <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
+      <TableBody ref={bodyRef}>
         {programations?.map(p => (
-          <MotionTableRow key={p.id} variants={staggerItem}>
+          <TableRow key={p.id} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
             <TableCell>{p.name}</TableCell>
             <TableCell>{p.start_day}</TableCell>
             <TableCell>{p.start_lunch}</TableCell>
@@ -103,9 +107,9 @@ export default function ProgramationTable({ programations }: Props) {
                 </AlertDialogContent>
               </AlertDialog>
             </TableCell>
-          </MotionTableRow>
+          </TableRow>
         ))}
-      </MotionTableBody>
+      </TableBody>
     </Table>
     </div>
   )

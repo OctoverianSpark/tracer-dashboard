@@ -17,12 +17,11 @@ import {
   useDroppable,
   useDraggable
 } from '@dnd-kit/core'
-import React, { useState } from 'react'
-import { motion } from 'framer-motion'
+import React, { useRef, useState } from 'react'
 import GroupForm from './GroupForm'
 import { Search, Trash2 } from 'lucide-react'
 import { Input } from '@/app/_components/_ui/input'
-import { staggerContainer, staggerItem } from '@/lib/motion'
+import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 
 const UNGROUPED_ID = 0
 
@@ -184,23 +183,21 @@ export default function GroupList({ groups, users }: GroupTableProps) {
     await deleteGroup(id)
   }
 
+  const containerRef = useRef<HTMLDivElement>(null)
+  useStaggerChildren(containerRef, { deps: [groups.map(g => g.id).join(',')] })
+
   return (
     <DndContext sensors={sensors} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd}>
-      <motion.div
-        className="flex gap-4 items-start flex-wrap"
-        variants={staggerContainer}
-        initial="initial"
-        animate="animate"
-      >
-        <motion.div variants={staggerItem}>
+      <div className="flex gap-4 items-start flex-wrap" ref={containerRef}>
+        <div data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
           <DroppableUngrouped users={localUsers} />
-        </motion.div>
+        </div>
         {groups.map(g => (
-          <motion.div key={g.id} variants={staggerItem}>
+          <div key={g.id} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
             <DroppableGroup onDelete={handleDeleteGroup} group={g} users={localUsers} allGroups={groups} />
-          </motion.div>
+          </div>
         ))}
-      </motion.div>
+      </div>
 
       <DragOverlay>
         {activeUser && (

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import InfinitySpinner from '@/components/InfinitySpinner'
 import {
   CategorizationApp,
@@ -18,13 +18,13 @@ import {
 } from '@/app/_components/_ui/select'
 import {
   Table,
+  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/app/_components/_ui/table'
-import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
-import { staggerContainer, staggerItem } from '@/lib/motion'
+import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import {
   Dialog,
   DialogContent,
@@ -115,6 +115,9 @@ export default function UncategorizedApps() {
 
   const filtered = apps.filter(a => a.toLowerCase().includes(search.toLowerCase()))
 
+  const bodyRef = useRef<HTMLTableSectionElement>(null)
+  useStaggerChildren(bodyRef, { deps: [filtered.join(',')] })
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
@@ -160,16 +163,16 @@ export default function UncategorizedApps() {
                 <TableHead className="w-36" />
               </TableRow>
             </TableHeader>
-            <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
+            <TableBody ref={bodyRef}>
               {filtered.map(app => (
-                <MotionTableRow key={app} variants={staggerItem}>
+                <TableRow key={app} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
                   <TableCell className="font-medium font-mono text-sm">{app}</TableCell>
                   <TableCell>
                     <CategorizarDialog appName={app} onSaved={() => load(date)} />
                   </TableCell>
-                </MotionTableRow>
+                </TableRow>
               ))}
-            </MotionTableBody>
+            </TableBody>
           </Table>
         </div>
       )}

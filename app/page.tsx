@@ -4,19 +4,71 @@ import { Card, CardContent } from './_components/_ui/card'
 import { Button } from './_components/_ui/button'
 import { TracerLogo } from '@/components/TracerLogo'
 import { redirect, useRouter } from 'next/navigation'
-import { useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { useEffect, useRef } from 'react'
+import { animate } from 'animejs'
+import { EASE } from '@/lib/animation'
 import { normalizeAccessLevel } from '@/lib/accessLevel'
 
-const fadeUp = (delay: number) => ({
-  initial:    { opacity: 0, y: 24 },
-  animate:    { opacity: 1, y: 0  },
-  transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] as const, delay },
-})
+// Estilo pre-animación como en lib/animation.ts (SSR-safe, sin flash) — valores propios de esta
+// página (duración/distancia distintas del fadeUp compartido), por eso no usa el hook genérico.
+const FADE_UP_INITIAL = { opacity: 0, transform: 'translateY(24px)' }
+
+function useFadeUp<T extends HTMLElement>(ref: React.RefObject<T | null>, delay: number) {
+  useEffect(() => {
+    if (!ref.current) return
+    const anim = animate(ref.current, {
+      opacity: [0, 1],
+      translateY: [24, 0],
+      duration: 550,
+      delay,
+      ease: EASE,
+    })
+    return () => { anim.revert() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+}
 
 export default function Home() {
   const { data: session } = useSession()
   const router = useRouter()
+
+  const logoWrapRef = useRef<HTMLDivElement>(null)
+  const pulseRef     = useRef<HTMLDivElement>(null)
+  const subtitleRef  = useRef<HTMLParagraphElement>(null)
+  const cardRef      = useRef<HTMLDivElement>(null)
+  const footerRef    = useRef<HTMLParagraphElement>(null)
+
+  useEffect(() => {
+    if (!logoWrapRef.current) return
+    const anim = animate(logoWrapRef.current, {
+      opacity: [0, 1],
+      scale: [0.72, 1],
+      duration: 650,
+      ease: EASE,
+    })
+    return () => { anim.revert() }
+  }, [])
+
+  useFadeUp(subtitleRef, 180)
+  useFadeUp(cardRef, 320)
+  useFadeUp(footerRef, 460)
+
+  // Ciclo infinito del drop-shadow del logo — sin `alternate`: los 3 pasos se recorren y
+  // reinician desde el primero, en vez de ir y volver (que cambiaría la cadencia visual).
+  useEffect(() => {
+    if (!pulseRef.current) return
+    const anim = animate(pulseRef.current, {
+      filter: [
+        'drop-shadow(0 0 8px #5D43FF55)',
+        'drop-shadow(0 0 20px #FD2A9E55)',
+        'drop-shadow(0 0 8px #5D43FF55)',
+      ],
+      duration: 4000,
+      loop: true,
+      ease: 'inOutSine',
+    })
+    return () => { anim.revert() }
+  }, [])
 
   useEffect(() => {
     if (!session) return
@@ -29,32 +81,24 @@ export default function Home() {
       <div className='w-full max-w-sm space-y-6 px-4'>
 
         {/* Logo + título */}
-        <motion.div
+        <div
           className='flex flex-col items-center gap-4 text-center'
-          initial={{ opacity: 0, scale: 0.72 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+          ref={logoWrapRef}
+          style={{ opacity: 0, transform: 'scale(0.72)' }}
         >
-          <motion.div
-            animate={{ filter: [
-              'drop-shadow(0 0 8px #5D43FF55)',
-              'drop-shadow(0 0 20px #FD2A9E55)',
-              'drop-shadow(0 0 8px #5D43FF55)',
-            ]}}
-            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-          >
+          <div ref={pulseRef}>
             <TracerLogo height={64} />
-          </motion.div>
+          </div>
 
-          <motion.div {...fadeUp(0.18)}>
+          <div ref={subtitleRef} style={FADE_UP_INITIAL}>
             <p className='text-sm text-muted-foreground'>
               Monitoreo de actividad y productividad empresarial
             </p>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
 
         {/* Card de login */}
-        <motion.div {...fadeUp(0.32)}>
+        <div ref={cardRef} style={FADE_UP_INITIAL}>
           <Card>
             <CardContent className='pt-6 space-y-4'>
               <div className='space-y-1'>
@@ -78,12 +122,12 @@ export default function Home() {
               </Button>
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
 
         {/* Pie */}
-        <motion.p {...fadeUp(0.46)} className='text-center text-xs text-muted-foreground'>
+        <p ref={footerRef} style={FADE_UP_INITIAL} className='text-center text-xs text-muted-foreground'>
           Solo cuentas corporativas autorizadas pueden acceder
-        </motion.p>
+        </p>
 
       </div>
     </div>

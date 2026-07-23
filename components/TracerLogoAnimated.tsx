@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef } from 'react'
-import { motion, useMotionValue } from 'framer-motion'
+import { animate, createSpring } from 'animejs'
+import { EASE } from '@/lib/animation'
 
 // ∞ center-line
 const INF_PATH =
@@ -16,34 +17,75 @@ interface Props { height?: number }
 
 export function TracerLogoAnimated({ height = 80 }: Props) {
   const infPathRef = useRef<SVGPathElement>(null)
-  const rafRef     = useRef<number>(0)
+  const ringRef     = useRef<SVGGElement>(null)
+  const textRef     = useRef<SVGTextElement>(null)
+  const rippleRefs  = useRef<(SVGCircleElement | null)[]>([])
+  const dotRef      = useRef<SVGCircleElement>(null)
 
-  // ── Ball 1: ring that travels the ∞ (runs forever) ──────────────────────────
-  const b1x   = useMotionValue(160)
-  const b1y   = useMotionValue(80)
-  const b1rot = useMotionValue(0)
-
+  // ── Ball 1: ring que recorre el ∞ (para siempre) — escritura directa de transform en cada
+  // frame, sin pasar por el motor de animejs (igual que AnimatedLogo.tsx) ────────────────────
   useEffect(() => {
+    let rafId = 0
     let start = 0
     const tick = (t: number) => {
       if (!start) start = t
       const path = infPathRef.current
-      if (!path) { rafRef.current = requestAnimationFrame(tick); return }
-      const len  = path.getTotalLength()
-      const dist = (((t - start) / 4000) % 1) * len
-      const { x, y } = path.getPointAtLength(dist)
-      const ahead     = path.getPointAtLength((dist + 4) % len)
-      b1x.set(x)
-      b1y.set(y)
-      b1rot.set(Math.atan2(ahead.y - y, ahead.x - x) * (180 / Math.PI))
-      rafRef.current = requestAnimationFrame(tick)
+      const ring = ringRef.current
+      if (path && ring) {
+        const len  = path.getTotalLength()
+        const dist = (((t - start) / 4000) % 1) * len
+        const { x, y } = path.getPointAtLength(dist)
+        const ahead = path.getPointAtLength((dist + 4) % len)
+        const rot = Math.atan2(ahead.y - y, ahead.x - x) * (180 / Math.PI)
+        ring.setAttribute('transform', `translate(${x},${y}) rotate(${rot})`)
+      }
+      rafId = requestAnimationFrame(tick)
     }
-    rafRef.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafRef.current)
-  }, [b1x, b1y, b1rot])
+    rafId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafId)
+  }, [])
 
-  // ── Ball 2: dot on the right — entrance + levitate + ripple ─────────────────
-  // (just a motion.circle, animated declaratively — no rAF needed)
+  // ── Texto "tracer": fade-in único ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!textRef.current) return
+    const anim = animate(textRef.current, { opacity: [0, 1], duration: 500, delay: 300, ease: EASE })
+    return () => { anim.revert() }
+  }, [])
+
+  // ── Anillos de "ripple" — se repiten para siempre, desfasados entre sí ─────────────────────
+  useEffect(() => {
+    const anims = rippleRefs.current.filter((el): el is SVGCircleElement => el != null).map((el, i) =>
+      animate(el, {
+        opacity: [0.85, 0],
+        scale: [1, 5.5],
+        duration: 5000,
+        loop: true,
+        delay: 1200 + i * 900, // arranca después de que el logo termine de aparecer
+        ease: 'outQuad',
+      })
+    )
+    return () => { anims.forEach(a => a.revert()) }
+  }, [])
+
+  // ── Punto sólido — entrada (única) + levitación (infinita) + rebote de resorte ─────────────
+  // `loop`/`alternate` son de toda la llamada a animate(), no por propiedad — por eso son dos
+  // llamadas separadas sobre el mismo elemento (una para cy en loop, otra de una sola vez).
+  useEffect(() => {
+    if (!dotRef.current) return
+    const entrance = animate(dotRef.current, {
+      opacity: { from: 0, to: 1, duration: 300, delay: 500 },
+      scale: { from: 0, to: 1, delay: 500, ease: createSpring({ stiffness: 260, damping: 18 }) },
+    })
+    const levitate = animate(dotRef.current, {
+      cy: [DOT_Y - 4, DOT_Y + 4],
+      duration: 2200,
+      loop: true,
+      alternate: true,
+      ease: 'inOutSine',
+      delay: 1000,
+    })
+    return () => { entrance.revert(); levitate.revert() }
+  }, [])
 
   return (
     // viewBox tight around the full logo
@@ -70,7 +112,8 @@ export function TracerLogoAnimated({ height = 80 }: Props) {
       />
 
       {/* "tracer" wordmark — textLength forces predictable width */}
-      <motion.text
+      <text
+        ref={textRef}
         x={TEXT_X}
         y={112}
         textLength={TEXT_LENGTH}
@@ -80,53 +123,43 @@ export function TracerLogoAnimated({ height = 80 }: Props) {
           fontFamily: 'var(--font-outfit), Outfit, sans-serif',
           fontSize: '88px',
           fontWeight: 700,
+          opacity: 0,
         }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
       >
         tracer
-      </motion.text>
+      </text>
 
       {/* ── Ball 1: oval ring riding the ∞ ── */}
-      <motion.g style={{ x: b1x, y: b1y, rotate: b1rot }}>
+      <g ref={ringRef}>
         <ellipse rx="20" ry="12" fill="#FD2A9E" />
         <ellipse rx="10" ry="6"  fill="#6633CA" />
-      </motion.g>
+      </g>
 
       {/* ── Ball 2: dot on the right — independent ── */}
 
       {/* Ripple rings */}
-      {[0, 0.9, 1.8].map((delay, i) => (
-        <motion.circle
+      {[0, 1, 2].map(i => (
+        <circle
           key={i}
+          ref={el => { rippleRefs.current[i] = el }}
           cx={DOT_X}
+          cy={DOT_Y}
+          r={10}
           fill="none"
           stroke="#FD2A9E"
           strokeWidth="1.5"
-          initial={{ cy: DOT_Y, r: 10, opacity: 0.85, scale: 1 }}
-          animate={{ r: 10, opacity: 0, scale: 5.5 }}
-          transition={{
-            duration: 5,
-            repeat: Infinity,
-            delay: 1.2 + delay,   // start after logo fades in
-            ease: 'easeOut',
-          }}
+          style={{ opacity: 0.85, transform: 'scale(1)' }}
         />
       ))}
 
       {/* Solid dot — floats up/down */}
-      <motion.circle
+      <circle
+        ref={dotRef}
         cx={DOT_X}
+        cy={DOT_Y}
         r={10}
         fill="#FD2A9E"
-        initial={{ cy: DOT_Y, opacity: 0, scale: 0 }}
-        animate={{ cy: [DOT_Y - 4, DOT_Y + 4], opacity: 1, scale: 1 }}
-        transition={{
-          cy:      { duration: 2.2, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut', delay: 1 },
-          opacity: { duration: 0.3, delay: 0.5 },
-          scale:   { type: 'spring', stiffness: 260, damping: 18, delay: 0.5 },
-        }}
+        style={{ opacity: 0, transform: 'scale(0)' }}
       />
     </svg>
   )

@@ -1,14 +1,13 @@
 'use client'
 
-import { motion } from 'framer-motion'
 import { Button } from '@/app/_components/_ui/button'
 import { Card, CardContent } from '@/app/_components/_ui/card'
 import { Dialog, DialogContent, DialogTitle } from '@/app/_components/_ui/dialog'
 import { zip } from 'fflate'
 import { Archive, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import Image from 'next/image'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { staggerContainer, staggerItem } from '@/lib/motion'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 
 async function downloadOne(url: string, filename: string) {
   const res = await fetch(url)
@@ -87,6 +86,9 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
 
 const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screenshots, page])
   const remaining = screenshots.length - visible.length
+
+  const gridRef = useRef<HTMLDivElement>(null)
+  useStaggerChildren(gridRef, { deps: [visible.length] })
 
   const goTo = useCallback((index: number) => {
     if (index < 0 || index >= screenshots.length) return
@@ -178,16 +180,11 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
           </Button>
         </div>
 
-        <motion.div
-          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
-          variants={staggerContainer}
-          initial="initial"
-          animate="animate"
-        >
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" ref={gridRef}>
           {visible.map((file, i) => {
             const pct = getPct(file)
             return (
-              <motion.div key={file} variants={staggerItem}>
+              <div key={file} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
                 <Card
                   className="group cursor-pointer hover:shadow-md transition-shadow overflow-hidden"
                   onClick={() => setOpenIndex(i)}
@@ -233,10 +230,10 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
                   </div>
                 </CardContent>
                 </Card>
-              </motion.div>
+              </div>
             )
           })}
-        </motion.div>
+        </div>
         {remaining > 0 && (
           <div className="flex justify-center">
             <Button variant="outline" onClick={() => setPage(p => p + 1)}>

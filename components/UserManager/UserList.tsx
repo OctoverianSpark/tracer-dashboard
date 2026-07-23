@@ -1,17 +1,17 @@
 'use client'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { Checkbox } from '@/app/_components/_ui/checkbox'
 import { Button } from '@/app/_components/_ui/button'
 import { Input } from '@/app/_components/_ui/input'
 import {
   Table,
+  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow
 } from '@/app/_components/_ui/table'
-import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
-import { staggerContainer, staggerItem } from '@/lib/motion'
+import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import {
   Select,
   SelectContent,
@@ -120,6 +120,9 @@ export default function AppUserList ({
 
   const isAllSelected =
     filteredAppUsers.length > 0 && selected.length === filteredAppUsers.length
+
+  const bodyRef = useRef<HTMLTableSectionElement>(null)
+  useStaggerChildren(bodyRef, { deps: [pagedUsers.map(u => u.id).join(',')] })
 
   return (
     <div className='space-y-4'>
@@ -230,12 +233,7 @@ export default function AppUserList ({
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
-          <MotionTableBody
-            key={page}
-            variants={staggerContainer}
-            initial='initial'
-            animate='animate'
-          >
+          <TableBody key={page} ref={bodyRef}>
             {filteredAppUsers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className='text-center h-24'>
@@ -244,7 +242,7 @@ export default function AppUserList ({
               </TableRow>
             ) : (
               pagedUsers.map(appuser => (
-                <MotionTableRow key={appuser.id} variants={staggerItem}>
+                <TableRow key={appuser.id} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
                   <TableCell>
                     <Checkbox
                       checked={selected.includes(appuser.id!)}
@@ -269,10 +267,10 @@ export default function AppUserList ({
                       appUser={appuser}
                     />
                   </TableCell>
-                </MotionTableRow>
+                </TableRow>
               ))
             )}
-          </MotionTableBody>
+          </TableBody>
         </Table>
       </div>
 

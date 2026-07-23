@@ -1,12 +1,12 @@
 'use client'
-import { motion } from 'framer-motion'
+import { useRef } from 'react'
 import { PERMISSION_GROUPS } from '@/app/_components/_lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/_ui/card'
 import { Checkbox } from '@/app/_components/_ui/checkbox'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
 import { Role } from '@/types/AppUser'
 import RoleForm from './RoleForm'
-import { staggerContainer, staggerItem } from '@/lib/motion'
+import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import { normalizeAccessLevel } from '@/lib/accessLevel'
 
 interface RolesListProps {
@@ -17,18 +17,16 @@ const permissionLabel = (id: string): string =>
   PERMISSION_GROUPS.flatMap(g => g.permissions).find(p => p.id === id)?.label ?? id
 
 export default function RolesList({ roles }: RolesListProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  useStaggerChildren(containerRef)
+
   return (
-    <motion.div
-      className="flex flex-wrap gap-4"
-      variants={staggerContainer}
-      initial="initial"
-      animate="animate"
-    >
+    <div className="flex flex-wrap gap-4" ref={containerRef}>
       {roles.map(role => {
         const permissions: [string, boolean][] = Object.entries(normalizeAccessLevel(role.access_level))
 
         return (
-          <motion.div key={role.id} variants={staggerItem}>
+          <div key={role.id} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
             <Card className="w-80">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between gap-4">
@@ -57,9 +55,9 @@ export default function RolesList({ roles }: RolesListProps) {
                 </Table>
               </CardContent>
             </Card>
-          </motion.div>
+          </div>
         )
       })}
-    </motion.div>
+    </div>
   )
 }

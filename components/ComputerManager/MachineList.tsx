@@ -1,18 +1,16 @@
 'use client'
-import { motion } from 'framer-motion'
 import { Machine, machineLabel } from '@/types/Machine'
 import { AppUser, Group } from '@/types/AppUser'
 import MachineCard from './MachineCard'
 import MachineDialog from './MachineDialog'
 import Paginator from './Paginator'
 import { deleteComputer } from '@/app/computers/actions'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Search, LayoutGrid, List, FileDown, Trash2 } from 'lucide-react'
 import { Input } from '@/app/_components/_ui/input'
 import { Badge } from '@/app/_components/_ui/badge'
-import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
-import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
-import { staggerContainer, staggerItem } from '@/lib/motion'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
+import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/app/_components/_ui/alert-dialog'
 import { Button } from '@/app/_components/_ui/button'
 import * as XLSX from 'xlsx'
@@ -83,6 +81,12 @@ export default function MachineList({ machines, appusers, groups }: MachineListP
     setConfirmSerial(null)
   }
 
+  const pagedKey = paged.map(pc => pc.serial_number).join(',')
+  const gridRef = useRef<HTMLDivElement>(null)
+  useStaggerChildren(gridRef, { deps: [pagedKey] })
+  const tableBodyRef = useRef<HTMLTableSectionElement>(null)
+  useStaggerChildren(tableBodyRef, { deps: [pagedKey] })
+
   if (machines.length === 0) {
     return (
       <p className="text-center text-sm text-muted-foreground py-12">
@@ -142,23 +146,21 @@ export default function MachineList({ machines, appusers, groups }: MachineListP
         </p>
       ) : view === 'grid' ? (
         <>
-          <motion.div
+          <div
             key={page}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-            variants={staggerContainer}
-            initial="initial"
-            animate="animate"
+            ref={gridRef}
           >
             {paged.map(pc => (
-              <motion.div key={pc.serial_number} variants={staggerItem}>
+              <div key={pc.serial_number} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
                 <MachineCard
                   onDelete={serial => setConfirmSerial(serial)}
                   machine={pc}
                   appuser={appusers.find(u => String(u.id) === String(pc.appuser_id))}
                 />
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
           <Paginator page={page} totalPages={totalPages} total={filtered.length} pageSize={pageSize} onPageChange={setPage} />
         </>
       ) : (
@@ -177,11 +179,11 @@ export default function MachineList({ machines, appusers, groups }: MachineListP
                   <TableHead />
                 </TableRow>
               </TableHeader>
-              <MotionTableBody key={page} variants={staggerContainer} initial="initial" animate="animate">
+              <TableBody key={page} ref={tableBodyRef}>
                 {paged.map(m => {
                   const online = m.alive || m.isAlive
                   return (
-                    <MotionTableRow key={m.serial_number} variants={staggerItem}>
+                    <TableRow key={m.serial_number} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
                       <TableCell className="font-medium">{m.hostname}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">{machineLabel(m) || '—'}</TableCell>
                       <TableCell>
@@ -201,10 +203,10 @@ export default function MachineList({ machines, appusers, groups }: MachineListP
                           </Button>
                         </div>
                       </TableCell>
-                    </MotionTableRow>
+                    </TableRow>
                   )
                 })}
-              </MotionTableBody>
+              </TableBody>
             </Table>
           </div>
           <Paginator page={page} totalPages={totalPages} total={filtered.length} pageSize={pageSize} onPageChange={setPage} />

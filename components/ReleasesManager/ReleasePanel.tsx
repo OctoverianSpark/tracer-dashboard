@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/_components/_ui/card'
 import { Button } from '@/app/_components/_ui/button'
 import { Badge } from '@/app/_components/_ui/badge'
@@ -10,7 +9,7 @@ import { Label } from '@/app/_components/_ui/label'
 import { type ReleaseInfo } from '@/app/app/releases/actions'
 import { UploadCloud, Download, PackageCheck, PackageX, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
-import { staggerContainer, staggerItem } from '@/lib/motion'
+import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -40,6 +39,8 @@ export default function ReleasePanel({ initialInfo }: Props) {
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  useStaggerChildren(containerRef)
 
   const refreshInfo = async () => {
     try {
@@ -108,13 +109,8 @@ export default function ReleasePanel({ initialInfo }: Props) {
   }
 
   return (
-    <motion.div
-      className="grid gap-4 md:grid-cols-2 items-start"
-      variants={staggerContainer}
-      initial="initial"
-      animate="animate"
-    >
-      <motion.div variants={staggerItem}>
+    <div className="grid gap-4 md:grid-cols-2 items-start" ref={containerRef}>
+      <div data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -157,9 +153,9 @@ export default function ReleasePanel({ initialInfo }: Props) {
           )}
         </CardContent>
       </Card>
-      </motion.div>
+      </div>
 
-      <motion.div variants={staggerItem}>
+      <div data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Publicar nueva versión</CardTitle>
@@ -239,7 +235,7 @@ export default function ReleasePanel({ initialInfo }: Props) {
           </Button>
         </CardContent>
       </Card>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   )
 }

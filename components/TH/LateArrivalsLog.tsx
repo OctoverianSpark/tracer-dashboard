@@ -1,13 +1,12 @@
 'use client'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { LateArrival, getLateArrivals } from '@/app/th/actions'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
-import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
-import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
-import { staggerContainer, staggerItem } from '@/lib/motion'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
+import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import { Loader2, CheckCircle2, AlertCircle, XCircle, FileDown } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
@@ -69,6 +68,9 @@ export default function LateArrivalsLog() {
   const late = data?.filter(d => d.status === 'late').length ?? 0
   const absent = data?.filter(d => d.status === 'absent').length ?? 0
 
+  const bodyRef = useRef<HTMLTableSectionElement>(null)
+  useStaggerChildren(bodyRef, { deps: [date, data] })
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-4">
@@ -117,23 +119,23 @@ export default function LateArrivalsLog() {
                 <TableHead>Estado</TableHead>
               </TableRow>
             </TableHeader>
-            <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
+            <TableBody ref={bodyRef}>
               {data
                 .sort((a, b) => {
                   const order = { late: 0, absent: 1, on_time: 2 }
                   return order[a.status] - order[b.status]
                 })
                 .map(({ user, scheduledStart, firstActivity, status, minutesLate }) => (
-                  <MotionTableRow key={user.id ?? user.full_name} variants={staggerItem}>
+                  <TableRow key={user.id ?? user.full_name} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
                     <TableCell className="font-medium">{user.full_name}</TableCell>
                     <TableCell className="text-muted-foreground">{scheduledStart}</TableCell>
                     <TableCell className="text-muted-foreground">{firstActivity ?? '—'}</TableCell>
                     <TableCell>
                       <StatusBadge status={status} minutesLate={minutesLate} />
                     </TableCell>
-                  </MotionTableRow>
+                  </TableRow>
                 ))}
-            </MotionTableBody>
+            </TableBody>
           </Table>
         </>
       )}

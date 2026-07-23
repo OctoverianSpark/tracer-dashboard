@@ -1,11 +1,10 @@
 'use client'
-import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
-import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
-import { staggerContainer, staggerItem } from '@/lib/motion'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
+import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/app/_components/_ui/alert-dialog'
 import { Button } from '@/app/_components/_ui/button'
 import { Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { deleteStateCategory } from '@/app/states/actions'
 import { StateCategory } from '@/types/States'
 import StateCategoryForm from './StateCategoryForm'
@@ -21,6 +20,9 @@ export default function StateCategoryTable({ categories, onChanged }: Props) {
 
   const confirmCategory = categories.find(c => c.id === confirmId)
   const sorted = [...categories].sort((a, b) => a.sort_order - b.sort_order)
+
+  const bodyRef = useRef<HTMLTableSectionElement>(null)
+  useStaggerChildren(bodyRef, { deps: [sorted.map(c => c.id).join(',')] })
 
   async function handleDelete() {
     if (!confirmId) return
@@ -43,7 +45,7 @@ export default function StateCategoryTable({ categories, onChanged }: Props) {
             <TableHead />
           </TableRow>
         </TableHeader>
-        <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
+        <TableBody ref={bodyRef}>
           {sorted.length === 0 ? (
             <TableRow>
               <TableCell colSpan={5} className="text-center h-24 text-muted-foreground text-sm">
@@ -51,7 +53,7 @@ export default function StateCategoryTable({ categories, onChanged }: Props) {
               </TableCell>
             </TableRow>
           ) : sorted.map(cat => (
-            <MotionTableRow key={cat.id} variants={staggerItem}>
+            <TableRow key={cat.id} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
               <TableCell>
                 <span className="inline-block h-4 w-4 rounded-sm border" style={{ backgroundColor: cat.color ?? '#64748b' }} />
               </TableCell>
@@ -66,9 +68,9 @@ export default function StateCategoryTable({ categories, onChanged }: Props) {
                   </Button>
                 </div>
               </TableCell>
-            </MotionTableRow>
+            </TableRow>
           ))}
-        </MotionTableBody>
+        </TableBody>
       </Table>
 
       <AlertDialog open={!!confirmId} onOpenChange={open => { if (!open) setConfirmId(null) }}>

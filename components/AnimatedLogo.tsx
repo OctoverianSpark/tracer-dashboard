@@ -1,6 +1,5 @@
 'use client'
-import { useRef } from 'react'
-import { useAnimationFrame } from 'framer-motion'
+import { useEffect, useRef } from 'react'
 
 const PATH = "M 160,80 C 160,30 80,30 80,80 C 80,130 160,130 160,80 C 160,30 240,30 240,80 C 240,130 160,130 160,80"
 
@@ -14,13 +13,22 @@ export function AnimatedInfinityLogo({ height = 32, speed = 4, className }: Prop
   const pathRef = useRef<SVGPathElement>(null)
   const ringRef = useRef<SVGGElement>(null)
 
-  useAnimationFrame((t) => {
-    if (!pathRef.current || !ringRef.current) return
-    const len   = pathRef.current.getTotalLength()
-    const pct   = (t / (speed * 1000)) % 1
-    const { x, y } = pathRef.current.getPointAtLength(pct * len)
-    ringRef.current.setAttribute('transform', `translate(${x},${y})`)
-  })
+  useEffect(() => {
+    let rafId = 0
+    const tick = (t: number) => {
+      const path = pathRef.current
+      const ring = ringRef.current
+      if (path && ring) {
+        const len   = path.getTotalLength()
+        const pct   = (t / (speed * 1000)) % 1
+        const { x, y } = path.getPointAtLength(pct * len)
+        ring.setAttribute('transform', `translate(${x},${y})`)
+      }
+      rafId = requestAnimationFrame(tick)
+    }
+    rafId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafId)
+  }, [speed])
 
   return (
     <svg

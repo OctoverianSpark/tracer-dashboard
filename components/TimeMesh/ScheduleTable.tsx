@@ -1,16 +1,15 @@
 'use client'
 import { Schedule, Programation, RotationData, RotationSlot } from '@/types/Schedules'
 import { AppUser } from '@/types/AppUser'
-import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
-import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
-import { staggerContainer, staggerItem } from '@/lib/motion'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
+import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/app/_components/_ui/alert-dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
 import { Trash2, FileDown, RefreshCw } from 'lucide-react'
 import * as XLSX from 'xlsx'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { deleteSchedule, deleteRotationCycle } from '@/app/time/actions'
 
 interface Props {
@@ -104,6 +103,9 @@ export default function ScheduleTable({ schedules, appuser, programations, rotat
   const confirmUser = appuser.find(u => u.id === confirmUserId)
   const confirmRotation = rotations.find(r => r.cycle.appuser_id === confirmUserId) ?? null
 
+  const bodyRef = useRef<HTMLTableSectionElement>(null)
+  useStaggerChildren(bodyRef, { deps: [grouped.map(g => g.user.id).join(',')] })
+
   async function handleDelete() {
     if (!confirmUserId) return
     setLoading(true)
@@ -139,7 +141,7 @@ export default function ScheduleTable({ schedules, appuser, programations, rotat
               <TableHead />
             </TableRow>
           </TableHeader>
-          <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
+          <TableBody ref={bodyRef}>
             {grouped.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={3} className='text-center h-24 text-muted-foreground text-sm'>
@@ -152,7 +154,7 @@ export default function ScheduleTable({ schedules, appuser, programations, rotat
               const hidden  = entries.slice(MAX_INLINE)
 
               return (
-                <MotionTableRow key={user.id} variants={staggerItem}>
+                <TableRow key={user.id} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
                   <TableCell className='font-medium'>{user.full_name}</TableCell>
 
                   <TableCell>
@@ -194,10 +196,10 @@ export default function ScheduleTable({ schedules, appuser, programations, rotat
                       <Trash2 className='size-4 text-destructive' />
                     </Button>
                   </TableCell>
-                </MotionTableRow>
+                </TableRow>
               )
             })}
-          </MotionTableBody>
+          </TableBody>
         </Table>
         </div>
       </div>

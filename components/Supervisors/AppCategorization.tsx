@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import InfinitySpinner from '@/components/InfinitySpinner'
 import {
   CategorizationApp,
@@ -21,13 +21,13 @@ import {
 } from '@/app/_components/_ui/select'
 import {
   Table,
+  TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/app/_components/_ui/table'
-import { MotionTableBody, MotionTableRow } from '@/components/motion/MotionTable'
-import { staggerContainer, staggerItem } from '@/lib/motion'
+import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import {
   Dialog,
   DialogContent,
@@ -208,6 +208,9 @@ export default function AppCategorization() {
     a.name.toLowerCase().includes(search.toLowerCase())
   )
 
+  const bodyRef = useRef<HTMLTableSectionElement>(null)
+  useStaggerChildren(bodyRef, { deps: [filtered.map(a => a.id).join(',')] })
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
@@ -261,9 +264,9 @@ export default function AppCategorization() {
               <TableHead className="w-20" />
             </TableRow>
           </TableHeader>
-          <MotionTableBody variants={staggerContainer} initial="initial" animate="animate">
+          <TableBody ref={bodyRef}>
             {filtered.map(app => (
-              <MotionTableRow key={app.id} variants={staggerItem}>
+              <TableRow key={app.id} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
                 <TableCell className="font-medium font-mono text-sm">{app.name}</TableCell>
                 <TableCell><CategoryBadge category={app.category} /></TableCell>
                 <TableCell>
@@ -272,9 +275,9 @@ export default function AppCategorization() {
                     <DeleteButton id={app.id!} onDeleted={load} />
                   </div>
                 </TableCell>
-              </MotionTableRow>
+              </TableRow>
             ))}
-          </MotionTableBody>
+          </TableBody>
         </Table>
         </div>
       )}
