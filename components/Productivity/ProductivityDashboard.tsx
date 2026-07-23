@@ -10,7 +10,7 @@ import { Label } from '@/app/_components/_ui/label'
 import { Button } from '@/app/_components/_ui/button'
 import { UserSelect } from '@/components/UserSelect'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
-import { Tabs, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
 import ProductivityPodium from './ProductivityPodium'
 import ProductivityCurveChart from './ProductivityCurveChart'
@@ -22,6 +22,7 @@ interface ProductivityDashboardProps {
 }
 
 type ViewMode = 'global' | 'user' | 'group'
+type Section = 'podium' | 'curve'
 
 const today = () => {
   const bogota = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
@@ -48,6 +49,7 @@ const fmtDate = (date: string) => {
 export default function ProductivityDashboard({ users, groups }: ProductivityDashboardProps) {
   const [dateFrom, setDateFrom] = useState(daysAgo(6))
   const [dateTo, setDateTo] = useState(today())
+  const [section, setSection] = useState<Section>('podium')
   const [viewMode, setViewMode] = useState<ViewMode>('global')
   const [userId, setUserId] = useState('')
   const [groupId, setGroupId] = useState('')
@@ -219,106 +221,116 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
         <p className="text-xs text-destructive">La fecha &quot;Hasta&quot; no puede ser anterior a &quot;Desde&quot;.</p>
       )}
 
-      {/* Podio */}
-      <Card className="p-4 sm:p-6">
-        <h2 className="text-lg font-medium mb-4">Podio de productividad</h2>
-        {report === null ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">Selecciona un rango y genera el reporte.</p>
-        ) : (
-          <ProductivityPodium top3={top3} />
-        )}
-      </Card>
+      {/* Podio / Curva */}
+      <Tabs value={section} onValueChange={v => setSection(v as Section)}>
+        <TabsList>
+          <TabsTrigger value="podium" className="cursor-pointer">Podio</TabsTrigger>
+          <TabsTrigger value="curve" className="cursor-pointer">Curva</TabsTrigger>
+        </TabsList>
 
-      {/* Curva de productividad — global, por grupo o por usuario */}
-      <Card className="p-4 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <h2 className="text-lg font-medium">Curva de productividad</h2>
-          <div className="flex flex-wrap items-center gap-2">
-            <Tabs value={viewMode} onValueChange={v => handleViewModeChange(v as ViewMode)}>
-              <TabsList>
-                <TabsTrigger value="global" className="cursor-pointer">Global</TabsTrigger>
-                <TabsTrigger value="group" className="cursor-pointer">Por grupo</TabsTrigger>
-                <TabsTrigger value="user" className="cursor-pointer">Por usuario</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            {viewMode === 'user' && (
-              <div className="w-56">
-                <UserSelect users={users} value={userId} onValueChange={handleUserChange} placeholder="Seleccionar usuario" />
+        <TabsContent value="podium" className="mt-4">
+          <Card className="p-4 sm:p-6">
+            <h2 className="text-lg font-medium mb-4">Podio de productividad</h2>
+            {report === null ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">Selecciona un rango y genera el reporte.</p>
+            ) : (
+              <ProductivityPodium top3={top3} />
+            )}
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="curve" className="mt-4">
+          <Card className="p-4 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h2 className="text-lg font-medium">Curva de productividad</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <Tabs value={viewMode} onValueChange={v => handleViewModeChange(v as ViewMode)}>
+                  <TabsList>
+                    <TabsTrigger value="global" className="cursor-pointer">Global</TabsTrigger>
+                    <TabsTrigger value="group" className="cursor-pointer">Por grupo</TabsTrigger>
+                    <TabsTrigger value="user" className="cursor-pointer">Por usuario</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                {viewMode === 'user' && (
+                  <div className="w-56">
+                    <UserSelect users={users} value={userId} onValueChange={handleUserChange} placeholder="Seleccionar usuario" />
+                  </div>
+                )}
+                {viewMode === 'group' && (
+                  <Select value={groupId} onValueChange={handleGroupChange}>
+                    <SelectTrigger className="w-56">
+                      <SelectValue placeholder="Seleccionar grupo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {groups.map(g => (
+                        <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <Button
+                  variant="outline" size="sm" className="cursor-pointer"
+                  onClick={handleExportPdf}
+                  disabled={exportingPdf || !daily || daily.length === 0}
+                >
+                  {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileDown className="h-4 w-4 mr-2" />}
+                  Exportar PDF
+                </Button>
+              </div>
+            </div>
+
+            {daily === null ? (
+              <p className="text-sm text-muted-foreground py-10 text-center">Genera el reporte para ver la curva.</p>
+            ) : (
+              <div ref={curveSectionRef} className="bg-background p-2">
+                <p className="text-sm font-medium text-muted-foreground mb-2">
+                  {viewMode === 'global' && 'Global — todos los usuarios'}
+                  {viewMode === 'group' && `Grupo: ${selectedGroup?.name ?? ''}`}
+                  {viewMode === 'user' && `Usuario: ${selectedUser?.full_name ?? ''}`}
+                  {' · '}{fmtDate(dateFrom)} a {fmtDate(dateTo)}
+                </p>
+                <ProductivityCurveChart data={daily} />
+
+                <div className="rounded-md border overflow-x-auto mt-6">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead className="text-right">Productivo</TableHead>
+                        <TableHead className="text-right">No productivo</TableHead>
+                        <TableHead className="text-right">Sin categorizar</TableHead>
+                        <TableHead className="text-right">Duración</TableHead>
+                        <TableHead className="text-right">Productividad</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {daily.map(d => (
+                        <TableRow key={d.date}>
+                          <TableCell className="font-medium">{fmtDate(d.date)}</TableCell>
+                          <TableCell className="text-right text-sm">{fmtHM(d.productiveSeconds)}</TableCell>
+                          <TableCell className="text-right text-sm">{fmtHM(d.unproductiveSeconds)}</TableCell>
+                          <TableCell className="text-right text-sm">{fmtHM(d.uncategorizedSeconds)}</TableCell>
+                          <TableCell className="text-right text-sm">{fmtHM(d.totalSeconds)}</TableCell>
+                          <TableCell className="text-right font-medium">{d.overallProductivityPercent}%</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             )}
-            {viewMode === 'group' && (
-              <Select value={groupId} onValueChange={handleGroupChange}>
-                <SelectTrigger className="w-56">
-                  <SelectValue placeholder="Seleccionar grupo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {groups.map(g => (
-                    <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {viewMode === 'user' && selectedUser && (
+              <p className="text-xs text-muted-foreground mt-2">Mostrando la curva de {selectedUser.full_name}.</p>
             )}
-            <Button
-              variant="outline" size="sm" className="cursor-pointer"
-              onClick={handleExportPdf}
-              disabled={exportingPdf || !daily || daily.length === 0}
-            >
-              {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileDown className="h-4 w-4 mr-2" />}
-              Exportar PDF
-            </Button>
-          </div>
-        </div>
-
-        {daily === null ? (
-          <p className="text-sm text-muted-foreground py-10 text-center">Genera el reporte para ver la curva.</p>
-        ) : (
-          <div ref={curveSectionRef} className="bg-background p-2">
-            <p className="text-sm font-medium text-muted-foreground mb-2">
-              {viewMode === 'global' && 'Global — todos los usuarios'}
-              {viewMode === 'group' && `Grupo: ${selectedGroup?.name ?? ''}`}
-              {viewMode === 'user' && `Usuario: ${selectedUser?.full_name ?? ''}`}
-              {' · '}{fmtDate(dateFrom)} a {fmtDate(dateTo)}
-            </p>
-            <ProductivityCurveChart data={daily} />
-
-            <div className="rounded-md border overflow-x-auto mt-6">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead className="text-right">Productivo</TableHead>
-                    <TableHead className="text-right">No productivo</TableHead>
-                    <TableHead className="text-right">Sin categorizar</TableHead>
-                    <TableHead className="text-right">Duración</TableHead>
-                    <TableHead className="text-right">Productividad</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {daily.map(d => (
-                    <TableRow key={d.date}>
-                      <TableCell className="font-medium">{fmtDate(d.date)}</TableCell>
-                      <TableCell className="text-right text-sm">{fmtHM(d.productiveSeconds)}</TableCell>
-                      <TableCell className="text-right text-sm">{fmtHM(d.unproductiveSeconds)}</TableCell>
-                      <TableCell className="text-right text-sm">{fmtHM(d.uncategorizedSeconds)}</TableCell>
-                      <TableCell className="text-right text-sm">{fmtHM(d.totalSeconds)}</TableCell>
-                      <TableCell className="text-right font-medium">{d.overallProductivityPercent}%</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        )}
-        {viewMode === 'user' && selectedUser && (
-          <p className="text-xs text-muted-foreground mt-2">Mostrando la curva de {selectedUser.full_name}.</p>
-        )}
-        {viewMode === 'group' && selectedGroup && (
-          <p className="text-xs text-muted-foreground mt-2">Suma de los usuarios del grupo {selectedGroup.name}.</p>
-        )}
-        {viewMode === 'global' && daily !== null && (
-          <p className="text-xs text-muted-foreground mt-2">Suma de todos los usuarios en el rango seleccionado.</p>
-        )}
-      </Card>
+            {viewMode === 'group' && selectedGroup && (
+              <p className="text-xs text-muted-foreground mt-2">Suma de los usuarios del grupo {selectedGroup.name}.</p>
+            )}
+            {viewMode === 'global' && daily !== null && (
+              <p className="text-xs text-muted-foreground mt-2">Suma de todos los usuarios en el rango seleccionado.</p>
+            )}
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
