@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import InfinitySpinner from '@/components/InfinitySpinner'
 import {
   CategorizationApp,
@@ -12,6 +12,9 @@ import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
+import ListToolbar from '@/components/shared/ListToolbar'
+import Paginator from '@/components/ComputerManager/Paginator'
+import { useResetPageOnChange } from '@/components/shared/usePageReset'
 import {
   Select,
   SelectContent,
@@ -144,6 +147,8 @@ function AppForm({
   )
 }
 
+const PAGE_SIZE = 15
+
 function DeleteButton({ id, onDeleted }: { id: number; onDeleted: () => void }) {
   const [loading, setLoading] = useState(false)
 
@@ -188,6 +193,7 @@ export default function AppCategorization() {
   const [apps, setApps] = useState<CategorizationApp[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
 
   const load = async () => {
     setLoading(true)
@@ -204,43 +210,48 @@ export default function AppCategorization() {
   const unproductive = apps.filter(a => a.category === 'unproductive').length
   const ignored      = apps.filter(a => a.category === 'ignore').length
 
-  const filtered = apps.filter(a =>
-    a.name.toLowerCase().includes(search.toLowerCase())
+  const filtered = useMemo(
+    () => apps.filter(a => a.name.toLowerCase().includes(search.toLowerCase())),
+    [apps, search]
   )
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paged = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page]
+  )
+  useResetPageOnChange(search, setPage)
 
   const bodyRef = useRef<HTMLTableSectionElement>(null)
-  useStaggerChildren(bodyRef, { deps: [filtered.map(a => a.id).join(',')] })
+  useStaggerChildren(bodyRef, { deps: [paged.map(a => a.id).join(',')] })
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-          <Input
-            placeholder="Buscar aplicación…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full sm:w-60"
-          />
-          <span className="text-sm text-muted-foreground">
-            <span className="text-green-600 font-medium">{productive} productivas</span>
-            {' · '}
-            <span className="text-red-500 font-medium">{unproductive} improductivas</span>
-            {ignored > 0 && <>{' · '}<span className="font-medium">{ignored} ignoradas</span></>}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          {filtered.length > 0 && (
-            <button
-              onClick={() => exportXLSX(filtered)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer"
-            >
-              <FileDown className="size-3.5" />
-              Exportar
-            </button>
-          )}
-          <AppForm onSaved={load} />
-        </div>
-      </div>
+      <span className="text-sm text-muted-foreground">
+        <span className="text-green-600 font-medium">{productive} productivas</span>
+        {' · '}
+        <span className="text-red-500 font-medium">{unproductive} improductivas</span>
+        {ignored > 0 && <>{' · '}<span className="font-medium">{ignored} ignoradas</span></>}
+      </span>
+
+      <ListToolbar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Buscar aplicación…"
+        rightSlot={
+          <>
+            {filtered.length > 0 && (
+              <button
+                onClick={() => exportXLSX(filtered)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer"
+              >
+                <FileDown className="size-3.5" />
+                Exportar
+              </button>
+            )}
+            <AppForm onSaved={load} />
+          </>
+        }
+      />
 
       {loading && (
         <div className="flex justify-center py-10">
@@ -265,7 +276,7 @@ export default function AppCategorization() {
             </TableRow>
           </TableHeader>
           <TableBody ref={bodyRef}>
-            {filtered.map(app => (
+            {paged.map(app => (
               <TableRow key={app.id} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
                 <TableCell className="font-medium font-mono text-sm">{app.name}</TableCell>
                 <TableCell><CategoryBadge category={app.category} /></TableCell>
@@ -280,6 +291,9 @@ export default function AppCategorization() {
           </TableBody>
         </Table>
         </div>
+      )}
+      {!loading && filtered.length > 0 && (
+        <Paginator page={page} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
       )}
     </div>
   )

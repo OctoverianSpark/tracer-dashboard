@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { LateArrival, getLateArrivals } from '@/app/th/actions'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
@@ -9,6 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import { Loader2, CheckCircle2, AlertCircle, XCircle, FileDown } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import ListToolbar from '@/components/shared/ListToolbar'
+import Paginator from '@/components/ComputerManager/Paginator'
+import { useResetPageOnChange } from '@/components/shared/usePageReset'
+import { Group } from '@/types/AppUser'
 
 function exportXLSX(data: LateArrival[], date: string) {
   const statusLabel = (s: LateArrival['status'], min: number) =>
@@ -49,10 +53,19 @@ const StatusBadge = ({ status, minutesLate }: { status: LateArrival['status']; m
   )
 }
 
-export default function LateArrivalsLog() {
+interface Props {
+  groups: Group[]
+}
+
+const PAGE_SIZE = 15
+
+export default function LateArrivalsLog({ groups }: Props) {
   const [date, setDate] = useState(today())
   const [data, setData] = useState<LateArrival[] | null>(null)
   const [loading, setLoading] = useState(false)
+  const [search, setSearch] = useState('')
+  const [groupFilter, setGroupFilter] = useState<number | null>(null)
+  const [page, setPage] = useState(1)
 
   const load = async () => {
     setLoading(true)
@@ -68,8 +81,27 @@ export default function LateArrivalsLog() {
   const late = data?.filter(d => d.status === 'late').length ?? 0
   const absent = data?.filter(d => d.status === 'absent').length ?? 0
 
+  const sorted = useMemo(() => {
+    if (!data) return []
+    const order = { late: 0, absent: 1, on_time: 2 }
+    return [...data].sort((a, b) => order[a.status] - order[b.status])
+  }, [data])
+
+  const filtered = useMemo(() => sorted.filter(d =>
+    (groupFilter === null || d.user.group_id === groupFilter) &&
+    d.user.full_name.toLowerCase().includes(search.toLowerCase())
+  ), [sorted, search, groupFilter])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paged = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page]
+  )
+  useResetPageOnChange(`${search}|${groupFilter}`, setPage)
+  useResetPageOnChange(data, setPage)
+
   const bodyRef = useRef<HTMLTableSectionElement>(null)
-  useStaggerChildren(bodyRef, { deps: [date, data] })
+  useStaggerChildren(bodyRef, { deps: [paged.map(d => d.user.id ?? d.user.full_name).join(',')] })
 
   return (
     <div className="space-y-4">
@@ -101,14 +133,25 @@ export default function LateArrivalsLog() {
             <span className="text-green-600 font-medium">{onTime} a tiempo</span>
             <span className="text-yellow-600 font-medium">{late} tarde</span>
             <span className="text-red-500 font-medium">{absent} ausentes</span>
-            <button
-              onClick={() => exportXLSX(data!, date)}
-              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer"
-            >
-              <FileDown className="size-3.5" />
-              Exportar
-            </button>
           </div>
+
+          <ListToolbar
+            search={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Buscar usuario..."
+            groups={groups}
+            groupFilter={groupFilter}
+            onGroupFilterChange={setGroupFilter}
+            rightSlot={
+              <button
+                onClick={() => exportXLSX(filtered, date)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer"
+              >
+                <FileDown className="size-3.5" />
+                Exportar
+              </button>
+            }
+          />
 
           <Table>
             <TableHeader>
@@ -120,11 +163,14 @@ export default function LateArrivalsLog() {
               </TableRow>
             </TableHeader>
             <TableBody ref={bodyRef}>
-              {data
-                .sort((a, b) => {
-                  const order = { late: 0, absent: 1, on_time: 2 }
-                  return order[a.status] - order[b.status]
-                })
+              {filtered.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center h-24 text-muted-foreground text-sm">
+                    Sin resultados para el filtro actual.
+                  </TableCell>
+                </TableRow>
+              )}
+              {paged
                 .map(({ user, scheduledStart, firstActivity, status, minutesLate }) => (
                   <TableRow key={user.id ?? user.full_name} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
                     <TableCell className="font-medium">{user.full_name}</TableCell>
@@ -137,6 +183,7 @@ export default function LateArrivalsLog() {
                 ))}
             </TableBody>
           </Table>
+          <Paginator page={page} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
         </>
       )}
     </div>

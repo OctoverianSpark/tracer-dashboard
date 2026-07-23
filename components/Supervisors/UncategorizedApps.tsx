@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import InfinitySpinner from '@/components/InfinitySpinner'
 import {
   CategorizationApp,
@@ -9,6 +9,9 @@ import {
 import { Button } from '@/app/_components/_ui/button'
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
+import ListToolbar from '@/components/shared/ListToolbar'
+import Paginator from '@/components/ComputerManager/Paginator'
+import { useResetPageOnChange } from '@/components/shared/usePageReset'
 import {
   Select,
   SelectContent,
@@ -34,6 +37,8 @@ import {
 } from '@/app/_components/_ui/dialog'
 import { Loader2, Tag } from 'lucide-react'
 import { toast } from 'sonner'
+
+const PAGE_SIZE = 15
 
 function CategorizarDialog({ appName, onSaved }: { appName: string; onSaved: () => void }) {
   const [open, setOpen] = useState(false)
@@ -101,6 +106,7 @@ export default function UncategorizedApps() {
   const [apps, setApps] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
 
   const load = async (d: string) => {
     setLoading(true)
@@ -113,10 +119,19 @@ export default function UncategorizedApps() {
 
   useEffect(() => { load(date) }, [date])
 
-  const filtered = apps.filter(a => a.toLowerCase().includes(search.toLowerCase()))
+  const filtered = useMemo(
+    () => apps.filter(a => a.toLowerCase().includes(search.toLowerCase())),
+    [apps, search]
+  )
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paged = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page]
+  )
+  useResetPageOnChange(`${search}|${date}`, setPage)
 
   const bodyRef = useRef<HTMLTableSectionElement>(null)
-  useStaggerChildren(bodyRef, { deps: [filtered.join(',')] })
+  useStaggerChildren(bodyRef, { deps: [paged.join(',')] })
 
   return (
     <div className="space-y-4">
@@ -127,18 +142,18 @@ export default function UncategorizedApps() {
           onChange={e => setDate(e.target.value)}
           className="w-full sm:w-40"
         />
-        <Input
-          placeholder="Buscar aplicación…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full sm:w-60"
-        />
         {!loading && (
           <span className="text-sm text-muted-foreground">
             <span className="font-medium">{apps.length}</span> sin categorizar
           </span>
         )}
       </div>
+
+      <ListToolbar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Buscar aplicación…"
+      />
 
       {loading && (
         <div className="flex justify-center py-10">
@@ -164,7 +179,7 @@ export default function UncategorizedApps() {
               </TableRow>
             </TableHeader>
             <TableBody ref={bodyRef}>
-              {filtered.map(app => (
+              {paged.map(app => (
                 <TableRow key={app} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
                   <TableCell className="font-medium font-mono text-sm">{app}</TableCell>
                   <TableCell>
@@ -175,6 +190,9 @@ export default function UncategorizedApps() {
             </TableBody>
           </Table>
         </div>
+      )}
+      {!loading && filtered.length > 0 && (
+        <Paginator page={page} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
       )}
     </div>
   )

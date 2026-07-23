@@ -60,12 +60,12 @@ export default function THPage() {
         <TabsContent value="schedule" className="mt-4">
           {loading
             ? <div className="flex justify-center py-10"><InfinitySpinner size={56} /></div>
-            : <THScheduleView rows={visibleRows} />
+            : <THScheduleView rows={visibleRows} groups={groups} />
           }
         </TabsContent>
 
         <TabsContent value="late" className="mt-4">
-          <LateArrivalsLog />
+          <LateArrivalsLog groups={groups} />
         </TabsContent>
       </Tabs>
     </div>

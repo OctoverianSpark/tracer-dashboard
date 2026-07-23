@@ -1,7 +1,7 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { UserScheduleRow, setAbsenceStatus, saveLunchSkip, deleteLunchSkip } from '@/app/th/actions'
-import { AbsenceStatus } from '@/types/AppUser'
+import { AbsenceStatus, Group } from '@/types/AppUser'
 import { LunchSkip } from '@/types/Schedules'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
 import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import { UtensilsCrossed } from 'lucide-react'
+import ListToolbar from '@/components/shared/ListToolbar'
+import Paginator from '@/components/ComputerManager/Paginator'
+import { useResetPageOnChange } from '@/components/shared/usePageReset'
 
 const DAY_LABELS: Record<string, string> = {
   D: 'Dom', L: 'Lun', M: 'Mar', X: 'Mié', J: 'Jue', V: 'Vie', S: 'Sáb',
@@ -33,14 +36,20 @@ type FilterType = 'all' | 'assigned' | 'unassigned'
 
 interface Props {
   rows: UserScheduleRow[]
+  groups: Group[]
 }
+
+const PAGE_SIZE = 15
 
 function hasSchedule(row: UserScheduleRow): boolean {
   return Object.values(row.days).some(v => v !== null)
 }
 
-export default function THScheduleView({ rows }: Props) {
+export default function THScheduleView({ rows, groups }: Props) {
   const [filter, setFilter] = useState<FilterType>('all')
+  const [search, setSearch] = useState('')
+  const [groupFilter, setGroupFilter] = useState<number | null>(null)
+  const [page, setPage] = useState(1)
   // Overrides optimistas: userId → ausencia actual (puede diferir del prop inicial)
   const [overrides, setOverrides] = useState<Map<number, AbsenceStatus>>(() => {
     const m = new Map<number, AbsenceStatus>()
@@ -84,14 +93,26 @@ export default function THScheduleView({ rows }: Props) {
   const assignedCount   = rows.filter(hasSchedule).length
   const unassignedCount = rows.length - assignedCount
 
-  const filtered = filter === 'assigned'
+  const statusFiltered = filter === 'assigned'
     ? rows.filter(hasSchedule)
     : filter === 'unassigned'
     ? rows.filter(r => !hasSchedule(r))
     : rows
 
+  const filtered = useMemo(() => statusFiltered.filter(r =>
+    (groupFilter === null || r.user.group_id === groupFilter) &&
+    r.user.full_name.toLowerCase().includes(search.toLowerCase())
+  ), [statusFiltered, search, groupFilter])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paged = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page]
+  )
+  useResetPageOnChange(`${filter}|${search}|${groupFilter}`, setPage)
+
   const bodyRef = useRef<HTMLTableSectionElement>(null)
-  useStaggerChildren(bodyRef, { deps: [filtered.map(r => r.user.id).join(',')] })
+  useStaggerChildren(bodyRef, { deps: [paged.map(r => r.user.id).join(',')] })
 
   if (rows.length === 0) {
     return (
@@ -115,6 +136,15 @@ export default function THScheduleView({ rows }: Props) {
         </Button>
       </div>
 
+      <ListToolbar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder='Buscar usuario...'
+        groups={groups}
+        groupFilter={groupFilter}
+        onGroupFilterChange={setGroupFilter}
+      />
+
       {filtered.length === 0 ? (
         <p className="text-center text-sm text-muted-foreground py-10">
           No hay usuarios en esta categoría.
@@ -132,7 +162,7 @@ export default function THScheduleView({ rows }: Props) {
               </TableRow>
             </TableHeader>
             <TableBody ref={bodyRef}>
-              {filtered.map(({ user, days }) => {
+              {paged.map(({ user, days }) => {
                 const uid    = user.id!
                 const status = overrides.get(uid) ?? null
 
@@ -216,6 +246,9 @@ export default function THScheduleView({ rows }: Props) {
             </TableBody>
           </Table>
         </div>
+      )}
+      {filtered.length > 0 && (
+        <Paginator page={page} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
       )}
     </div>
   )

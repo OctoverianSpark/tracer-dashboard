@@ -1,5 +1,5 @@
 "use client"
-import { useRef } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Programation } from '@/types/Schedules'
 import { MallaHoraria } from './shared'
 import {
@@ -16,10 +16,15 @@ import { Trash2, FileDown } from 'lucide-react';
 import * as XLSX from 'xlsx'
 import { deleteProgramation } from '@/app/time/actions';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/app/_components/_ui/alert-dialog';
+import ListToolbar from '@/components/shared/ListToolbar'
+import Paginator from '@/components/ComputerManager/Paginator'
+import { useResetPageOnChange } from '@/components/shared/usePageReset'
 
 interface Props {
   programations: Programation[]
 }
+
+const PAGE_SIZE = 15
 
 function exportXLSX(programations: Programation[]) {
   const rows = programations.map(p => ({
@@ -37,27 +42,43 @@ function exportXLSX(programations: Programation[]) {
 }
 
 export default function ProgramationTable({ programations }: Props) {
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
 
   const handleDelete = async (id:number) =>{
     await deleteProgramation(id)
   }
 
+  const filtered = useMemo(
+    () => programations.filter(p => p.name.toLowerCase().includes(search.toLowerCase())),
+    [programations, search]
+  )
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paged = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page]
+  )
+  useResetPageOnChange(search, setPage)
+
   const bodyRef = useRef<HTMLTableSectionElement>(null)
-  useStaggerChildren(bodyRef, { deps: [programations.map(p => p.id).join(',')] })
+  useStaggerChildren(bodyRef, { deps: [paged.map(p => p.id).join(',')] })
 
   return (
     <div className='space-y-2'>
-      {programations.length > 0 && (
-        <div className='flex justify-end'>
+      <ListToolbar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder='Buscar horario...'
+        rightSlot={filtered.length > 0 && (
           <button
-            onClick={() => exportXLSX(programations)}
+            onClick={() => exportXLSX(filtered)}
             className='flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer'
           >
             <FileDown className='size-3.5' />
             Exportar
           </button>
-        </div>
-      )}
+        )}
+      />
     <Table>
       <TableHeader>
         <TableRow>
@@ -70,7 +91,7 @@ export default function ProgramationTable({ programations }: Props) {
         </TableRow>
       </TableHeader>
       <TableBody ref={bodyRef}>
-        {programations?.map(p => (
+        {paged.map(p => (
           <TableRow key={p.id} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
             <TableCell>{p.name}</TableCell>
             <TableCell>{p.start_day}</TableCell>
@@ -111,6 +132,7 @@ export default function ProgramationTable({ programations }: Props) {
         ))}
       </TableBody>
     </Table>
+    <Paginator page={page} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
     </div>
   )
 }

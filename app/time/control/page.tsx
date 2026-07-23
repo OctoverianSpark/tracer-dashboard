@@ -50,6 +50,7 @@ export default async function Page() {
             appuser={appuser}
             programations={programations}
             rotations={rotations}
+            groups={groups}
           />
         </TabsContent>
       </Tabs>

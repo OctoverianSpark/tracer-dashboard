@@ -1,17 +1,20 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { getUserConnectionStatuses, UserConnectionStatus } from './actions'
+import { getGroups } from '@/app/app/groups/actions'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
 import ConnectedUsersTable from '@/components/Supervisors/ConnectedUsersTable'
 import { RefreshCw, Wifi, WifiOff, Loader2 } from 'lucide-react'
 import InfinitySpinner from '@/components/InfinitySpinner'
+import { Group } from '@/types/AppUser'
 
 const POLL_MS = 30_000
 
 export default function SupervisorsPage() {
   const [statuses, setStatuses]       = useState<UserConnectionStatus[]>([])
+  const [groups, setGroups]           = useState<Group[]>([])
   const [loading, setLoading]         = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const intervalRef                   = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -29,6 +32,7 @@ export default function SupervisorsPage() {
 
   useEffect(() => {
     load()
+    getGroups().then(setGroups)
     intervalRef.current = setInterval(load, POLL_MS)
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [])
@@ -83,14 +87,14 @@ export default function SupervisorsPage() {
         <TabsContent value="connected" className="mt-4">
           {loading
             ? <div className="flex justify-center py-10"><InfinitySpinner size={56} /></div>
-            : <ConnectedUsersTable statuses={statuses} mode="connected" />
+            : <ConnectedUsersTable statuses={statuses} mode="connected" groups={groups} />
           }
         </TabsContent>
 
         <TabsContent value="disconnected" className="mt-4">
           {loading
             ? <div className="flex justify-center py-10"><InfinitySpinner size={56} /></div>
-            : <ConnectedUsersTable statuses={statuses} mode="disconnected" />
+            : <ConnectedUsersTable statuses={statuses} mode="disconnected" groups={groups} />
           }
         </TabsContent>
 

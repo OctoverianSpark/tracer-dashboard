@@ -1,6 +1,6 @@
 'use client'
 import { Schedule, Programation, RotationData, RotationSlot } from '@/types/Schedules'
-import { AppUser } from '@/types/AppUser'
+import { AppUser, Group } from '@/types/AppUser'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
 import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/app/_components/_ui/alert-dialog'
@@ -9,15 +9,21 @@ import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
 import { Trash2, FileDown, RefreshCw } from 'lucide-react'
 import * as XLSX from 'xlsx'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { deleteSchedule, deleteRotationCycle } from '@/app/time/actions'
+import ListToolbar from '@/components/shared/ListToolbar'
+import Paginator from '@/components/ComputerManager/Paginator'
+import { useResetPageOnChange } from '@/components/shared/usePageReset'
 
 interface Props {
   schedules: Schedule[]
   appuser: AppUser[]
   programations: Programation[]
   rotations?: RotationData[]
+  groups: Group[]
 }
+
+const PAGE_SIZE = 15
 
 const DAY_ORDER = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 const DAY_ABBR: Record<string, string> = {
@@ -88,9 +94,12 @@ function exportXLSX(
   XLSX.writeFile(wb, `asignaciones_${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
-export default function ScheduleTable({ schedules, appuser, programations, rotations = [] }: Props) {
+export default function ScheduleTable({ schedules, appuser, programations, rotations = [], groups }: Props) {
   const [confirmUserId, setConfirmUserId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
+  const [search, setSearch] = useState('')
+  const [groupFilter, setGroupFilter] = useState<number | null>(null)
+  const [page, setPage] = useState(1)
 
   const grouped = appuser
     .map(u => ({
@@ -100,11 +109,24 @@ export default function ScheduleTable({ schedules, appuser, programations, rotat
     }))
     .filter(g => g.rows.length > 0 || g.rotation)
 
+  const filtered = useMemo(() => grouped.filter(g =>
+    (groupFilter === null || g.user.group_id === groupFilter) &&
+    g.user.full_name.toLowerCase().includes(search.toLowerCase())
+  ), [grouped, search, groupFilter])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paged = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page]
+  )
+
+  useResetPageOnChange(`${search}|${groupFilter}`, setPage)
+
   const confirmUser = appuser.find(u => u.id === confirmUserId)
   const confirmRotation = rotations.find(r => r.cycle.appuser_id === confirmUserId) ?? null
 
   const bodyRef = useRef<HTMLTableSectionElement>(null)
-  useStaggerChildren(bodyRef, { deps: [grouped.map(g => g.user.id).join(',')] })
+  useStaggerChildren(bodyRef, { deps: [paged.map(g => g.user.id).join(',')] })
 
   async function handleDelete() {
     if (!confirmUserId) return
@@ -121,17 +143,23 @@ export default function ScheduleTable({ schedules, appuser, programations, rotat
   return (
     <TooltipProvider>
       <div className='space-y-2'>
-        {grouped.length > 0 && (
-          <div className='flex justify-end'>
+        <ListToolbar
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder='Buscar empleado...'
+          groups={groups}
+          groupFilter={groupFilter}
+          onGroupFilterChange={setGroupFilter}
+          rightSlot={filtered.length > 0 && (
             <button
-              onClick={() => exportXLSX(grouped, programations)}
+              onClick={() => exportXLSX(filtered, programations)}
               className='flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer'
             >
               <FileDown className='size-3.5' />
               Exportar
             </button>
-          </div>
-        )}
+          )}
+        />
         <div className='overflow-x-auto'>
         <Table>
           <TableHeader>
@@ -142,13 +170,13 @@ export default function ScheduleTable({ schedules, appuser, programations, rotat
             </TableRow>
           </TableHeader>
           <TableBody ref={bodyRef}>
-            {grouped.length === 0 ? (
+            {filtered.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={3} className='text-center h-24 text-muted-foreground text-sm'>
                   No hay asignaciones
                 </TableCell>
               </TableRow>
-            ) : grouped.map(({ user, rows, rotation }) => {
+            ) : paged.map(({ user, rows, rotation }) => {
               const entries = buildDayEntries(rows, rotation, programations)
               const visible = entries.slice(0, MAX_INLINE)
               const hidden  = entries.slice(MAX_INLINE)
@@ -202,6 +230,7 @@ export default function ScheduleTable({ schedules, appuser, programations, rotat
           </TableBody>
         </Table>
         </div>
+        <Paginator page={page} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
       </div>
 
       <AlertDialog open={!!confirmUserId} onOpenChange={open => { if (!open) setConfirmUserId(null) }}>

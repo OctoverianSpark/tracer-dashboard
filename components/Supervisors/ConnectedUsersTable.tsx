@@ -1,16 +1,23 @@
 'use client'
-import { useRef } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { UserConnectionStatus } from '@/app/supervisors/actions'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/_components/_ui/table'
 import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import { Wifi, WifiOff, Clock, Activity, FileDown } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import ListToolbar from '@/components/shared/ListToolbar'
+import Paginator from '@/components/ComputerManager/Paginator'
+import { useResetPageOnChange } from '@/components/shared/usePageReset'
+import { Group } from '@/types/AppUser'
 
 interface Props {
   statuses: UserConnectionStatus[]
   mode: 'connected' | 'disconnected'
+  groups: Group[]
 }
+
+const PAGE_SIZE = 15
 
 function exportXLSX(data: UserConnectionStatus[], mode: 'connected' | 'disconnected') {
   const rows = data.map(({ user, machine, startTime, endTime, todaySeconds }) => ({
@@ -35,19 +42,35 @@ function formatSeconds(s: number): string {
   return `${m}min`
 }
 
-export default function ConnectedUsersTable({ statuses, mode }: Props) {
+export default function ConnectedUsersTable({ statuses, mode, groups }: Props) {
+  const [search, setSearch] = useState('')
+  const [groupFilter, setGroupFilter] = useState<number | null>(null)
+  const [page, setPage] = useState(1)
+
   // Conectados = socket activo ahora mismo (wsConnected)
   // No conectados = deben estar trabajando pero no tienen socket activo
-  const filtered = statuses.filter(s =>
+  const modeFiltered = statuses.filter(s =>
     mode === 'connected'
       ? s.wsConnected
       : s.shouldBeConnected && !s.wsConnected
   )
 
-  const bodyRef = useRef<HTMLTableSectionElement>(null)
-  useStaggerChildren(bodyRef, { deps: [filtered.map(s => s.user.id).join(',')] })
+  const filtered = useMemo(() => modeFiltered.filter(s =>
+    (groupFilter === null || s.user.group_id === groupFilter) &&
+    s.user.full_name.toLowerCase().includes(search.toLowerCase())
+  ), [modeFiltered, search, groupFilter])
 
-  if (filtered.length === 0) {
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paged = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page]
+  )
+  useResetPageOnChange(`${search}|${groupFilter}`, setPage)
+
+  const bodyRef = useRef<HTMLTableSectionElement>(null)
+  useStaggerChildren(bodyRef, { deps: [paged.map(s => s.user.id).join(',')] })
+
+  if (modeFiltered.length === 0) {
     return (
       <p className="text-center text-sm text-muted-foreground py-10">
         {mode === 'connected'
@@ -59,15 +82,23 @@ export default function ConnectedUsersTable({ statuses, mode }: Props) {
 
   return (
     <div className='space-y-2'>
-      <div className='flex justify-end'>
-        <button
-          onClick={() => exportXLSX(filtered, mode)}
-          className='flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer'
-        >
-          <FileDown className='size-3.5' />
-          Exportar
-        </button>
-      </div>
+      <ListToolbar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder='Buscar usuario...'
+        groups={groups}
+        groupFilter={groupFilter}
+        onGroupFilterChange={setGroupFilter}
+        rightSlot={
+          <button
+            onClick={() => exportXLSX(filtered, mode)}
+            className='flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer'
+          >
+            <FileDown className='size-3.5' />
+            Exportar
+          </button>
+        }
+      />
       <div className='overflow-x-auto'>
       <Table>
         <TableHeader>
@@ -80,7 +111,14 @@ export default function ConnectedUsersTable({ statuses, mode }: Props) {
           </TableRow>
         </TableHeader>
         <TableBody ref={bodyRef}>
-          {filtered.map(({ user, machine, startTime, endTime, wsConnected, todaySeconds }) => (
+          {filtered.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={5} className='text-center h-24 text-muted-foreground text-sm'>
+                Sin resultados para el filtro actual.
+              </TableCell>
+            </TableRow>
+          )}
+          {paged.map(({ user, machine, startTime, endTime, wsConnected, todaySeconds }) => (
             <TableRow key={user.id} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
               <TableCell className="font-medium">{user.full_name}</TableCell>
               <TableCell className="text-muted-foreground text-sm font-mono">
@@ -118,6 +156,7 @@ export default function ConnectedUsersTable({ statuses, mode }: Props) {
         </TableBody>
       </Table>
       </div>
+      <Paginator page={page} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
     </div>
   )
 }
