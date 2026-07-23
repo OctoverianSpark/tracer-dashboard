@@ -83,6 +83,13 @@ function TopAppsRow({ data }: { data: UserProductivity }) {
   )
 }
 
+// Promedio de los % individuales de cada fila (no suma de segundos ÷ suma de jornada) — mismo
+// criterio que la curva de productividad global/por grupo en lib/productivity.ts.
+function avgPercent(rows: UserProductivity[], pick: (d: UserProductivity) => number): number {
+  if (rows.length === 0) return 0
+  return Math.round(rows.reduce((s, d) => s + pick(d), 0) / rows.length)
+}
+
 function exportXLSX(rows: UserProductivity[], groups: Group[], dateFrom: string, dateTo: string) {
   const groupMap   = new Map(groups.map(g => [g.id!, g.name]))
   const groupName  = (d: UserProductivity) =>
@@ -111,16 +118,25 @@ function exportXLSX(rows: UserProductivity[], groups: Group[], dateFrom: string,
     Math.round(d.uncategorizedSeconds / 60),
   ]
 
+  const avgRow = (groupRows: UserProductivity[]) => [
+    '', 'Promedio', '', '',
+    avgPercent(groupRows, d => d.appProductivityPercent),
+    avgPercent(groupRows, d => d.workCompliancePercent),
+    avgPercent(groupRows, d => d.overallProductivityPercent),
+    '', '', '',
+  ]
+
   const wb = XLSX.utils.book_new()
 
-  // Hoja "Todos" con autofiltro
-  const allAoa = [HEADERS, ...sorted.map(toRow)]
+  // Hoja "Todos" con autofiltro (el filtro no cubre la fila de promedio, va después)
+  const allDataRows = sorted.map(toRow)
+  const allAoa = [HEADERS, ...allDataRows, avgRow(sorted)]
   const wsAll  = XLSX.utils.aoa_to_sheet(allAoa)
-  wsAll['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { c: 0, r: 0 }, e: { c: HEADERS.length - 1, r: allAoa.length - 1 } }) }
+  wsAll['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { c: 0, r: 0 }, e: { c: HEADERS.length - 1, r: allDataRows.length } }) }
   wsAll['!cols'] = COL_WIDTHS
   XLSX.utils.book_append_sheet(wb, wsAll, 'Todos')
 
-  // Una hoja por grupo
+  // Una hoja por grupo, cada una con su propia fila de promedio al final
   const byGroup = new Map<string, UserProductivity[]>()
   for (const d of sorted) {
     const name = groupName(d)
@@ -128,7 +144,7 @@ function exportXLSX(rows: UserProductivity[], groups: Group[], dateFrom: string,
     byGroup.get(name)!.push(d)
   }
   for (const [name, groupRows] of byGroup) {
-    const aoa = [HEADERS, ...groupRows.map(toRow)]
+    const aoa = [HEADERS, ...groupRows.map(toRow), avgRow(groupRows)]
     const ws  = XLSX.utils.aoa_to_sheet(aoa)
     ws['!cols'] = COL_WIDTHS
     XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31).replace(/[/\\?*[\]]/g, '_'))
@@ -269,6 +285,25 @@ export default function ProductivityReport() {
         <p className='text-xs text-muted-foreground'>
           {filtered.length} de {data.length} usuarios
         </p>
+      )}
+
+      {/* Resumen — promedio de los % individuales de los usuarios listados abajo, no un ratio
+          agregado de segundos (mismo criterio que la curva global/por grupo). */}
+      {filtered.length > 0 && (
+        <div className='flex flex-wrap gap-3 border rounded-md p-3'>
+          <div className='flex items-baseline gap-2'>
+            <span className='text-xs text-muted-foreground'>Promedio Apps prod.</span>
+            {pctBadge(avgPercent(filtered, d => d.appProductivityPercent), 'Promedio de Apps prod. de los usuarios listados')}
+          </div>
+          <div className='flex items-baseline gap-2'>
+            <span className='text-xs text-muted-foreground'>Promedio Cumplimiento</span>
+            {pctBadge(avgPercent(filtered, d => d.workCompliancePercent), 'Promedio de Cumplimiento de los usuarios listados')}
+          </div>
+          <div className='flex items-baseline gap-2'>
+            <span className='text-xs text-muted-foreground'>Promedio Global</span>
+            {pctBadge(avgPercent(filtered, d => d.overallProductivityPercent), 'Promedio de Global de los usuarios listados')}
+          </div>
+        </div>
       )}
 
       {/* Tabla */}

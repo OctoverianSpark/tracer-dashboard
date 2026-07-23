@@ -350,9 +350,15 @@ export interface DailyProductivity {
 
 /**
  * Desglose día por día (para la curva de productividad) de uno o varios usuarios sobre
- * [dateFrom, dateTo] — varios usuarios se suman en una sola curva combinada (uso: "global", con
- * todos los usuarios activos). A diferencia de computeProductivityRange, nunca salta un día —
- * uno sin horario/actividad aporta cero, para que el gráfico tenga el eje de fechas continuo.
+ * [dateFrom, dateTo] — varios usuarios se combinan en una sola curva (uso: "global"/"por grupo").
+ * A diferencia de computeProductivityRange, nunca salta un día — uno sin horario/actividad
+ * aporta cero, para que el gráfico tenga el eje de fechas continuo.
+ *
+ * `overallProductivityPercent` es el PROMEDIO del % individual de cada usuario con turno ese
+ * día (suma de porcentajes ÷ cantidad de usuarios con turno), no un ratio agregado de segundos —
+ * así un usuario muy productivo con poca jornada no pesa más que uno con jornada larga. Los
+ * segundos (productiveSeconds, etc.) sí siguen siendo la suma cruda del grupo, para la tabla de
+ * tiempos debajo del gráfico.
  */
 export async function computeProductivityDaily(
   users: AppUser[],
@@ -364,6 +370,7 @@ export async function computeProductivityDaily(
 
   return dates.map(date => {
     let productive = 0, unproductive = 0, uncategorized = 0, total = 0, scheduledMinutes = 0
+    let percentSum = 0, scheduledUserCount = 0
 
     for (const user of users) {
       const userId = Number(user.id)
@@ -377,10 +384,14 @@ export async function computeProductivityDaily(
       uncategorized += day.uncategorized
       total += day.total
       scheduledMinutes += day.scheduledMinutes
-    }
 
-    const scheduledSecs = scheduledMinutes * 60
-    const effective = productive + uncategorized * 0.3
+      if (day.scheduledMinutes > 0) {
+        const userScheduledSecs = day.scheduledMinutes * 60
+        const userEffective = day.productive + day.uncategorized * 0.3
+        percentSum += Math.min(100, (userEffective / userScheduledSecs) * 100)
+        scheduledUserCount++
+      }
+    }
 
     return {
       date,
@@ -389,7 +400,7 @@ export async function computeProductivityDaily(
       uncategorizedSeconds: Math.round(uncategorized),
       totalSeconds: Math.round(total),
       scheduledMinutes,
-      overallProductivityPercent: scheduledSecs > 0 ? Math.min(100, Math.round((effective / scheduledSecs) * 100)) : 0,
+      overallProductivityPercent: scheduledUserCount > 0 ? Math.round(percentSum / scheduledUserCount) : 0,
     }
   })
 }
