@@ -4,6 +4,7 @@ import { getProductivityReport } from '@/app/supervisors/actions'
 import { UserProductivity } from '@/lib/productivity'
 import { getGroups } from '@/app/app/groups/actions'
 import { getappuser } from '@/app/app/actions'
+import { getProductivitySettings } from '@/app/app/admin/config/actions'
 import { AppUser, Group } from '@/types/AppUser'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
@@ -164,10 +165,18 @@ export default function ProductivityReport() {
   const [groups, setGroups]         = useState<Group[]>([])
   const [users, setUsers]           = useState<AppUser[]>([])
   const [loading, setLoading]       = useState(false)
+  const [productiveCreditPct, setProductiveCreditPct] = useState(150)
+  const [uncategorizedCreditPct, setUncategorizedCreditPct] = useState(70)
 
   const rangeInvalid = dateTo < dateFrom
 
   useEffect(() => { getappuser().then(setUsers) }, [])
+  useEffect(() => {
+    getProductivitySettings().then(s => {
+      setProductiveCreditPct(Math.round(s.productive_credit * 100))
+      setUncategorizedCreditPct(Math.round(s.uncategorized_credit * 100))
+    })
+  }, [])
 
   const load = async () => {
     if (rangeInvalid) return
@@ -261,7 +270,7 @@ export default function ProductivityReport() {
         </span>
         <span>
           <span className='font-semibold text-foreground'>Global</span>
-          {' '}= (productivo × 150% + sin-categ × 70%) ÷ jornada programada
+          {' '}= (productivo × {productiveCreditPct}% + sin-categ × {uncategorizedCreditPct}%) ÷ jornada programada
         </span>
       </div>
 

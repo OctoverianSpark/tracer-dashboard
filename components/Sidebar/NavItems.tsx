@@ -30,6 +30,7 @@ import {
   ShieldAlert,
   TrendingUp,
   ClipboardCheck,
+  Settings,
 } from 'lucide-react'
 import { join } from 'path'
 import UserForm from '../UserManager/UserForm'
@@ -253,6 +254,14 @@ const ADMIN: NavSection = {
       icon: ShieldAlert,
       url: '/app/admin/sessions',
       desc: 'Cerrar la sesión de un usuario o de todos',
+      perm: 'manage_sessions'
+    },
+    {
+      title: 'Configuración',
+      type: NavTypes.LINK,
+      icon: Settings,
+      url: '/app/admin/config',
+      desc: 'Configurar los índices del cálculo de productividad',
       perm: 'manage_sessions'
     }
   ]

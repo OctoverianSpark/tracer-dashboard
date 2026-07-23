@@ -2,6 +2,7 @@ import { findAsignedMachines } from '@/app/computers/actions'
 import { getRawAppUsageLogsRange, getSchedules, getProgramations, getStateLog, getAllRotations } from '@/app/time/actions'
 import { getCategorizationApps } from '@/app/supervisors/categorization-actions'
 import { getLunchSkips } from '@/app/th/actions'
+import { getProductivitySettings } from '@/app/app/admin/config/actions'
 import { resolveEffectiveProgramation } from '@/lib/scheduleResolver'
 import { AppUser, AppUsageLog } from '@/types/AppUser'
 import { Machine } from '@/types/Machine'
@@ -35,14 +36,6 @@ export interface UserProductivity {
 // app/th/actions.ts, porque los archivos 'use server' solo deben exportar funciones async —
 // exportar un tipo desde ahí rompe en runtime bajo Turbopack: "X is not defined").
 export type THProductivity = Omit<UserProductivity, 'machine' | 'topApps'>
-
-// Crédito que aporta el tiempo en apps "sin categorizar" al cálculo de productividad Global —
-// no es 0% (no confirmado que sea improductivo) ni 100% (no confirmado que sea productivo).
-export const UNCATEGORIZED_CREDIT = 0.7
-
-// Peso del tiempo en apps productivas — >100% para que el Global suba más rápido cuando hay
-// tiempo productivo real; el resultado final igual se topa en 100% (Math.min más abajo).
-export const PRODUCTIVE_CREDIT = 1.5
 
 export const timeToMinutes = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number)
@@ -145,6 +138,10 @@ interface DayContext {
   nowMs: number
   // Claves `${appuser_id}_${date}` con excepción "sin almuerzo" ese día (ver lunch_skips).
   lunchSkipDates: Set<string>
+  // Pesos configurables del cálculo Global (ver app/app/admin/config) — uncategorized_credit
+  // (crédito del tiempo en apps sin categorizar) y productive_credit (peso del tiempo productivo).
+  uncategorizedCredit: number
+  productiveCredit: number
 }
 
 interface UserDayStats {
@@ -244,7 +241,7 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
   const todayStr = bogotaNow.toLocaleDateString('sv')
   const nowMs = bogotaNow.getTime()
 
-  const [schedules, programations, rawLogs, categorizationApps, rotations, { machinesByUser, stateByMachine }, lunchSkips] =
+  const [schedules, programations, rawLogs, categorizationApps, rotations, { machinesByUser, stateByMachine }, lunchSkips, productivitySettings] =
     await Promise.all([
       getSchedules(),
       getProgramations(),
@@ -253,6 +250,7 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
       getAllRotations(),
       loadMachinesAndStateLogs(users),
       getLunchSkips(dateFrom, dateTo),
+      getProductivitySettings(),
     ])
 
   const categoryMap = new Map(categorizationApps.map(a => [a.name.toLowerCase(), a.category]))
@@ -281,7 +279,11 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
     }
   }
 
-  const ctx: DayContext = { schedules, rotations, programations, categoryMap, todayStr, nowMs, lunchSkipDates }
+  const ctx: DayContext = {
+    schedules, rotations, programations, categoryMap, todayStr, nowMs, lunchSkipDates,
+    uncategorizedCredit: productivitySettings.uncategorized_credit,
+    productiveCredit: productivitySettings.productive_credit,
+  }
   return { dates, ctx, machinesByUser, logsByMachineByDate, stateByMachineByDate }
 }
 
@@ -330,7 +332,7 @@ export async function computeProductivityRange(
 
     const categorized = productive + unproductive
     const scheduledSecs = scheduledMinutes * 60
-    const effective = productive * PRODUCTIVE_CREDIT + uncategorized * UNCATEGORIZED_CREDIT
+    const effective = productive * ctx.productiveCredit + uncategorized * ctx.uncategorizedCredit
 
     return {
       user, machine: primaryMachine, programation: lastProgramation, scheduledMinutes,
@@ -394,7 +396,7 @@ export async function computeProductivityDaily(
 
       if (day.scheduledMinutes > 0) {
         const userScheduledSecs = day.scheduledMinutes * 60
-        const userEffective = day.productive * PRODUCTIVE_CREDIT + day.uncategorized * UNCATEGORIZED_CREDIT
+        const userEffective = day.productive * ctx.productiveCredit + day.uncategorized * ctx.uncategorizedCredit
         percentSum += Math.min(100, (userEffective / userScheduledSecs) * 100)
         scheduledUserCount++
       }
