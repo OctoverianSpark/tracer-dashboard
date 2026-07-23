@@ -354,11 +354,10 @@ export interface DailyProductivity {
  * A diferencia de computeProductivityRange, nunca salta un día — uno sin horario/actividad
  * aporta cero, para que el gráfico tenga el eje de fechas continuo.
  *
- * `overallProductivityPercent` es el PROMEDIO del % individual de cada usuario con turno ese
- * día (suma de porcentajes ÷ cantidad de usuarios con turno), no un ratio agregado de segundos —
- * así un usuario muy productivo con poca jornada no pesa más que uno con jornada larga. Los
- * segundos (productiveSeconds, etc.) sí siguen siendo la suma cruda del grupo, para la tabla de
- * tiempos debajo del gráfico.
+ * `overallProductivityPercent` y los segundos (productiveSeconds, etc.) son PROMEDIOS — suma del
+ * día ÷ cantidad de usuarios con turno ese día, no la suma cruda del grupo — así un día con menos
+ * gente programada no muestra menos horas solo por tener menos gente, y un usuario muy productivo
+ * con poca jornada no pesa más que uno con jornada larga.
  */
 export async function computeProductivityDaily(
   users: AppUser[],
@@ -395,11 +394,11 @@ export async function computeProductivityDaily(
 
     return {
       date,
-      productiveSeconds: Math.round(productive),
-      unproductiveSeconds: Math.round(unproductive),
-      uncategorizedSeconds: Math.round(uncategorized),
-      totalSeconds: Math.round(total),
-      scheduledMinutes,
+      productiveSeconds: scheduledUserCount > 0 ? Math.round(productive / scheduledUserCount) : 0,
+      unproductiveSeconds: scheduledUserCount > 0 ? Math.round(unproductive / scheduledUserCount) : 0,
+      uncategorizedSeconds: scheduledUserCount > 0 ? Math.round(uncategorized / scheduledUserCount) : 0,
+      totalSeconds: scheduledUserCount > 0 ? Math.round(total / scheduledUserCount) : 0,
+      scheduledMinutes: scheduledUserCount > 0 ? Math.round(scheduledMinutes / scheduledUserCount) : 0,
       overallProductivityPercent: scheduledUserCount > 0 ? Math.round(percentSum / scheduledUserCount) : 0,
     }
   })
