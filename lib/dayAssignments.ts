@@ -27,6 +27,7 @@ export function buildRotationSlots(
       week_index,
       day_of_week: day,
       programation_id,
+      skip_lunch: c.skip_lunch ?? false,
     }))
   )
 }
@@ -47,7 +48,7 @@ export function loadDayAssignments(
   const assignments: DayAssignments = {}
 
   for (const s of schedules.filter(s => Number(s.appuser_id) === appuser_id)) {
-    assignments[s.day_of_week] = { mode: 'fixed', programation_id: s.programation_id }
+    assignments[s.day_of_week] = { mode: 'fixed', programation_id: s.programation_id, skip_lunch: s.skip_lunch ?? false }
   }
 
   const existing = rotations.find(r => Number(r.cycle.appuser_id) === appuser_id)
@@ -65,6 +66,9 @@ export function loadDayAssignments(
     assignments[day] = {
       mode: 'rotating',
       sequence: sorted.map(s => s.programation_id),
+      // Se guarda uniforme por día (buildRotationSlots propaga un solo checkbox a toda la
+      // secuencia) — cualquier slot representa el valor del día.
+      skip_lunch: sorted[0]?.skip_lunch ?? false,
     }
   }
 

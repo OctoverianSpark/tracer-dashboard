@@ -22,6 +22,9 @@ export interface Schedule {
   appuser_id: number
   programation_id: number
   day_of_week: string
+  // Excepción recurrente: este día de la semana no tiene almuerzo (a diferencia de LunchSkip,
+  // que es de una fecha puntual, no de la asignación).
+  skip_lunch?: boolean
 }
 
 export interface RotationCycle {
@@ -41,6 +44,7 @@ export interface RotationSlot {
   week_index: number
   day_of_week: string
   programation_id: number
+  skip_lunch?: boolean
 }
 
 export interface RotationData {
@@ -51,11 +55,13 @@ export interface RotationData {
 export interface DayFixedConfig {
   mode: 'fixed'
   programation_id: number
+  skip_lunch?: boolean
 }
 
 export interface DayRotatingConfig {
   mode: 'rotating'
   sequence: number[]        // programation_ids en orden de rotación (mínimo 2), rota semanalmente
+  skip_lunch?: boolean      // aplica a toda la secuencia del día, no por semana individual
 }
 
 export type DayConfig = DayFixedConfig | DayRotatingConfig

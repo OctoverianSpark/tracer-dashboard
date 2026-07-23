@@ -50,7 +50,7 @@ export const deleteLunchSkip = async (id: number): Promise<void> => {
 
 export interface UserScheduleRow {
   user: AppUser
-  days: Record<string, { programation: Programation; date: string; lunchSkip?: LunchSkip } | null>
+  days: Record<string, { programation: Programation; date: string; lunchSkip?: LunchSkip; skipLunch: boolean } | null>
 }
 
 export const getUserSchedules = async (): Promise<{ rows: UserScheduleRow[]; dayKeys: string[] }> => {
@@ -84,11 +84,16 @@ export const getUserSchedules = async (): Promise<{ rows: UserScheduleRow[]; day
     const days: UserScheduleRow['days'] = {}
     DAY_KEYS.forEach((key, i) => {
       const date = dateForDayIndex(i)
-      const programation = resolveEffectiveProgramation(
+      const resolved = resolveEffectiveProgramation(
         schedules, rotations, programations, Number(user.id), key, date
       )
-      days[key] = programation
-        ? { programation, date, lunchSkip: lunchSkipByKey.get(`${user.id}_${date}`) }
+      days[key] = resolved
+        ? {
+            programation: resolved.programation,
+            date,
+            lunchSkip: lunchSkipByKey.get(`${user.id}_${date}`),
+            skipLunch: resolved.skipLunch,
+          }
         : null
     })
     return { user, days }
@@ -127,8 +132,8 @@ export const getLateArrivals = async (date: string): Promise<LateArrival[]> => {
 
   return scheduledUsers.map(user => {
     const userId       = Number(user.id)
-    const programation = resolveEffectiveProgramation(schedules, rotations, programations, userId, dayKey, date)
-    const scheduledStart = programation?.start_day ?? '08:00'
+    const resolved = resolveEffectiveProgramation(schedules, rotations, programations, userId, dayKey, date)
+    const scheduledStart = resolved?.programation.start_day ?? '08:00'
     const absent = { user, scheduledStart, firstActivity: null, minutesLate: 0, status: 'absent' as const }
 
     const userMachines = machinesByUser.get(userId) ?? []

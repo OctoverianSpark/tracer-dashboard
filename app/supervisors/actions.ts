@@ -82,7 +82,7 @@ export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[
   return users.map(user => {
     const programation = resolveEffectiveProgramation(
       schedules, rotations, programations, Number(user.id), todayKey, todayStr
-    )
+    )?.programation
 
     let shouldBeConnected = false
     let startTime: string | undefined

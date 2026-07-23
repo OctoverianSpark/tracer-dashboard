@@ -2,6 +2,13 @@ import { Programation, RotationData, Schedule } from '@/types/Schedules'
 
 const dayMs = (date: string) => new Date(`${date}T12:00:00`).getTime()
 
+export interface EffectiveSchedule {
+  programation: Programation
+  // Excepción recurrente de la asignación (Schedule.skip_lunch / RotationSlot.skip_lunch) —
+  // no la excepción de fecha puntual (lunch_skips), que se maneja aparte.
+  skipLunch: boolean
+}
+
 /**
  * Resuelve qué Programation aplica a un empleado en una fecha puntual: prioriza la
  * secuencia rotativa de ese día de la semana (si el empleado tiene una desde esa fecha)
@@ -9,8 +16,8 @@ const dayMs = (date: string) => new Date(`${date}T12:00:00`).getTime()
  * Debe ser la única puerta de entrada a "horario de hoy" — todo reporte que lea
  * Schedule/day_of_week directamente queda desincronizado en cuanto un día rota.
  *
- * Cada day_of_week tiene su propia secuencia independiente (N horarios, N = cantidad de
- * slots de ese día) que avanza un paso por cada semana calendario transcurrida desde
+ * Cada day_of_week tiene su propia secuencia independiente (N horarios, N = cantidad
+ * de slots de ese día) que avanza un paso por cada semana calendario transcurrida desde
  * start_date.
  */
 export function resolveEffectiveProgramation(
@@ -20,7 +27,7 @@ export function resolveEffectiveProgramation(
   appuser_id: number,
   dayKey: string,
   date: string
-): Programation | undefined {
+): EffectiveSchedule | undefined {
   const rotation = rotations.find(r => Number(r.cycle.appuser_id) === appuser_id)
 
   if (rotation && date >= rotation.cycle.start_date) {
@@ -31,11 +38,15 @@ export function resolveEffectiveProgramation(
       const position = Math.floor(diffDays / 7) % daySlots.length
 
       const slot = daySlots.find(s => s.week_index === position)
-      return slot ? programations.find(p => p.id === slot.programation_id) : undefined
+      if (!slot) return undefined
+      const programation = programations.find(p => p.id === slot.programation_id)
+      return programation ? { programation, skipLunch: !!slot.skip_lunch } : undefined
     }
     // el día no tiene secuencia rotativa propia -> cae al Schedule fijo abajo
   }
 
   const schedule = schedules.find(s => Number(s.appuser_id) === appuser_id && s.day_of_week === dayKey)
-  return schedule ? programations.find(p => p.id === schedule.programation_id) : undefined
+  if (!schedule) return undefined
+  const programation = programations.find(p => p.id === schedule.programation_id)
+  return programation ? { programation, skipLunch: !!schedule.skip_lunch } : undefined
 }

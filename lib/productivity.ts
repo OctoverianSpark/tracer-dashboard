@@ -167,9 +167,10 @@ function computeUserDayStats(
   dayStateByMachine: Map<number, StateLog[]>,
 ): UserDayStats {
   const dayKey = DAY_KEYS[new Date(`${date}T12:00:00`).getDay()]
-  const programation = resolveEffectiveProgramation(ctx.schedules, ctx.rotations, ctx.programations, userId, dayKey, date)
-  const skipLunch = ctx.lunchSkipDates.has(`${userId}_${date}`)
-  const scheduledMinutes = programation ? scheduledWorkMinutes(programation, skipLunch) : 0
+  const resolved = resolveEffectiveProgramation(ctx.schedules, ctx.rotations, ctx.programations, userId, dayKey, date)
+  const programation = resolved?.programation
+  const skipLunch = ctx.lunchSkipDates.has(`${userId}_${date}`) || (resolved?.skipLunch ?? false)
+  const scheduledMinutes = resolved ? scheduledWorkMinutes(resolved.programation, skipLunch) : 0
 
   if (scheduledMinutes === 0 || !userMachines.length) return { ...EMPTY_DAY_STATS, programation }
 

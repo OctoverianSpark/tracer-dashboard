@@ -2,6 +2,7 @@ import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
 import { Badge } from '@/app/_components/_ui/badge'
+import { Checkbox } from '@/app/_components/_ui/checkbox'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { DayAssignments, DayRotatingConfig, Programation } from '@/types/Schedules'
@@ -328,6 +329,16 @@ export function DayProgramationPicker({
                     onChange={next => onChange({ ...value, [dia.key]: next })}
                   />
                 )}
+
+                <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                  <Checkbox
+                    checked={!!config.skip_lunch}
+                    onCheckedChange={checked =>
+                      onChange({ ...value, [dia.key]: { ...config, skip_lunch: checked === true } })
+                    }
+                  />
+                  Sin almuerzo
+                </label>
               </div>
             )
           })}

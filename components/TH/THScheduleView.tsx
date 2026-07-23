@@ -186,17 +186,23 @@ export default function THScheduleView({ rows }: Props) {
                             </Badge>
                             <p className="text-xs text-muted-foreground">{entry.programation.name}</p>
                             {hasLunchBlock && (
-                              <button
-                                type="button"
-                                onClick={() => handleToggleLunch(uid, entry.date)}
-                                className={`flex items-center gap-1 mx-auto text-[10px] cursor-pointer ${
-                                  skipped
-                                    ? 'text-amber-500 hover:text-amber-400'
-                                    : 'text-muted-foreground hover:text-foreground underline decoration-dotted'
-                                }`}
-                              >
-                                {skipped ? <><UtensilsCrossed className="h-3 w-3" />Sin almuerzo</> : 'Quitar almuerzo'}
-                              </button>
+                              entry.skipLunch ? (
+                                <span className="flex items-center gap-1 mx-auto text-[10px] text-amber-500 w-fit">
+                                  <UtensilsCrossed className="h-3 w-3" />Sin almuerzo (fijo)
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleLunch(uid, entry.date)}
+                                  className={`flex items-center gap-1 mx-auto text-[10px] cursor-pointer ${
+                                    skipped
+                                      ? 'text-amber-500 hover:text-amber-400'
+                                      : 'text-muted-foreground hover:text-foreground underline decoration-dotted'
+                                  }`}
+                                >
+                                  {skipped ? <><UtensilsCrossed className="h-3 w-3" />Sin almuerzo</> : 'Quitar almuerzo'}
+                                </button>
+                              )
                             )}
                           </div>
                         </TableCell>
