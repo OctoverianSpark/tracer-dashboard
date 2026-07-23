@@ -40,6 +40,10 @@ export type THProductivity = Omit<UserProductivity, 'machine' | 'topApps'>
 // no es 0% (no confirmado que sea improductivo) ni 100% (no confirmado que sea productivo).
 export const UNCATEGORIZED_CREDIT = 0.7
 
+// Peso del tiempo en apps productivas — >100% para que el Global suba más rápido cuando hay
+// tiempo productivo real; el resultado final igual se topa en 100% (Math.min más abajo).
+export const PRODUCTIVE_CREDIT = 1.5
+
 export const timeToMinutes = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number)
   return h * 60 + m
@@ -326,7 +330,7 @@ export async function computeProductivityRange(
 
     const categorized = productive + unproductive
     const scheduledSecs = scheduledMinutes * 60
-    const effective = productive + uncategorized * UNCATEGORIZED_CREDIT
+    const effective = productive * PRODUCTIVE_CREDIT + uncategorized * UNCATEGORIZED_CREDIT
 
     return {
       user, machine: primaryMachine, programation: lastProgramation, scheduledMinutes,
@@ -390,7 +394,7 @@ export async function computeProductivityDaily(
 
       if (day.scheduledMinutes > 0) {
         const userScheduledSecs = day.scheduledMinutes * 60
-        const userEffective = day.productive + day.uncategorized * UNCATEGORIZED_CREDIT
+        const userEffective = day.productive * PRODUCTIVE_CREDIT + day.uncategorized * UNCATEGORIZED_CREDIT
         percentSum += Math.min(100, (userEffective / userScheduledSecs) * 100)
         scheduledUserCount++
       }
