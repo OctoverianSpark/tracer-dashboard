@@ -100,6 +100,22 @@ export const isIntervalActive = (log: AppUsageLog, windows: Array<{ start: numbe
   return windows.some(w => mid >= w.start && mid < w.end)
 }
 
+// Segundos de solapamiento entre ventanas [start,end) (ej. de buildActiveWindows) y el rango
+// [winStart, winEnd) de la jornada — recorta cada ventana al rango antes de sumar.
+function sumWindowSecondsInRange(
+  windows: Array<{ start: number; end: number }>,
+  winStart: number,
+  winEnd: number,
+): number {
+  let secs = 0
+  for (const w of windows) {
+    const start = Math.max(w.start, winStart)
+    const end = Math.min(w.end, winEnd)
+    if (end > start) secs += Math.round((end - start) / 1000)
+  }
+  return secs
+}
+
 // Máquinas asignadas + historial COMPLETO de state logs por máquina (sin filtrar por fecha — el
 // backend no soporta rango de fechas para state logs, así que se trae todo una sola vez y cada
 // llamador filtra los días que le interesan a partir de este mismo resultado).
@@ -208,7 +224,10 @@ function computeUserDayStats(
     dayIntervals.push(...(dayLogsByMachine.get(mid) ?? []))
     dayActiveWindows.push(...buildActiveWindows(dayStateByMachine.get(mid) ?? []))
   }
-  if (!dayIntervals.length) return { ...EMPTY_DAY_STATS, programation, scheduledMinutes }
+  // Ya NO se corta acá por falta de app_usage_logs — state_logs (dayActiveWindows) es un canal
+  // de telemetría aparte y puede tener datos de presencia (capturas, cumplimiento) aunque ese
+  // día no haya intervalos de uso de apps.
+  if (!dayIntervals.length && !dayActiveWindows.length) return { ...EMPTY_DAY_STATS, programation, scheduledMinutes }
 
   // 'Z' explícito: programation.start_day/end_day son horas de Bogotá "sin conversión", igual
   // que interval_start/interval_end (ver comentario en loadRangeContext) — sin el 'Z', esto se
@@ -223,7 +242,22 @@ function computeUserDayStats(
     dayNowMs,
   )
 
-  let productive = 0, unproductive = 0, uncategorized = 0, total = 0
+  // `total` (cumplimiento) sale de los estados ACTIVE de state_logs recortados a la ventana de
+  // turno — independiente de que existan app_usage_logs ese día, así alguien presente
+  // (capturas, estado activo) pero sin ese canal de datos puntual no cae a 0% de cumplimiento.
+  // Si no hay state_logs para el día (agente viejo o hueco puntual), cae al criterio anterior:
+  // sumar duración de los intervalos de app_usage_logs dentro de la ventana.
+  const total = dayActiveWindows.length > 0
+    ? sumWindowSecondsInRange(dayActiveWindows, schedWinStart, schedWinEnd)
+    : sumWindowSecondsInRange(
+        dayIntervals.map(iv => ({
+          start: new Date(iv.interval_start).getTime(),
+          end: new Date(iv.interval_end).getTime(),
+        })),
+        schedWinStart, schedWinEnd,
+      )
+
+  let productive = 0, unproductive = 0, uncategorized = 0
   const appUsage = new Map<string, UserAppUsage>()
 
   for (const interval of dayIntervals) {
@@ -233,7 +267,6 @@ function computeUserDayStats(
     if (!isIntervalActive(interval, dayActiveWindows)) continue
 
     const intervalSecs = endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
-    total += intervalSecs
 
     for (const a of interval.apps ?? []) {
       const cat = ctx.categoryMap.get(a.app.toLowerCase())
