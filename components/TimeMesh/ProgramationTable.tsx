@@ -12,6 +12,7 @@ import {
 } from '@/app/_components/_ui/table'
 import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import { Button } from '@/app/_components/_ui/button';
+import { Checkbox } from '@/app/_components/_ui/checkbox';
 import { Trash2, FileDown } from 'lucide-react';
 import * as XLSX from 'xlsx'
 import { deleteProgramation } from '@/app/time/actions';
@@ -44,6 +45,8 @@ function exportXLSX(programations: Programation[]) {
 export default function ProgramationTable({ programations }: Props) {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [selected, setSelected] = useState<number[]>([])
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   const handleDelete = async (id:number) =>{
     await deleteProgramation(id)
@@ -60,6 +63,26 @@ export default function ProgramationTable({ programations }: Props) {
   )
   useResetPageOnChange(search, setPage)
 
+  const isAllSelected = filtered.length > 0 && selected.length === filtered.length
+
+  const handleSelectAll = (checked: boolean) => {
+    setSelected(checked ? filtered.map(p => p.id!) : [])
+  }
+
+  const handleSelectOne = (id: number, checked: boolean) => {
+    setSelected(checked ? [...selected, id] : selected.filter(selectedId => selectedId !== id))
+  }
+
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true)
+    try {
+      await Promise.all(selected.map(id => deleteProgramation(id)))
+      setSelected([])
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
+
   const bodyRef = useRef<HTMLTableSectionElement>(null)
   useStaggerChildren(bodyRef, { deps: [paged.map(p => p.id).join(',')] })
 
@@ -69,19 +92,56 @@ export default function ProgramationTable({ programations }: Props) {
         search={search}
         onSearchChange={setSearch}
         searchPlaceholder='Buscar horario...'
-        rightSlot={filtered.length > 0 && (
-          <button
-            onClick={() => exportXLSX(filtered)}
-            className='flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer'
-          >
-            <FileDown className='size-3.5' />
-            Exportar
-          </button>
-        )}
+        rightSlot={
+          <>
+            {selected.length > 0 && (
+              <>
+                <span className='text-sm text-muted-foreground'>
+                  {selected.length} seleccionado(s)
+                </span>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant='destructive' size='sm' className='cursor-pointer' disabled={bulkDeleting}>
+                      Eliminar
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Eliminar horarios?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Se eliminarán <strong>{selected.length} horario(s)</strong> seleccionado(s) permanentemente. Esta acción no se puede deshacer.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleBulkDelete}>Eliminar</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
+            {filtered.length > 0 && (
+              <button
+                onClick={() => exportXLSX(filtered)}
+                className='flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border bg-muted/40 hover:bg-muted transition-colors cursor-pointer'
+              >
+                <FileDown className='size-3.5' />
+                Exportar
+              </button>
+            )}
+          </>
+        }
       />
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead className='w-10'>
+            <Checkbox
+              checked={isAllSelected}
+              onCheckedChange={handleSelectAll}
+              aria-label='Seleccionar todos'
+            />
+          </TableHead>
           <TableHead>Nombre</TableHead>
           <TableHead>Entrada</TableHead>
           <TableHead>Inicio Almuerzo</TableHead>
@@ -93,6 +153,13 @@ export default function ProgramationTable({ programations }: Props) {
       <TableBody ref={bodyRef}>
         {paged.map(p => (
           <TableRow key={p.id} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
+            <TableCell>
+              <Checkbox
+                checked={selected.includes(p.id!)}
+                onCheckedChange={checked => handleSelectOne(p.id!, checked as boolean)}
+                aria-label={`Seleccionar ${p.name}`}
+              />
+            </TableCell>
             <TableCell>{p.name}</TableCell>
             <TableCell>{p.start_day}</TableCell>
             <TableCell>{p.start_lunch}</TableCell>
