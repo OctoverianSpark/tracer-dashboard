@@ -27,6 +27,9 @@ export const INITIAL_STYLE: Record<EnterVariant, CSSProperties> = {
 
 export const STAGGER_ITEM_INITIAL_STYLE: CSSProperties = { opacity: 0, transform: 'translateY(14px)' }
 
+// Para useSpringPop — el elemento arranca chico/invisible antes de que corra JS (SSR-safe).
+export const POP_INITIAL_STYLE: CSSProperties = { opacity: 0, transform: 'scale(0.5)' }
+
 // useLayoutEffect en cliente (mismo timing que antes con Motion), useEffect en SSR para evitar
 // el warning de React ("useLayoutEffect does nothing on the server").
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
@@ -128,4 +131,26 @@ export function useSpringHeight<T extends HTMLElement>(ref: RefObject<T | null>,
 
     return () => { anim.revert() }
   }, [open])
+}
+
+/**
+ * Pop de entrada con resorte — más "bouncy" que useEnterAnimation (que usa EASE cúbico, sin
+ * rebote). Para elementos que aparecen de golpe: un badge que se suelta en una lista nueva, el
+ * overlay que sigue al cursor al arrastrar, etc. El elemento debe llevar
+ * `style={POP_INITIAL_STYLE}` en el JSX para el estado pre-animación (SSR-safe).
+ */
+export function useSpringPop<T extends HTMLElement>(
+  ref: RefObject<T | null>,
+  opts?: { stiffness?: number; damping?: number; delay?: number },
+) {
+  useIsomorphicLayoutEffect(() => {
+    if (!ref.current) return
+    const anim = animate(ref.current, {
+      opacity: [0, 1],
+      scale: [0.5, 1],
+      delay: opts?.delay ?? 0,
+      ease: createSpring({ stiffness: opts?.stiffness ?? 400, damping: opts?.damping ?? 14 }),
+    })
+    return () => { anim.revert() }
+  }, [])
 }

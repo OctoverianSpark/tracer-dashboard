@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { getProductivityReport } from '@/app/supervisors/actions'
 import { getDailyProductivity, getGlobalDailyProductivity, getGroupDailyProductivity } from '@/app/productivity/actions'
 import { DailyProductivity, UserProductivity } from '@/lib/productivity'
@@ -106,48 +106,30 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
     }
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load() }, [])
-
-  const handleViewModeChange = async (mode: ViewMode) => {
+  // La curva ya NO se refresca sola al cambiar de pestaña (Global/Por grupo/Por usuario) ni al
+  // elegir usuario/grupo — solo cambia el estado local y se limpia `daily` para que se vea el
+  // placeholder "Genera el reporte..." en vez de datos desactualizados; solo "Generar" pide
+  // datos nuevos.
+  const handleViewModeChange = (mode: ViewMode) => {
     setViewMode(mode)
-    setLoading(true)
-    try {
-      let effectiveUserId = userId
-      if (mode === 'user' && !effectiveUserId) {
-        effectiveUserId = defaultTopUserId(report ?? [])
-        if (effectiveUserId) setUserId(effectiveUserId)
-      }
-      let effectiveGroupId = groupId
-      if (mode === 'group' && !effectiveGroupId && groups[0]?.id != null) {
-        effectiveGroupId = String(groups[0].id)
-        setGroupId(effectiveGroupId)
-      }
-      await loadDaily(mode, effectiveUserId, effectiveGroupId)
-    } finally {
-      setLoading(false)
+    setDaily(null)
+    if (mode === 'user' && !userId) {
+      const defaultId = defaultTopUserId(report ?? [])
+      if (defaultId) setUserId(defaultId)
+    }
+    if (mode === 'group' && !groupId && groups[0]?.id != null) {
+      setGroupId(String(groups[0].id))
     }
   }
 
-  const handleUserChange = async (value: string) => {
+  const handleUserChange = (value: string) => {
     setUserId(value)
-    if (!value) return
-    setLoading(true)
-    try {
-      await loadDaily('user', value, groupId)
-    } finally {
-      setLoading(false)
-    }
+    setDaily(null)
   }
 
-  const handleGroupChange = async (value: string) => {
+  const handleGroupChange = (value: string) => {
     setGroupId(value)
-    setLoading(true)
-    try {
-      await loadDaily('group', userId, value)
-    } finally {
-      setLoading(false)
-    }
+    setDaily(null)
   }
 
   const handleExportPdf = async () => {

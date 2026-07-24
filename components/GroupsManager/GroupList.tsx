@@ -17,11 +17,12 @@ import {
   useDroppable,
   useDraggable
 } from '@dnd-kit/core'
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
+import { animate, createSpring } from 'animejs'
 import GroupForm from './GroupForm'
 import { Search, Trash2 } from 'lucide-react'
 import { Input } from '@/app/_components/_ui/input'
-import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
+import { useStaggerChildren, useSpringPop, STAGGER_ITEM_INITIAL_STYLE, POP_INITIAL_STYLE } from '@/lib/animation'
 
 const UNGROUPED_ID = 0
 
@@ -35,17 +36,52 @@ function DraggableUser({ user }: { user: AppUser }) {
     id: user.id!,
     data: { user }
   })
+  // Badge no reenvía ref (no usa forwardRef) — el wrapper es el nodo real que dnd-kit trackea
+  // y sobre el que animamos; Badge adentro queda puramente visual.
+  const localRef = useRef<HTMLSpanElement>(null)
+  useSpringPop(localRef, { stiffness: 500, damping: 13 })
+
+  // "Squish" con resorte al levantar/soltar — además del pop de entrada al montar/reubicarse.
+  // Se salta la primera corrida (isDragging siempre arranca en false): si no, este efecto
+  // pelearía con useSpringPop de arriba por la misma propiedad `scale` justo al montar.
+  const isFirstDragCheck = useRef(true)
+  useEffect(() => {
+    if (isFirstDragCheck.current) { isFirstDragCheck.current = false; return }
+    if (!localRef.current) return
+    const anim = animate(localRef.current, {
+      scale: isDragging ? 0.85 : 1,
+      ease: createSpring({ stiffness: 500, damping: 12 }),
+    })
+    return () => { anim.revert() }
+  }, [isDragging])
 
   return (
-    <Badge
-      ref={setNodeRef}
+    <span
+      ref={node => { setNodeRef(node); localRef.current = node }}
       {...listeners}
       {...attributes}
-      variant='ghost'
-      className={`bg-secondary cursor-move ${isDragging ? 'opacity-30' : ''}`}
+      style={POP_INITIAL_STYLE}
     >
-      {user.full_name}
-    </Badge>
+      <Badge
+        variant='ghost'
+        className={`bg-secondary cursor-move ${isDragging ? 'opacity-30' : ''}`}
+      >
+        {user.full_name}
+      </Badge>
+    </span>
+  )
+}
+
+function DragOverlayBadge({ name }: { name: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  useSpringPop(ref, { stiffness: 500, damping: 12 })
+
+  return (
+    <span ref={ref} style={POP_INITIAL_STYLE}>
+      <Badge variant='ghost' className='bg-secondary shadow-md cursor-move'>
+        {name}
+      </Badge>
+    </span>
   )
 }
 
@@ -200,11 +236,7 @@ export default function GroupList({ groups, users }: GroupTableProps) {
       </div>
 
       <DragOverlay>
-        {activeUser && (
-          <Badge variant='ghost' className='bg-secondary shadow-md cursor-move'>
-            {activeUser.full_name}
-          </Badge>
-        )}
+        {activeUser && <DragOverlayBadge name={activeUser.full_name} />}
       </DragOverlay>
     </DndContext>
   )
