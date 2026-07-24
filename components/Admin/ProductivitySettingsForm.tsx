@@ -39,8 +39,10 @@ export default function ProductivitySettingsForm({ initial }: Props) {
       <CardHeader>
         <CardTitle>Índices del cálculo de productividad</CardTitle>
         <CardDescription>
-          Pesos que usa la métrica &quot;Global&quot; de productividad — el resultado final siempre
-          se topa en 100%, aunque los pesos sumen más.
+          El % &quot;Global&quot; se calcula sobre el cumplimiento de la malla horaria (presencia
+          real) — estos dos valores solo ajustan un factor de calidad de 0.8x a 1.2x sobre esa
+          base según la mezcla de apps usadas. Sin datos de apps categorizadas, el factor queda
+          en 1.0x (neutro): alguien presente y cumpliendo horario no cae a 0% por eso.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-2 max-w-xl">
@@ -55,7 +57,8 @@ export default function ProductivitySettingsForm({ initial }: Props) {
             onChange={e => setProductivePct(Number(e.target.value))}
           />
           <p className="text-xs text-muted-foreground">
-            Hoy 100% = cuenta 1:1. Subirlo hace que el tiempo productivo empuje el Global más rápido.
+            Qué tanto cuenta el tiempo productivo al calcular la mezcla de calidad (tope 100% dentro
+            de esa mezcla, aunque acá subas más de 100).
           </p>
         </div>
         <div className="grid gap-1.5">
@@ -70,7 +73,8 @@ export default function ProductivitySettingsForm({ initial }: Props) {
             onChange={e => setUncategorizedPct(Number(e.target.value))}
           />
           <p className="text-xs text-muted-foreground">
-            Cuánto del tiempo en apps aún no categorizadas cuenta como productivo.
+            Cuánto del tiempo en apps aún no categorizadas cuenta como productivo dentro de esa
+            mezcla.
           </p>
         </div>
         <div className="sm:col-span-2">

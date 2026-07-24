@@ -270,7 +270,7 @@ export default function ProductivityReport() {
         </span>
         <span>
           <span className='font-semibold text-foreground'>Global</span>
-          {' '}= (productivo × {productiveCreditPct}% + sin-categ × {uncategorizedCreditPct}%) ÷ jornada programada
+          {' '}= Cumplimiento × factor de calidad de apps (0.8x–1.2x según productivo {productiveCreditPct}% / sin-categ {uncategorizedCreditPct}%; 1.0x sin datos de apps)
         </span>
       </div>
 

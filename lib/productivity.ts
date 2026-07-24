@@ -42,6 +42,28 @@ export const timeToMinutes = (hhmm: string) => {
   return h * 60 + m
 }
 
+/**
+ * Factor 0.8x–1.2x según qué tan productiva fue la mezcla de apps DENTRO del tiempo activo —
+ * multiplica al cumplimiento de malla horaria (la base real del cálculo Global, ver
+ * computeUserDayStats/computeProductivityRange/computeProductivityDaily). Sin datos de apps
+ * categorizadas (hueco del pipeline de app-usage-logs, ej. capturas/estado sí registran
+ * presencia pero no hay `apps` en esos intervalos) devuelve 1 (neutro) — así alguien presente y
+ * cumpliendo horario no cae a 0% solo porque falta el desglose de apps.
+ */
+export function appQualityFactor(
+  productiveSecs: number,
+  unproductiveSecs: number,
+  uncategorizedSecs: number,
+  productiveCredit: number,
+  uncategorizedCredit: number,
+): number {
+  const appSecs = productiveSecs + unproductiveSecs + uncategorizedSecs
+  const ratio = appSecs > 0
+    ? Math.min(1, Math.max(0, (productiveSecs * productiveCredit + uncategorizedSecs * uncategorizedCredit) / appSecs))
+    : 0.5
+  return 0.8 + 0.4 * ratio
+}
+
 // skipLunch: excepción puntual de un usuario+fecha (ver lunch_skips / THScheduleView "Quitar
 // almuerzo") — ese día no se resta el bloque de almuerzo de la jornada programada.
 export const scheduledWorkMinutes = (prog: Programation, skipLunch = false): number => {
@@ -348,7 +370,15 @@ export async function computeProductivityRange(
 
     const categorized = productive + unproductive
     const scheduledSecs = scheduledMinutes * 60
-    const effective = productive * ctx.productiveCredit + uncategorized * ctx.uncategorizedCredit
+    const workCompliancePercent = scheduledSecs > 0 ? Math.min(100, Math.round((total / scheduledSecs) * 100)) : 0
+
+    // Global = cumplimiento de malla horaria (presencia real, `total`) como base × factor de
+    // calidad de apps — no depende de que exista desglose de apps para no mostrar 0% cuando la
+    // persona sí cumplió horario (ver appQualityFactor).
+    const quality = appQualityFactor(productive, unproductive, uncategorized, ctx.productiveCredit, ctx.uncategorizedCredit)
+    const overallProductivityPercent = scheduledSecs > 0
+      ? Math.min(100, Math.round(workCompliancePercent * quality))
+      : 0
 
     return {
       user, machine: primaryMachine, programation: lastProgramation, scheduledMinutes,
@@ -357,8 +387,8 @@ export async function computeProductivityRange(
       uncategorizedSeconds: Math.round(uncategorized),
       totalSeconds: Math.round(total),
       appProductivityPercent: categorized > 0 ? Math.round((productive / categorized) * 100) : 0,
-      workCompliancePercent: scheduledSecs > 0 ? Math.min(100, Math.round((total / scheduledSecs) * 100)) : 0,
-      overallProductivityPercent: scheduledSecs > 0 ? Math.min(100, Math.round((effective / scheduledSecs) * 100)) : 0,
+      workCompliancePercent,
+      overallProductivityPercent,
       topApps: [...appMap.values()].sort((a, b) => b.seconds - a.seconds).slice(0, 8),
     }
   })
@@ -412,8 +442,9 @@ export async function computeProductivityDaily(
 
       if (day.scheduledMinutes > 0) {
         const userScheduledSecs = day.scheduledMinutes * 60
-        const userEffective = day.productive * ctx.productiveCredit + day.uncategorized * ctx.uncategorizedCredit
-        percentSum += Math.min(100, (userEffective / userScheduledSecs) * 100)
+        const userCompliance = Math.min(100, (day.total / userScheduledSecs) * 100)
+        const userQuality = appQualityFactor(day.productive, day.unproductive, day.uncategorized, ctx.productiveCredit, ctx.uncategorizedCredit)
+        percentSum += Math.min(100, userCompliance * userQuality)
         scheduledUserCount++
       }
     }
