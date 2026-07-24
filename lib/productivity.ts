@@ -188,12 +188,16 @@ function computeUserDayStats(
   }
   if (!dayIntervals.length) return { ...EMPTY_DAY_STATS, programation, scheduledMinutes }
 
+  // 'Z' explícito: programation.start_day/end_day son horas de Bogotá "sin conversión", igual
+  // que interval_start/interval_end (ver comentario en loadRangeContext) — sin el 'Z', esto se
+  // parsea como hora LOCAL DEL SERVIDOR, que puede no ser UTC, desfasando la ventana contra la
+  // actividad real y descartando horas de trabajo enteras silenciosamente.
   const dayNowMs = date === ctx.todayStr ? ctx.nowMs : Infinity
-  const schedWinStart = new Date(`${date}T${programation!.start_day}:00`).getTime()
+  const schedWinStart = new Date(`${date}T${programation!.start_day}:00Z`).getTime()
   const schedWinEnd = Math.min(
     programation!.end_day
-      ? new Date(`${date}T${programation!.end_day}:00`).getTime()
-      : new Date(`${date}T23:00:00`).getTime(),
+      ? new Date(`${date}T${programation!.end_day}:00Z`).getTime()
+      : new Date(`${date}T23:00:00Z`).getTime(),
     dayNowMs,
   )
 
@@ -237,9 +241,21 @@ function computeUserDayStats(
 async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: string) {
   const dates = dateRange(dateFrom, dateTo)
 
-  const bogotaNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
-  const todayStr = bogotaNow.toLocaleDateString('sv')
-  const nowMs = bogotaNow.getTime()
+  // "Ahora" en dos formas, ambas independientes del timezone del proceso que corre esto:
+  // - todayStr: fecha de Bogotá, calculada directo desde el instante real (`now`) con
+  //   `timeZone` explícito — no depende de re-parsear un string sin offset.
+  // - nowMs: OJO, no es el instante real — son los dígitos de reloj de Bogotá tratados como si
+  //   fueran UTC (agregando 'Z' al re-parsear). Es el mismo criterio que usan
+  //   interval_start/interval_end al llegar del backend (ver schedWinStart/schedWinEnd en
+  //   computeUserDayStats) — MySQL DATETIME no tiene timezone, así que la hora de Bogotá que
+  //   manda el agente queda guardada tal cual y Prisma la serializa con 'Z' sin convertirla.
+  //   nowMs tiene que vivir en ese mismo espacio "dígitos de Bogotá + Z" para que
+  //   `Math.min(schedWinEnd, dayNowMs)` compare cosas comparables sin importar en qué timezone
+  //   corra este proceso.
+  const now = new Date()
+  const todayStr = now.toLocaleDateString('sv', { timeZone: 'America/Bogota' })
+  const bogotaClockStr = now.toLocaleString('sv', { timeZone: 'America/Bogota' }).replace(' ', 'T')
+  const nowMs = new Date(`${bogotaClockStr}Z`).getTime()
 
   const [schedules, programations, rawLogs, categorizationApps, rotations, { machinesByUser, stateByMachine }, lunchSkips, productivitySettings] =
     await Promise.all([

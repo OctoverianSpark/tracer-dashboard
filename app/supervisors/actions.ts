@@ -23,10 +23,19 @@ export interface UserConnectionStatus {
 }
 
 export const getUserConnectionStatuses = async (): Promise<UserConnectionStatus[]> => {
-  // All time logic uses Bogotá (UTC-5) — the server may run in a different timezone
-  const bogota   = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
-  const todayStr = bogota.toLocaleDateString('sv')   // YYYY-MM-DD
-  const nowMs    = bogota.getTime()
+  // `bogota` reparsea "ahora" como si el reloj local fuera Bogotá — sirve para leer dígitos de
+  // reloj (.getDay()/.getHours()/.getMinutes() más abajo, para todayKey/currentTime), donde
+  // parsear y leer con el mismo criterio local se cancela y da el dígito correcto sin importar
+  // en qué timezone corra el proceso. NO sirve para comparar como epoch (.getTime()) contra
+  // otro timestamp que no comparta ese mismo criterio — para eso está nowMs aparte: vive en el
+  // mismo espacio "dígitos de Bogotá tratados como UTC" que interval_start (ver
+  // lib/productivity.ts loadRangeContext para el porqué), a propósito, para que
+  // `startMs > nowMs` más abajo compare cosas comparables sin importar el timezone del proceso.
+  const now = new Date()
+  const bogota = new Date(now.toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+  const todayStr = now.toLocaleDateString('sv', { timeZone: 'America/Bogota' })
+  const bogotaClockStr = now.toLocaleString('sv', { timeZone: 'America/Bogota' }).replace(' ', 'T')
+  const nowMs = new Date(`${bogotaClockStr}Z`).getTime()
 
   const [users, machines, schedules, programations, rawLogs, rotations] = await Promise.all([
     getappuser(),
