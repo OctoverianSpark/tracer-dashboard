@@ -64,6 +64,18 @@ export function appQualityFactor(
   return 0.8 + 0.4 * ratio
 }
 
+// Jornada aplicada cuando el usuario no tiene horario fijo NI rotación asignada (~90% de la
+// planta en producción hoy). Antes esto caía a scheduledMinutes=0 → EMPTY_DAY_STATS, mostrando
+// 0% indistinguible de "cumplió cero" para gente que sí está trabajando. Mismo horario que
+// "Turno Normal" (08:00-18:00, almuerzo 12:00-13:00) = 8h, a falta de una asignación real.
+const DEFAULT_PROGRAMATION: Programation = {
+  name: 'Jornada general (sin horario asignado)',
+  start_day: '08:00',
+  start_lunch: '12:00',
+  end_lunch: '13:00',
+  end_day: '18:00',
+}
+
 // skipLunch: excepción puntual de un usuario+fecha (ver lunch_skips / THScheduleView "Quitar
 // almuerzo") — ese día no se resta el bloque de almuerzo de la jornada programada.
 export const scheduledWorkMinutes = (prog: Programation, skipLunch = false): number => {
@@ -211,9 +223,9 @@ function computeUserDayStats(
 ): UserDayStats {
   const dayKey = DAY_KEYS[new Date(`${date}T12:00:00`).getDay()]
   const resolved = resolveEffectiveProgramation(ctx.schedules, ctx.rotations, ctx.programations, userId, dayKey, date)
-  const programation = resolved?.programation
+  const programation = resolved?.programation ?? DEFAULT_PROGRAMATION
   const skipLunch = ctx.lunchSkipDates.has(`${userId}_${date}`) || (resolved?.skipLunch ?? false)
-  const scheduledMinutes = resolved ? scheduledWorkMinutes(resolved.programation, skipLunch) : 0
+  const scheduledMinutes = scheduledWorkMinutes(programation, skipLunch)
 
   if (scheduledMinutes === 0 || !userMachines.length) return { ...EMPTY_DAY_STATS, programation }
 
@@ -234,10 +246,10 @@ function computeUserDayStats(
   // parsea como hora LOCAL DEL SERVIDOR, que puede no ser UTC, desfasando la ventana contra la
   // actividad real y descartando horas de trabajo enteras silenciosamente.
   const dayNowMs = date === ctx.todayStr ? ctx.nowMs : Infinity
-  const schedWinStart = new Date(`${date}T${programation!.start_day}:00Z`).getTime()
+  const schedWinStart = new Date(`${date}T${programation.start_day}:00Z`).getTime()
   const schedWinEnd = Math.min(
-    programation!.end_day
-      ? new Date(`${date}T${programation!.end_day}:00Z`).getTime()
+    programation.end_day
+      ? new Date(`${date}T${programation.end_day}:00Z`).getTime()
       : new Date(`${date}T23:00:00Z`).getTime(),
     dayNowMs,
   )
