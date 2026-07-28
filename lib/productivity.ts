@@ -252,32 +252,36 @@ function computeUserDayStats(
   // día no haya intervalos de uso de apps.
   if (!dayIntervals.length && !dayActiveWindows.length) return { ...EMPTY_DAY_STATS, programation, scheduledMinutes }
 
-  // 'Z' explícito: programation.start_day/end_day son horas de Bogotá "sin conversión", igual
-  // que interval_start/interval_end (ver comentario en loadRangeContext) — sin el 'Z', esto se
+  // 'Z' explícito: los timestamps de BD son horas de Bogotá "sin conversión", igual que
+  // interval_start/interval_end (ver comentario en loadRangeContext) — sin el 'Z', esto se
   // parsea como hora LOCAL DEL SERVIDOR, que puede no ser UTC, desfasando la ventana contra la
   // actividad real y descartando horas de trabajo enteras silenciosamente.
+  //
+  // Ventana del DÍA COMPLETO, no del turno programado (programation.start_day–end_day). Antes se
+  // recortaba a esas horas, lo que descartaba por completo cualquier actividad en estado
+  // 'Tiempo extra' (overtime) fuera del turno — aunque state_categories agrupa 'working' Y
+  // 'overtime' como 'active' por diseño (ver seed en
+  // 20260706140000_state_categories_and_states/migration.sql: "working/overtime -> active").
+  // Cualquier ventana activa, esté o no dentro del turno, es tiempo trabajado real y debe sumar a
+  // Productivo/cumplimiento — la jornada programada (`scheduledMinutes`) sigue siendo el
+  // denominador del % de cumplimiento, eso no cambia.
   const dayNowMs = date === ctx.todayStr ? ctx.nowMs : Infinity
-  const schedWinStart = new Date(`${date}T${programation.start_day}:00Z`).getTime()
-  const schedWinEnd = Math.min(
-    programation.end_day
-      ? new Date(`${date}T${programation.end_day}:00Z`).getTime()
-      : new Date(`${date}T23:00:00Z`).getTime(),
-    dayNowMs,
-  )
+  const dayWinStart = new Date(`${date}T00:00:00Z`).getTime()
+  const dayWinEnd = Math.min(new Date(`${date}T23:59:59Z`).getTime(), dayNowMs)
 
-  // `total` (cumplimiento) sale de los estados ACTIVE de state_logs recortados a la ventana de
-  // turno — independiente de que existan app_usage_logs ese día, así alguien presente
-  // (capturas, estado activo) pero sin ese canal de datos puntual no cae a 0% de cumplimiento.
-  // Si no hay state_logs para el día (agente viejo o hueco puntual), cae al criterio anterior:
-  // sumar duración de los intervalos de app_usage_logs dentro de la ventana.
+  // `total` (cumplimiento) sale de los estados ACTIVE de state_logs dentro del día — independiente
+  // de que existan app_usage_logs ese día, así alguien presente (capturas, estado activo) pero sin
+  // ese canal de datos puntual no cae a 0% de cumplimiento. Si no hay state_logs para el día
+  // (agente viejo o hueco puntual), cae al criterio anterior: sumar duración de los intervalos de
+  // app_usage_logs dentro de la ventana.
   const total = dayActiveWindows.length > 0
-    ? sumWindowSecondsInRange(dayActiveWindows, schedWinStart, schedWinEnd)
+    ? sumWindowSecondsInRange(dayActiveWindows, dayWinStart, dayWinEnd)
     : sumWindowSecondsInRange(
         dayIntervals.map(iv => ({
           start: new Date(iv.interval_start).getTime(),
           end: new Date(iv.interval_end).getTime(),
         })),
-        schedWinStart, schedWinEnd,
+        dayWinStart, dayWinEnd,
       )
 
   let productive = 0, unproductive = 0, uncategorized = 0
@@ -286,7 +290,7 @@ function computeUserDayStats(
   for (const interval of dayIntervals) {
     const startMs = new Date(interval.interval_start).getTime()
     const endMs = new Date(interval.interval_end).getTime()
-    if (startMs < schedWinStart || startMs >= schedWinEnd) continue
+    if (startMs < dayWinStart || startMs >= dayWinEnd) continue
     if (!isIntervalActive(interval, dayActiveWindows)) continue
 
     const intervalSecs = endMs > startMs ? Math.round((endMs - startMs) / 1000) : 300
@@ -329,11 +333,11 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
   //   `timeZone` explícito — no depende de re-parsear un string sin offset.
   // - nowMs: OJO, no es el instante real — son los dígitos de reloj de Bogotá tratados como si
   //   fueran UTC (agregando 'Z' al re-parsear). Es el mismo criterio que usan
-  //   interval_start/interval_end al llegar del backend (ver schedWinStart/schedWinEnd en
+  //   interval_start/interval_end al llegar del backend (ver dayWinStart/dayWinEnd en
   //   computeUserDayStats) — MySQL DATETIME no tiene timezone, así que la hora de Bogotá que
   //   manda el agente queda guardada tal cual y Prisma la serializa con 'Z' sin convertirla.
   //   nowMs tiene que vivir en ese mismo espacio "dígitos de Bogotá + Z" para que
-  //   `Math.min(schedWinEnd, dayNowMs)` compare cosas comparables sin importar en qué timezone
+  //   `Math.min(dayWinEnd, dayNowMs)` compare cosas comparables sin importar en qué timezone
   //   corra este proceso.
   const now = new Date()
   const todayStr = now.toLocaleDateString('sv', { timeZone: 'America/Bogota' })
