@@ -114,6 +114,31 @@ export const buildActiveWindows = (stateLogs: StateLog[]): Array<{ start: number
   return windows
 }
 
+// Buffer para una ventana activa que quedó abierta sin ningún log/intervalo posterior ese día
+// (agente que se quedó pegado en 'active', PC apagado sin log de cierre, etc.) y tampoco hay
+// evidencia real de telemetría después de su inicio — se le da este empujón corto en vez de 0,
+// asumiendo un solo ciclo de reporte del agente, no horas.
+const STALE_ACTIVE_WINDOW_BUFFER_MS = 5 * 60 * 1000
+
+// Cierra ventanas activas "abiertas" (end=Infinity de buildActiveWindows, sin log de cierre ese
+// día) usando la última evidencia real de telemetría (state_logs o app_usage_logs posteriores al
+// inicio de la ventana) como tope, en vez de extenderlas hasta el fin del día/turno. Antes esa
+// extensión quedaba acotada "por accidente" por la ventana del turno programado (unas pocas
+// horas); al pasar a día completo (para contar horas extra, ver dayWinStart/dayWinEnd) una
+// ventana abierta sin cierre podía inflarse a horas fantasma (ej. 19h reportadas contra una
+// jornada de 8h) — un estado 'active' sin nada después no prueba que la persona siguió
+// trabajando hasta medianoche.
+function closeTrailingActiveWindows(
+  windows: Array<{ start: number; end: number }>,
+  lastEvidenceMs: number,
+  hardCapMs: number,
+): Array<{ start: number; end: number }> {
+  return windows.map(w => w.end === Infinity
+    ? { start: w.start, end: Math.min(hardCapMs, Math.max(lastEvidenceMs, w.start + STALE_ACTIVE_WINDOW_BUFFER_MS)) }
+    : w
+  )
+}
+
 // Devuelve true si el punto medio del intervalo de app cae dentro de una ventana activa.
 export const isIntervalActive = (log: AppUsageLog, windows: Array<{ start: number; end: number }>): boolean => {
   if (windows.length === 0) return true // sin datos de estado → contar todo
@@ -269,13 +294,24 @@ function computeUserDayStats(
   const dayWinStart = new Date(`${date}T00:00:00Z`).getTime()
   const dayWinEnd = Math.min(new Date(`${date}T23:59:59Z`).getTime(), dayNowMs)
 
+  // Última evidencia real de telemetría ese día (cualquier machine del usuario) — tope para
+  // cerrar ventanas activas abiertas, ver closeTrailingActiveWindows.
+  const lastEvidenceMs = Math.max(
+    dayWinStart,
+    ...dayIntervals.map(iv => new Date(iv.interval_end).getTime()),
+    ...userMachines.flatMap(m =>
+      (dayStateByMachine.get(Number(m.id)) ?? []).map(sl => new Date(sl.timestamp).getTime())
+    ),
+  )
+  const closedActiveWindows = closeTrailingActiveWindows(dayActiveWindows, lastEvidenceMs, dayWinEnd)
+
   // `total` (cumplimiento) sale de los estados ACTIVE de state_logs dentro del día — independiente
   // de que existan app_usage_logs ese día, así alguien presente (capturas, estado activo) pero sin
   // ese canal de datos puntual no cae a 0% de cumplimiento. Si no hay state_logs para el día
   // (agente viejo o hueco puntual), cae al criterio anterior: sumar duración de los intervalos de
   // app_usage_logs dentro de la ventana.
-  const total = dayActiveWindows.length > 0
-    ? sumWindowSecondsInRange(dayActiveWindows, dayWinStart, dayWinEnd)
+  const total = closedActiveWindows.length > 0
+    ? sumWindowSecondsInRange(closedActiveWindows, dayWinStart, dayWinEnd)
     : sumWindowSecondsInRange(
         dayIntervals.map(iv => ({
           start: new Date(iv.interval_start).getTime(),
