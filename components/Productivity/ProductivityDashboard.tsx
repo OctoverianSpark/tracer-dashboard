@@ -305,10 +305,10 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
               <p className="text-xs text-muted-foreground mt-2">Mostrando la curva de {selectedUser.full_name}.</p>
             )}
             {viewMode === 'group' && selectedGroup && (
-              <p className="text-xs text-muted-foreground mt-2">Suma de los usuarios del grupo {selectedGroup.name}.</p>
+              <p className="text-xs text-muted-foreground mt-2">Promedio por persona del grupo {selectedGroup.name}, entre quienes tenían turno cada día.</p>
             )}
             {viewMode === 'global' && daily !== null && (
-              <p className="text-xs text-muted-foreground mt-2">Suma de todos los usuarios en el rango seleccionado.</p>
+              <p className="text-xs text-muted-foreground mt-2">Promedio por persona entre todos los usuarios con turno cada día del rango seleccionado.</p>
             )}
           </Card>
         </TabsContent>

@@ -167,6 +167,7 @@ export default function ProductivityReport() {
   const [loading, setLoading]       = useState(false)
   const [productiveCreditPct, setProductiveCreditPct] = useState(150)
   const [uncategorizedCreditPct, setUncategorizedCreditPct] = useState(70)
+  const [unproductiveCreditPct, setUnproductiveCreditPct] = useState(20)
 
   const rangeInvalid = dateTo < dateFrom
 
@@ -175,6 +176,7 @@ export default function ProductivityReport() {
     getProductivitySettings().then(s => {
       setProductiveCreditPct(Math.round(s.productive_credit * 100))
       setUncategorizedCreditPct(Math.round(s.uncategorized_credit * 100))
+      setUnproductiveCreditPct(Math.round(s.unproductive_credit * 100))
     })
   }, [])
 
@@ -270,7 +272,7 @@ export default function ProductivityReport() {
         </span>
         <span>
           <span className='font-semibold text-foreground'>Global</span>
-          {' '}= Cumplimiento × factor de calidad de apps (0.8x–1.2x según productivo {productiveCreditPct}% / sin-categ {uncategorizedCreditPct}%; 1.0x sin datos de apps)
+          {' '}= Cumplimiento × factor de calidad de apps (0.8x–1.2x según productivo {productiveCreditPct}% / sin-categ {uncategorizedCreditPct}% / improductivo {unproductiveCreditPct}%; 1.0x sin datos de apps)
         </span>
       </div>
 

@@ -57,7 +57,10 @@ function exportXLSX(apps: CategorizationApp[]) {
   XLSX.writeFile(wb, `aplicaciones_${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
-const EMPTY: CategorizationApp = { name: '', category: 'productive' }
+// Sin categoría precargada — si quien registra la app no elige explícitamente, debe fallar el
+// guardado en vez de quedar "Productiva" por defecto en silencio (ver handleSave).
+type DraftApp = Omit<CategorizationApp, 'category'> & { category?: CategorizationApp['category'] }
+const EMPTY: DraftApp = { name: '', category: undefined }
 
 const CategoryBadge = ({ category }: { category: CategorizationApp['category'] }) => {
   if (category === 'productive')   return <Badge className="bg-green-600 text-white">Productiva</Badge>
@@ -72,7 +75,7 @@ function AppForm({
   initial?: CategorizationApp
   onSaved: () => void
 }) {
-  const [values, setValues] = useState<CategorizationApp>(initial ?? EMPTY)
+  const [values, setValues] = useState<DraftApp>(initial ?? EMPTY)
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -81,10 +84,14 @@ function AppForm({
       toast.error('El nombre de la aplicación es requerido')
       return
     }
+    if (!values.category) {
+      toast.error('Selecciona una categoría')
+      return
+    }
     setLoading(true)
     try {
       if (initial?.id) {
-        await updateCategorizationApp({ ...values, id: initial.id })
+        await updateCategorizationApp({ ...values, category: values.category, id: initial.id })
       } else {
         await createCategorizationApp({ name: values.name, category: values.category })
       }
@@ -124,11 +131,11 @@ function AppForm({
           <div className="grid gap-1.5">
             <Label>Categoría</Label>
             <Select
-              value={values.category}
+              value={values.category ?? ''}
               onValueChange={val => setValues(v => ({ ...v, category: val as CategorizationApp['category'] }))}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Seleccionar categoría" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="productive">Productiva</SelectItem>

@@ -4,7 +4,7 @@ import { ProductivitySettings } from '@/types/ProductivitySettings'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-const DEFAULT_SETTINGS: ProductivitySettings = { uncategorized_credit: 0.7, productive_credit: 1.5 }
+const DEFAULT_SETTINGS: ProductivitySettings = { uncategorized_credit: 0.7, productive_credit: 1.5, unproductive_credit: 0.2 }
 
 export const getProductivitySettings = async (): Promise<ProductivitySettings> => {
   try {

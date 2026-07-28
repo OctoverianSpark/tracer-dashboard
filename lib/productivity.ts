@@ -49,6 +49,10 @@ export const timeToMinutes = (hhmm: string) => {
  * categorizadas (hueco del pipeline de app-usage-logs, ej. capturas/estado sí registran
  * presencia pero no hay `apps` en esos intervalos) devuelve 1 (neutro) — así alguien presente y
  * cumpliendo horario no cae a 0% solo porque falta el desglose de apps.
+ *
+ * unproductiveCredit: antes el tiempo improductivo no sumaba nada al numerador del ratio (crédito
+ * implícito 0) — cada segundo improductivo diluía la mezcla al máximo. Ahora cuenta con su propio
+ * peso configurable (por defecto 20%), menos agresivo: sigue penalizando pero no a cero.
  */
 export function appQualityFactor(
   productiveSecs: number,
@@ -56,10 +60,15 @@ export function appQualityFactor(
   uncategorizedSecs: number,
   productiveCredit: number,
   uncategorizedCredit: number,
+  unproductiveCredit: number,
 ): number {
   const appSecs = productiveSecs + unproductiveSecs + uncategorizedSecs
   const ratio = appSecs > 0
-    ? Math.min(1, Math.max(0, (productiveSecs * productiveCredit + uncategorizedSecs * uncategorizedCredit) / appSecs))
+    ? Math.min(1, Math.max(0, (
+        productiveSecs * productiveCredit
+        + uncategorizedSecs * uncategorizedCredit
+        + unproductiveSecs * unproductiveCredit
+      ) / appSecs))
     : 0.5
   return 0.8 + 0.4 * ratio
 }
@@ -189,9 +198,11 @@ interface DayContext {
   // Claves `${appuser_id}_${date}` con excepción "sin almuerzo" ese día (ver lunch_skips).
   lunchSkipDates: Set<string>
   // Pesos configurables del cálculo Global (ver app/app/admin/config) — uncategorized_credit
-  // (crédito del tiempo en apps sin categorizar) y productive_credit (peso del tiempo productivo).
+  // (crédito del tiempo en apps sin categorizar), productive_credit (peso del tiempo productivo)
+  // y unproductive_credit (peso del tiempo improductivo, ver appQualityFactor).
   uncategorizedCredit: number
   productiveCredit: number
+  unproductiveCredit: number
 }
 
 interface UserDayStats {
@@ -366,6 +377,7 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
     schedules, rotations, programations, categoryMap, todayStr, nowMs, lunchSkipDates,
     uncategorizedCredit: productivitySettings.uncategorized_credit,
     productiveCredit: productivitySettings.productive_credit,
+    unproductiveCredit: productivitySettings.unproductive_credit,
   }
   return { dates, ctx, machinesByUser, logsByMachineByDate, stateByMachineByDate }
 }
@@ -420,7 +432,7 @@ export async function computeProductivityRange(
     // Global = cumplimiento de malla horaria (presencia real, `total`) como base × factor de
     // calidad de apps — no depende de que exista desglose de apps para no mostrar 0% cuando la
     // persona sí cumplió horario (ver appQualityFactor).
-    const quality = appQualityFactor(productive, unproductive, uncategorized, ctx.productiveCredit, ctx.uncategorizedCredit)
+    const quality = appQualityFactor(productive, unproductive, uncategorized, ctx.productiveCredit, ctx.uncategorizedCredit, ctx.unproductiveCredit)
     const overallProductivityPercent = scheduledSecs > 0
       ? Math.min(100, Math.round(workCompliancePercent * quality))
       : 0
@@ -444,6 +456,11 @@ export interface DailyProductivity {
   productiveSeconds: number
   unproductiveSeconds: number
   uncategorizedSeconds: number
+  // total - (productive+unproductive+uncategorized): presencia real (state_logs) sin desglose de
+  // apps ese intervalo (hueco del pipeline de app-usage-logs). Existe para que la curva pueda
+  // mostrar esta franja en vez de dejar que el área apilada (basada solo en apps) se quede corta
+  // frente a `totalSeconds`/el % de productividad (que sí usa `total`) — ver ProductivityCurveChart.
+  noAppDataSeconds: number
   totalSeconds: number
   scheduledMinutes: number
   overallProductivityPercent: number
@@ -488,18 +505,24 @@ export async function computeProductivityDaily(
       if (day.scheduledMinutes > 0) {
         const userScheduledSecs = day.scheduledMinutes * 60
         const userCompliance = Math.min(100, (day.total / userScheduledSecs) * 100)
-        const userQuality = appQualityFactor(day.productive, day.unproductive, day.uncategorized, ctx.productiveCredit, ctx.uncategorizedCredit)
+        const userQuality = appQualityFactor(day.productive, day.unproductive, day.uncategorized, ctx.productiveCredit, ctx.uncategorizedCredit, ctx.unproductiveCredit)
         percentSum += Math.min(100, userCompliance * userQuality)
         scheduledUserCount++
       }
     }
 
+    const productiveSeconds = scheduledUserCount > 0 ? Math.round(productive / scheduledUserCount) : 0
+    const unproductiveSeconds = scheduledUserCount > 0 ? Math.round(unproductive / scheduledUserCount) : 0
+    const uncategorizedSeconds = scheduledUserCount > 0 ? Math.round(uncategorized / scheduledUserCount) : 0
+    const totalSeconds = scheduledUserCount > 0 ? Math.round(total / scheduledUserCount) : 0
+
     return {
       date,
-      productiveSeconds: scheduledUserCount > 0 ? Math.round(productive / scheduledUserCount) : 0,
-      unproductiveSeconds: scheduledUserCount > 0 ? Math.round(unproductive / scheduledUserCount) : 0,
-      uncategorizedSeconds: scheduledUserCount > 0 ? Math.round(uncategorized / scheduledUserCount) : 0,
-      totalSeconds: scheduledUserCount > 0 ? Math.round(total / scheduledUserCount) : 0,
+      productiveSeconds,
+      unproductiveSeconds,
+      uncategorizedSeconds,
+      noAppDataSeconds: Math.max(0, totalSeconds - (productiveSeconds + unproductiveSeconds + uncategorizedSeconds)),
+      totalSeconds,
       scheduledMinutes: scheduledUserCount > 0 ? Math.round(scheduledMinutes / scheduledUserCount) : 0,
       overallProductivityPercent: scheduledUserCount > 0 ? Math.round(percentSum / scheduledUserCount) : 0,
     }

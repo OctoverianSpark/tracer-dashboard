@@ -17,6 +17,7 @@ export default function ProductivitySettingsForm({ initial }: Props) {
   // Se editan como porcentaje (70, 150) — el backend guarda la fracción (0.7, 1.5).
   const [uncategorizedPct, setUncategorizedPct] = useState(Math.round(initial.uncategorized_credit * 100))
   const [productivePct, setProductivePct] = useState(Math.round(initial.productive_credit * 100))
+  const [unproductivePct, setUnproductivePct] = useState(Math.round(initial.unproductive_credit * 100))
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
@@ -25,6 +26,7 @@ export default function ProductivitySettingsForm({ initial }: Props) {
       await saveProductivitySettings({
         uncategorized_credit: uncategorizedPct / 100,
         productive_credit: productivePct / 100,
+        unproductive_credit: unproductivePct / 100,
       })
       toast.success('Configuración guardada')
     } catch {
@@ -40,7 +42,7 @@ export default function ProductivitySettingsForm({ initial }: Props) {
         <CardTitle>Índices del cálculo de productividad</CardTitle>
         <CardDescription>
           El % &quot;Global&quot; se calcula sobre el cumplimiento de la malla horaria (presencia
-          real) — estos dos valores solo ajustan un factor de calidad de 0.8x a 1.2x sobre esa
+          real) — estos valores solo ajustan un factor de calidad de 0.8x a 1.2x sobre esa
           base según la mezcla de apps usadas. Sin datos de apps categorizadas, el factor queda
           en 1.0x (neutro): alguien presente y cumpliendo horario no cae a 0% por eso.
         </CardDescription>
@@ -75,6 +77,23 @@ export default function ProductivitySettingsForm({ initial }: Props) {
           <p className="text-xs text-muted-foreground">
             Cuánto del tiempo en apps aún no categorizadas cuenta como productivo dentro de esa
             mezcla.
+          </p>
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="unproductive-pct">Crédito de apps improductivas (%)</Label>
+          <Input
+            id="unproductive-pct"
+            type="number"
+            min={0}
+            max={100}
+            step={5}
+            value={unproductivePct}
+            onChange={e => setUnproductivePct(Number(e.target.value))}
+          />
+          <p className="text-xs text-muted-foreground">
+            Cuánto del tiempo en apps improductivas todavía cuenta dentro de esa mezcla, en vez de
+            restar por completo. En 0% el tiempo improductivo no aporta nada (más agresivo); subirlo
+            suaviza el castigo sobre el factor de calidad.
           </p>
         </div>
         <div className="sm:col-span-2">
