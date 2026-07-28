@@ -308,6 +308,11 @@ function computeUserDayStats(
       if (existing) existing.seconds += secs
       else appUsage.set(a.app, { app: a.app, seconds: secs, category: resolved })
     }
+
+    // Tiempo idle (mouse/teclado sin actividad dentro del intervalo, reportado aparte de
+    // `apps` por el agente) cuenta como improductivo — cubre el hueco entre `active_seconds` e
+    // `idle_seconds` que `apps` no reparte en ninguna app puntual.
+    unproductive += Math.min(interval.idle_seconds ?? 0, intervalSecs)
   }
 
   return { programation, scheduledMinutes, productive, unproductive, uncategorized, total, appUsage }
