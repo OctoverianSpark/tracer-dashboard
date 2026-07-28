@@ -12,6 +12,10 @@ interface ListToolbarProps {
   groups?: Group[]
   groupFilter?: number | null
   onGroupFilterChange?: (v: number | null) => void
+  // Slot genérico para otros filtros de una sola selección (ej. categoría) — se renderiza junto
+  // al filtro de grupo, antes del buscador, para no acoplar este componente compartido a un
+  // dominio específico.
+  leftExtra?: React.ReactNode
   rightSlot?: React.ReactNode
 }
 
@@ -22,6 +26,7 @@ export default function ListToolbar({
   groups,
   groupFilter,
   onGroupFilterChange,
+  leftExtra,
   rightSlot,
 }: ListToolbarProps) {
   return (
@@ -43,6 +48,8 @@ export default function ListToolbar({
             </SelectContent>
           </Select>
         )}
+
+        {leftExtra}
 
         <div className='flex-1 relative'>
           <InputGroup>

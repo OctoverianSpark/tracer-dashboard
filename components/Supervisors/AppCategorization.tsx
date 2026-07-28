@@ -196,10 +196,13 @@ function DeleteButton({ id, onDeleted }: { id: number; onDeleted: () => void }) 
   )
 }
 
+type CategoryFilter = CategorizationApp['category'] | 'all'
+
 export default function AppCategorization() {
   const [apps, setApps] = useState<CategorizationApp[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
   const [page, setPage] = useState(1)
 
   const load = async () => {
@@ -218,8 +221,10 @@ export default function AppCategorization() {
   const ignored      = apps.filter(a => a.category === 'ignore').length
 
   const filtered = useMemo(
-    () => apps.filter(a => a.name.toLowerCase().includes(search.toLowerCase())),
-    [apps, search]
+    () => apps
+      .filter(a => categoryFilter === 'all' || a.category === categoryFilter)
+      .filter(a => a.name.toLowerCase().includes(search.toLowerCase())),
+    [apps, search, categoryFilter]
   )
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paged = useMemo(
@@ -227,6 +232,7 @@ export default function AppCategorization() {
     [filtered, page]
   )
   useResetPageOnChange(search, setPage)
+  useResetPageOnChange(categoryFilter, setPage)
 
   const bodyRef = useRef<HTMLTableSectionElement>(null)
   useStaggerChildren(bodyRef, { deps: [paged.map(a => a.id).join(',')] })
@@ -244,6 +250,19 @@ export default function AppCategorization() {
         search={search}
         onSearchChange={setSearch}
         searchPlaceholder="Buscar aplicación…"
+        leftExtra={
+          <Select value={categoryFilter} onValueChange={v => setCategoryFilter(v as CategoryFilter)}>
+            <SelectTrigger className="w-full sm:w-44 cursor-pointer">
+              <SelectValue placeholder="Categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las categorías</SelectItem>
+              <SelectItem value="productive">Productivas</SelectItem>
+              <SelectItem value="unproductive">Improductivas</SelectItem>
+              <SelectItem value="ignore">Ignoradas</SelectItem>
+            </SelectContent>
+          </Select>
+        }
         rightSlot={
           <>
             {filtered.length > 0 && (
