@@ -8,6 +8,7 @@ import { AppUser, AppUsageLog } from '@/types/AppUser'
 import { Machine } from '@/types/Machine'
 import { Programation, Schedule, RotationData } from '@/types/Schedules'
 import { StateLog } from '@/types/StateLog'
+import { WORK_STATE_CODE } from '@/types/States'
 
 const DAY_KEYS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'] as const
 
@@ -282,17 +283,35 @@ function computeUserDayStats(
   // parsea como hora LOCAL DEL SERVIDOR, que puede no ser UTC, desfasando la ventana contra la
   // actividad real y descartando horas de trabajo enteras silenciosamente.
   //
-  // Ventana del DÍA COMPLETO, no del turno programado (programation.start_day–end_day). Antes se
-  // recortaba a esas horas, lo que descartaba por completo cualquier actividad en estado
-  // 'Tiempo extra' (overtime) fuera del turno — aunque state_categories agrupa 'working' Y
-  // 'overtime' como 'active' por diseño (ver seed en
-  // 20260706140000_state_categories_and_states/migration.sql: "working/overtime -> active").
-  // Cualquier ventana activa, esté o no dentro del turno, es tiempo trabajado real y debe sumar a
-  // Productivo/cumplimiento — la jornada programada (`scheduledMinutes`) sigue siendo el
-  // denominador del % de cumplimiento, eso no cambia.
+  // Ventana del DÍA COMPLETO, no del turno programado (programation.start_day–end_day) — pero
+  // SOLO si el usuario tiene horario o rotación real asignada (`resolved`). Sin eso, "horas
+  // extra" no tiene contra qué medirse (DEFAULT_PROGRAMATION es un supuesto, no un turno real), y
+  // ampliar la ventana ahí produce horas infladas sin ningún horario de referencia (ej. 19h
+  // "Productivo" contra una jornada asumida de 8h) — para ese caso se mantiene el tope de la
+  // jornada por defecto, igual que antes de contar horas extra.
+  // Con horario/rotación real: 'active' (state_categories) agrupa 'working' Y 'overtime' por
+  // diseño (ver seed en 20260706140000_state_categories_and_states/migration.sql:
+  // "working/overtime -> active"), así que cualquier ventana activa del día, esté o no dentro del
+  // turno, es tiempo trabajado real y debe sumar a Productivo/cumplimiento — la jornada programada
+  // (`scheduledMinutes`) sigue siendo el denominador del % de cumplimiento, eso no cambia.
+  const hasRealSchedule = resolved != null
+  // Estado 'overtime' (code=1, ver WORK_STATE_CODE) marcado explícitamente ese día — habilita
+  // superar el tope de jornada+1h de abajo. Sin esta marca, cualquier exceso se recorta: no hay
+  // forma de distinguir "de verdad se quedó trabajando" de datos ruidosos (ventanas activas mal
+  // cerradas, relojes desincronizados, etc.) sin una señal explícita del agente/supervisor.
+  const hasOvertimeLog = userMachines.some(m =>
+    (dayStateByMachine.get(Number(m.id)) ?? []).some(sl => sl.state?.code === WORK_STATE_CODE.OVERTIME)
+  )
   const dayNowMs = date === ctx.todayStr ? ctx.nowMs : Infinity
-  const dayWinStart = new Date(`${date}T00:00:00Z`).getTime()
-  const dayWinEnd = Math.min(new Date(`${date}T23:59:59Z`).getTime(), dayNowMs)
+  const dayWinStart = hasRealSchedule
+    ? new Date(`${date}T00:00:00Z`).getTime()
+    : new Date(`${date}T${programation.start_day}:00Z`).getTime()
+  const dayWinEnd = Math.min(
+    hasRealSchedule
+      ? new Date(`${date}T23:59:59Z`).getTime()
+      : new Date(`${date}T${programation.end_day || '23:00'}:00Z`).getTime(),
+    dayNowMs,
+  )
 
   // Última evidencia real de telemetría ese día (cualquier machine del usuario) — tope para
   // cerrar ventanas activas abiertas, ver closeTrailingActiveWindows.
@@ -310,7 +329,7 @@ function computeUserDayStats(
   // ese canal de datos puntual no cae a 0% de cumplimiento. Si no hay state_logs para el día
   // (agente viejo o hueco puntual), cae al criterio anterior: sumar duración de los intervalos de
   // app_usage_logs dentro de la ventana.
-  const total = closedActiveWindows.length > 0
+  let total = closedActiveWindows.length > 0
     ? sumWindowSecondsInRange(closedActiveWindows, dayWinStart, dayWinEnd)
     : sumWindowSecondsInRange(
         dayIntervals.map(iv => ({
@@ -353,6 +372,21 @@ function computeUserDayStats(
     // `apps` por el agente) cuenta como improductivo — cubre el hueco entre `active_seconds` e
     // `idle_seconds` que `apps` no reparte en ninguna app puntual.
     unproductive += Math.min(interval.idle_seconds ?? 0, intervalSecs)
+  }
+
+  // Con horario real y SIN 'Tiempo extra' marcado, el total del día no puede superar la jornada
+  // programada + 1h de margen (ej. jornada de 10h → tope de 11h) — reescala productivo/
+  // improductivo/sin-categorizar proporcionalmente para que sigan sumando el nuevo total en vez
+  // de quedar inconsistentes contra él.
+  if (hasRealSchedule && !hasOvertimeLog) {
+    const capSecs = scheduledMinutes * 60 + 3600
+    if (total > capSecs) {
+      const scale = capSecs / total
+      productive = Math.round(productive * scale)
+      unproductive = Math.round(unproductive * scale)
+      uncategorized = Math.round(uncategorized * scale)
+      total = capSecs
+    }
   }
 
   return { programation, scheduledMinutes, productive, unproductive, uncategorized, total, appUsage }

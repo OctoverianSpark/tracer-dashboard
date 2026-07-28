@@ -11,9 +11,23 @@ export interface StateCategory {
   sort_order: number
 }
 
+// code 0-6, el mismo valor que el agente envía por POST /tracer/states — mapeo fijo (no cambia
+// aunque se edite `name`/categoría desde el catálogo, ver seed en
+// 20260706160000_states_per_group_catalog/migration.sql):
+// 0 working · 1 overtime · 2 break · 3 wc · 4 lunch · 5 idle · 6 offline
+export const WORK_STATE_CODE = {
+  WORKING: 0,
+  OVERTIME: 1,
+  BREAK: 2,
+  WC: 3,
+  LUNCH: 4,
+  IDLE: 5,
+  OFFLINE: 6,
+} as const
+
 export interface WorkState {
   id?: number
-  code: number        // 0-6, el mismo código que el agente envía por POST /tracer/states — el valor en sí nunca cambia
+  code: number
   name: string
   category_id: number
   sort_order: number  // posición relativa dentro de su categoría (se reinicia en 0 por cada category_id), no un orden global
