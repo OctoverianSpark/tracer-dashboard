@@ -10,7 +10,10 @@ export const getProductivitySettings = async (): Promise<ProductivitySettings> =
   try {
     const res = await fetch(`${API_URL}/productivity-settings`, { cache: 'no-store' })
     if (!res.ok) return DEFAULT_SETTINGS
-    return res.json()
+    // Merge con defaults: un ingestor desactualizado (migración/cliente Prisma sin regenerar)
+    // puede responder 200 sin campos nuevos (ej. unproductive_credit) — sin esto, ese `undefined`
+    // se multiplica en lib/productivity.ts y vuelve NaN todo el cálculo de productividad.
+    return { ...DEFAULT_SETTINGS, ...(await res.json()) }
   } catch {
     return DEFAULT_SETTINGS
   }
