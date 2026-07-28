@@ -374,6 +374,14 @@ function computeUserDayStats(
     unproductive += Math.min(interval.idle_seconds ?? 0, intervalSecs)
   }
 
+  // `total` (ventanas de state_logs) y productivo+improductivo+sin-categorizar (intervalos de
+  // app_usage_logs, con un criterio de inclusión más laxo: basta que el punto medio del intervalo
+  // caiga en alguna ventana activa, por corta que sea) son dos mediciones independientes que
+  // pueden divergir — la parte nunca puede superar al todo, así que `total` sube hasta cubrir lo
+  // ya contabilizado por categoría en vez de mostrar una "Duración" menor que la suma de sus
+  // propias columnas.
+  total = Math.max(total, productive + unproductive + uncategorized)
+
   // Con horario real y SIN 'Tiempo extra' marcado, el total del día no puede superar la jornada
   // programada + 1h de margen (ej. jornada de 10h → tope de 11h) — reescala productivo/
   // improductivo/sin-categorizar proporcionalmente para que sigan sumando el nuevo total en vez
