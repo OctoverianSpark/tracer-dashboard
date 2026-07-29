@@ -2,7 +2,6 @@ import { findAsignedMachines } from '@/app/computers/actions'
 import { getRawAppUsageLogsRange, getSchedules, getProgramations, getStateLog, getAllRotations } from '@/app/time/actions'
 import { getCategorizationApps } from '@/app/supervisors/categorization-actions'
 import { getLunchSkips } from '@/app/th/actions'
-import { getProductivitySettings } from '@/app/app/admin/config/actions'
 import { resolveEffectiveProgramation } from '@/lib/scheduleResolver'
 import { AppUser, AppUsageLog } from '@/types/AppUser'
 import { Machine } from '@/types/Machine'
@@ -23,12 +22,17 @@ export interface UserProductivity {
   machine?: Machine
   programation?: Programation
   scheduledMinutes: number
+  // Malla horaria (state_logs): tiempo en 'Trabajando'/'Tiempo extra'.
   productiveSeconds: number
+  // Malla horaria (state_logs): tiempo en 'Inactivo'/'Desconectado'. Descanso/Baño/Almuerzo NO
+  // cuentan acá (son pausas legítimas, igual que el almuerzo ya se excluye de scheduledMinutes).
   unproductiveSeconds: number
-  uncategorizedSeconds: number
+  // = productiveSeconds + unproductiveSeconds, por definición.
   totalSeconds: number
-  appProductivityPercent: number
+  // Apps (app_usage_logs): tiempo en apps categorizadas como productivas, dentro de la malla.
+  productiveAppSeconds: number
   workCompliancePercent: number
+  // = productiveAppSeconds / totalSeconds — qué tanto de la malla horaria se usó en apps productivas.
   overallProductivityPercent: number
   topApps: UserAppUsage[]
 }
@@ -41,37 +45,6 @@ export type THProductivity = Omit<UserProductivity, 'machine' | 'topApps'>
 export const timeToMinutes = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number)
   return h * 60 + m
-}
-
-/**
- * Factor 0.8x–1.2x según qué tan productiva fue la mezcla de apps DENTRO del tiempo activo —
- * multiplica al cumplimiento de malla horaria (la base real del cálculo Global, ver
- * computeUserDayStats/computeProductivityRange/computeProductivityDaily). Sin datos de apps
- * categorizadas (hueco del pipeline de app-usage-logs, ej. capturas/estado sí registran
- * presencia pero no hay `apps` en esos intervalos) devuelve 1 (neutro) — así alguien presente y
- * cumpliendo horario no cae a 0% solo porque falta el desglose de apps.
- *
- * unproductiveCredit: antes el tiempo improductivo no sumaba nada al numerador del ratio (crédito
- * implícito 0) — cada segundo improductivo diluía la mezcla al máximo. Ahora cuenta con su propio
- * peso configurable (por defecto 20%), menos agresivo: sigue penalizando pero no a cero.
- */
-export function appQualityFactor(
-  productiveSecs: number,
-  unproductiveSecs: number,
-  uncategorizedSecs: number,
-  productiveCredit: number,
-  uncategorizedCredit: number,
-  unproductiveCredit: number,
-): number {
-  const appSecs = productiveSecs + unproductiveSecs + uncategorizedSecs
-  const ratio = appSecs > 0
-    ? Math.min(1, Math.max(0, (
-        productiveSecs * productiveCredit
-        + uncategorizedSecs * uncategorizedCredit
-        + unproductiveSecs * unproductiveCredit
-      ) / appSecs))
-    : 0.5
-  return 0.8 + 0.4 * ratio
 }
 
 // Jornada aplicada cuando el usuario no tiene horario fijo NI rotación asignada (~90% de la
@@ -97,15 +70,16 @@ export const scheduledWorkMinutes = (prog: Programation, skipLunch = false): num
   return Math.max(0, total)
 }
 
-// Construye ventanas de tiempo donde el estado era ACTIVE para un día dado.
+// Construye ventanas de tiempo para un día dado, donde el estado (code) estaba en `codes`.
 // Cada StateLog marca el inicio de un nuevo estado; el siguiente log marca su fin.
-export const buildActiveWindows = (stateLogs: StateLog[]): Array<{ start: number; end: number }> => {
+function buildStateWindows(stateLogs: StateLog[], codes: readonly number[]): Array<{ start: number; end: number }> {
   const sorted = [...stateLogs].sort((a, b) =>
     new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   )
   const windows: Array<{ start: number; end: number }> = []
   for (let i = 0; i < sorted.length; i++) {
-    if (sorted[i].category?.key !== 'active') continue
+    const code = sorted[i].state?.code
+    if (code == null || !codes.includes(code)) continue
     const start = new Date(sorted[i].timestamp).getTime()
     const end = i + 1 < sorted.length
       ? new Date(sorted[i + 1].timestamp).getTime()
@@ -115,27 +89,33 @@ export const buildActiveWindows = (stateLogs: StateLog[]): Array<{ start: number
   return windows
 }
 
-// Buffer para una ventana activa que quedó abierta sin ningún log/intervalo posterior ese día
-// (agente que se quedó pegado en 'active', PC apagado sin log de cierre, etc.) y tampoco hay
-// evidencia real de telemetría después de su inicio — se le da este empujón corto en vez de 0,
-// asumiendo un solo ciclo de reporte del agente, no horas.
-const STALE_ACTIVE_WINDOW_BUFFER_MS = 5 * 60 * 1000
+// Ventanas "Productivo" de la malla horaria: 'Trabajando' + 'Tiempo extra'.
+export const buildActiveWindows = (stateLogs: StateLog[]): Array<{ start: number; end: number }> =>
+  buildStateWindows(stateLogs, [WORK_STATE_CODE.WORKING, WORK_STATE_CODE.OVERTIME])
 
-// Cierra ventanas activas "abiertas" (end=Infinity de buildActiveWindows, sin log de cierre ese
-// día) usando la última evidencia real de telemetría (state_logs o app_usage_logs posteriores al
-// inicio de la ventana) como tope, en vez de extenderlas hasta el fin del día/turno. Antes esa
-// extensión quedaba acotada "por accidente" por la ventana del turno programado (unas pocas
-// horas); al pasar a día completo (para contar horas extra, ver dayWinStart/dayWinEnd) una
-// ventana abierta sin cierre podía inflarse a horas fantasma (ej. 19h reportadas contra una
-// jornada de 8h) — un estado 'active' sin nada después no prueba que la persona siguió
-// trabajando hasta medianoche.
-function closeTrailingActiveWindows(
+// Ventanas "No productivo" de la malla horaria: 'Inactivo' + 'Desconectado'. Descanso/Baño/
+// Almuerzo quedan fuera a propósito — son pausas legítimas, no tiempo improductivo.
+export const buildIdleOfflineWindows = (stateLogs: StateLog[]): Array<{ start: number; end: number }> =>
+  buildStateWindows(stateLogs, [WORK_STATE_CODE.IDLE, WORK_STATE_CODE.OFFLINE])
+
+// Buffer para una ventana que quedó abierta sin ningún log/intervalo posterior ese día (agente
+// que se quedó pegado en un estado, PC apagado sin log de cierre, etc.) y tampoco hay evidencia
+// real de telemetría después de su inicio — se le da este empujón corto en vez de 0, asumiendo un
+// solo ciclo de reporte del agente, no horas.
+const STALE_WINDOW_BUFFER_MS = 5 * 60 * 1000
+
+// Cierra ventanas "abiertas" (end=Infinity de buildStateWindows, sin log de cierre ese día)
+// usando la última evidencia real de telemetría (state_logs o app_usage_logs posteriores al
+// inicio de la ventana) como tope, en vez de extenderlas hasta el fin del día/turno — un estado
+// sin nada después no prueba que la persona siguió en ese estado hasta medianoche (ver caso real:
+// 19h "Productivo" reportadas contra una jornada de 8h por una ventana mal cerrada).
+function closeTrailingWindows(
   windows: Array<{ start: number; end: number }>,
   lastEvidenceMs: number,
   hardCapMs: number,
 ): Array<{ start: number; end: number }> {
   return windows.map(w => w.end === Infinity
-    ? { start: w.start, end: Math.min(hardCapMs, Math.max(lastEvidenceMs, w.start + STALE_ACTIVE_WINDOW_BUFFER_MS)) }
+    ? { start: w.start, end: Math.min(hardCapMs, Math.max(lastEvidenceMs, w.start + STALE_WINDOW_BUFFER_MS)) }
     : w
   )
 }
@@ -147,7 +127,7 @@ export const isIntervalActive = (log: AppUsageLog, windows: Array<{ start: numbe
   return windows.some(w => mid >= w.start && mid < w.end)
 }
 
-// Segundos de solapamiento entre ventanas [start,end) (ej. de buildActiveWindows) y el rango
+// Segundos de solapamiento entre ventanas [start,end) (ej. de buildStateWindows) y el rango
 // [winStart, winEnd) de la jornada — recorta cada ventana al rango antes de sumar.
 function sumWindowSecondsInRange(
   windows: Array<{ start: number; end: number }>,
@@ -223,33 +203,28 @@ interface DayContext {
   nowMs: number
   // Claves `${appuser_id}_${date}` con excepción "sin almuerzo" ese día (ver lunch_skips).
   lunchSkipDates: Set<string>
-  // Pesos configurables del cálculo Global (ver app/app/admin/config) — uncategorized_credit
-  // (crédito del tiempo en apps sin categorizar), productive_credit (peso del tiempo productivo)
-  // y unproductive_credit (peso del tiempo improductivo, ver appQualityFactor).
-  uncategorizedCredit: number
-  productiveCredit: number
-  unproductiveCredit: number
 }
 
 interface UserDayStats {
   programation?: Programation
   scheduledMinutes: number
-  productive: number
-  unproductive: number
-  uncategorized: number
-  total: number
+  productive: number   // malla horaria: Trabajando + Tiempo extra
+  unproductive: number // malla horaria: Inactivo + Desconectado
+  total: number         // = productive + unproductive
+  productiveAppSeconds: number // apps: tiempo en apps productivas dentro de la malla
   appUsage: Map<string, UserAppUsage>
 }
 
 const EMPTY_DAY_STATS: UserDayStats = {
-  scheduledMinutes: 0, productive: 0, unproductive: 0, uncategorized: 0, total: 0,
+  scheduledMinutes: 0, productive: 0, unproductive: 0, total: 0, productiveAppSeconds: 0,
   appUsage: new Map(),
 }
 
-// Un día puntual para un usuario: ventana de jornada, filtra intervalos activos, clasifica
-// productivo/improductivo/sin-categorizar. No decide si el día "cuenta" — computeProductivityRange
-// lo salta cuando scheduledMinutes=0; computeProductivityDaily lo devuelve igual (en cero) para
-// que la curva tenga el eje de fechas continuo.
+// Un día puntual para un usuario. Productivo/No productivo salen de los ESTADOS de la malla
+// horaria (state_logs) — Apps (app_usage_logs) solo alimenta `productiveAppSeconds`, usado para
+// el % de Productividad. No decide si el día "cuenta" — computeProductivityRange lo salta cuando
+// scheduledMinutes=0; computeProductivityDaily lo devuelve igual (en cero) para que la curva
+// tenga el eje de fechas continuo.
 function computeUserDayStats(
   userId: number,
   userMachines: Machine[],
@@ -268,15 +243,22 @@ function computeUserDayStats(
 
   const dayIntervals: AppUsageLog[] = []
   const dayActiveWindows: Array<{ start: number; end: number }> = []
+  const dayIdleOfflineWindows: Array<{ start: number; end: number }> = []
+  const dayStateLogsFlat: StateLog[] = []
   for (const m of userMachines) {
     const mid = Number(m.id)
     dayIntervals.push(...(dayLogsByMachine.get(mid) ?? []))
-    dayActiveWindows.push(...buildActiveWindows(dayStateByMachine.get(mid) ?? []))
+    const logs = dayStateByMachine.get(mid) ?? []
+    dayStateLogsFlat.push(...logs)
+    dayActiveWindows.push(...buildActiveWindows(logs))
+    dayIdleOfflineWindows.push(...buildIdleOfflineWindows(logs))
   }
-  // Ya NO se corta acá por falta de app_usage_logs — state_logs (dayActiveWindows) es un canal
-  // de telemetría aparte y puede tener datos de presencia (capturas, cumplimiento) aunque ese
-  // día no haya intervalos de uso de apps.
-  if (!dayIntervals.length && !dayActiveWindows.length) return { ...EMPTY_DAY_STATS, programation, scheduledMinutes }
+  // Ya NO se corta acá por falta de app_usage_logs — state_logs es un canal de telemetría aparte
+  // y puede tener datos (Productivo/No productivo de malla) aunque ese día no haya intervalos de
+  // uso de apps (solo se pierde `productiveAppSeconds`, no la malla horaria).
+  if (!dayIntervals.length && !dayActiveWindows.length && !dayIdleOfflineWindows.length) {
+    return { ...EMPTY_DAY_STATS, programation, scheduledMinutes }
+  }
 
   // 'Z' explícito: los timestamps de BD son horas de Bogotá "sin conversión", igual que
   // interval_start/interval_end (ver comentario en loadRangeContext) — sin el 'Z', esto se
@@ -285,23 +267,14 @@ function computeUserDayStats(
   //
   // Ventana del DÍA COMPLETO, no del turno programado (programation.start_day–end_day) — pero
   // SOLO si el usuario tiene horario o rotación real asignada (`resolved`). Sin eso, "horas
-  // extra" no tiene contra qué medirse (DEFAULT_PROGRAMATION es un supuesto, no un turno real), y
-  // ampliar la ventana ahí produce horas infladas sin ningún horario de referencia (ej. 19h
-  // "Productivo" contra una jornada asumida de 8h) — para ese caso se mantiene el tope de la
-  // jornada por defecto, igual que antes de contar horas extra.
-  // Con horario/rotación real: 'active' (state_categories) agrupa 'working' Y 'overtime' por
-  // diseño (ver seed en 20260706140000_state_categories_and_states/migration.sql:
-  // "working/overtime -> active"), así que cualquier ventana activa del día, esté o no dentro del
-  // turno, es tiempo trabajado real y debe sumar a Productivo/cumplimiento — la jornada programada
-  // (`scheduledMinutes`) sigue siendo el denominador del % de cumplimiento, eso no cambia.
+  // extra" no tiene contra qué medirse (DEFAULT_PROGRAMATION es un supuesto, no un turno real):
+  // para ese caso se mantiene el tope de la jornada por defecto.
   const hasRealSchedule = resolved != null
   // Estado 'overtime' (code=1, ver WORK_STATE_CODE) marcado explícitamente ese día — habilita
   // superar el tope de jornada+1h de abajo. Sin esta marca, cualquier exceso se recorta: no hay
-  // forma de distinguir "de verdad se quedó trabajando" de datos ruidosos (ventanas activas mal
-  // cerradas, relojes desincronizados, etc.) sin una señal explícita del agente/supervisor.
-  const hasOvertimeLog = userMachines.some(m =>
-    (dayStateByMachine.get(Number(m.id)) ?? []).some(sl => sl.state?.code === WORK_STATE_CODE.OVERTIME)
-  )
+  // forma de distinguir "de verdad se quedó trabajando" de datos ruidosos (ventanas mal cerradas,
+  // relojes desincronizados, etc.) sin una señal explícita del agente/supervisor.
+  const hasOvertimeLog = dayStateLogsFlat.some(sl => sl.state?.code === WORK_STATE_CODE.OVERTIME)
   const dayNowMs = date === ctx.todayStr ? ctx.nowMs : Infinity
   const dayWinStart = hasRealSchedule
     ? new Date(`${date}T00:00:00Z`).getTime()
@@ -314,32 +287,30 @@ function computeUserDayStats(
   )
 
   // Última evidencia real de telemetría ese día (cualquier machine del usuario) — tope para
-  // cerrar ventanas activas abiertas, ver closeTrailingActiveWindows.
+  // cerrar ventanas abiertas, ver closeTrailingWindows.
   const lastEvidenceMs = Math.max(
     dayWinStart,
     ...dayIntervals.map(iv => new Date(iv.interval_end).getTime()),
-    ...userMachines.flatMap(m =>
-      (dayStateByMachine.get(Number(m.id)) ?? []).map(sl => new Date(sl.timestamp).getTime())
-    ),
+    ...dayStateLogsFlat.map(sl => new Date(sl.timestamp).getTime()),
   )
-  const closedActiveWindows = closeTrailingActiveWindows(dayActiveWindows, lastEvidenceMs, dayWinEnd)
+  const closedActiveWindows = closeTrailingWindows(dayActiveWindows, lastEvidenceMs, dayWinEnd)
+  const closedIdleOfflineWindows = closeTrailingWindows(dayIdleOfflineWindows, lastEvidenceMs, dayWinEnd)
 
-  // `total` (cumplimiento) sale de los estados ACTIVE de state_logs dentro del día — independiente
-  // de que existan app_usage_logs ese día, así alguien presente (capturas, estado activo) pero sin
-  // ese canal de datos puntual no cae a 0% de cumplimiento. Si no hay state_logs para el día
-  // (agente viejo o hueco puntual), cae al criterio anterior: sumar duración de los intervalos de
-  // app_usage_logs dentro de la ventana.
-  let total = closedActiveWindows.length > 0
-    ? sumWindowSecondsInRange(closedActiveWindows, dayWinStart, dayWinEnd)
-    : sumWindowSecondsInRange(
-        dayIntervals.map(iv => ({
-          start: new Date(iv.interval_start).getTime(),
-          end: new Date(iv.interval_end).getTime(),
-        })),
-        dayWinStart, dayWinEnd,
-      )
+  let productive = sumWindowSecondsInRange(closedActiveWindows, dayWinStart, dayWinEnd)
+  const unproductive = sumWindowSecondsInRange(closedIdleOfflineWindows, dayWinStart, dayWinEnd)
 
-  let productive = 0, unproductive = 0, uncategorized = 0
+  // Con horario real y SIN 'Tiempo extra' marcado, Productivo no puede superar la jornada
+  // programada + 1h de margen (ej. jornada de 10h → tope de 11h) — ver comentario de hasOvertimeLog.
+  if (hasRealSchedule && !hasOvertimeLog) {
+    const capSecs = scheduledMinutes * 60 + 3600
+    if (productive > capSecs) productive = capSecs
+  }
+
+  const total = productive + unproductive
+
+  // Apps: solo alimenta `productiveAppSeconds` (numerador del % de Productividad) y el desglose
+  // por app (`appUsage`, usado en "Ver apps") — ya no decide Productivo/No productivo.
+  let productiveAppSeconds = 0
   const appUsage = new Map<string, UserAppUsage>()
 
   for (const interval of dayIntervals) {
@@ -355,70 +326,24 @@ function computeUserDayStats(
       if (cat === 'ignore') continue
 
       const secs = Math.min(a.seconds, intervalSecs)
-      const resolved: UserAppUsage['category'] = cat === 'productive' ? 'productive'
+      const resolvedCategory: UserAppUsage['category'] = cat === 'productive' ? 'productive'
         : cat === 'unproductive' ? 'unproductive'
           : 'uncategorized'
 
-      if (resolved === 'productive') productive += secs
-      else if (resolved === 'unproductive') unproductive += secs
-      else uncategorized += secs
+      if (resolvedCategory === 'productive') productiveAppSeconds += secs
 
       const existing = appUsage.get(a.app)
       if (existing) existing.seconds += secs
-      else appUsage.set(a.app, { app: a.app, seconds: secs, category: resolved })
-    }
-
-    // Tiempo idle (mouse/teclado sin actividad dentro del intervalo, reportado aparte de
-    // `apps` por el agente) cuenta como improductivo — cubre el hueco entre `active_seconds` e
-    // `idle_seconds` que `apps` no reparte en ninguna app puntual.
-    unproductive += Math.min(interval.idle_seconds ?? 0, intervalSecs)
-  }
-
-  // `total` (ventanas de state_logs) y productivo+improductivo+sin-categorizar (intervalos de
-  // app_usage_logs, con un criterio de inclusión más laxo: basta que el punto medio del intervalo
-  // caiga en alguna ventana activa, por corta que sea) son dos mediciones independientes que
-  // pueden divergir — la parte nunca puede superar al todo, así que `total` sube hasta cubrir lo
-  // ya contabilizado por categoría en vez de mostrar una "Duración" menor que la suma de sus
-  // propias columnas.
-  total = Math.max(total, productive + unproductive + uncategorized)
-
-  // Tiempo con presencia (state_logs) pero sin ningún dato de apps ese tramo (hueco del pipeline
-  // de app_usage_logs) — en vez de dejarlo aparte como "sin datos", se reparte entre
-  // productivo/improductivo según la MISMA proporción que ya tenía el resto del día con datos
-  // reales (ej. día 70% productivo / 30% improductivo → el hueco se reparte igual 70/30). Sin
-  // ningún productivo/improductivo ese día para sacar una proporción real, se reparte 50/50 en vez
-  // de inventar un sesgo hacia alguno sin evidencia — mismo criterio "neutro" que ya usa
-  // appQualityFactor cuando faltan datos de apps. `uncategorized` no participa del reparto ni de
-  // la proporción: sigue siendo su propio balde (apps usadas pero no categorizadas).
-  const noAppDataGapSecs = total - (productive + unproductive + uncategorized)
-  if (noAppDataGapSecs > 0) {
-    const categorizedPU = productive + unproductive
-    const productiveShare = categorizedPU > 0 ? productive / categorizedPU : 0.5
-    productive += noAppDataGapSecs * productiveShare
-    unproductive += noAppDataGapSecs * (1 - productiveShare)
-  }
-
-  // Con horario real y SIN 'Tiempo extra' marcado, el total del día no puede superar la jornada
-  // programada + 1h de margen (ej. jornada de 10h → tope de 11h) — reescala productivo/
-  // improductivo/sin-categorizar proporcionalmente para que sigan sumando el nuevo total en vez
-  // de quedar inconsistentes contra él.
-  if (hasRealSchedule && !hasOvertimeLog) {
-    const capSecs = scheduledMinutes * 60 + 3600
-    if (total > capSecs) {
-      const scale = capSecs / total
-      productive = Math.round(productive * scale)
-      unproductive = Math.round(unproductive * scale)
-      uncategorized = Math.round(uncategorized * scale)
-      total = capSecs
+      else appUsage.set(a.app, { app: a.app, seconds: secs, category: resolvedCategory })
     }
   }
 
-  return { programation, scheduledMinutes, productive, unproductive, uncategorized, total, appUsage }
+  return { programation, scheduledMinutes, productive, unproductive, total, productiveAppSeconds, appUsage }
 }
 
 // Prepara todo lo que no depende de un usuario puntual (catálogos, logs de app-usage y de
 // estado agrupados por fecha) — compartido entre computeProductivityRange y
-// computeProductivityDaily para no duplicar los mismos 5 fetches.
+// computeProductivityDaily para no duplicar los mismos fetches.
 async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: string) {
   const dates = dateRange(dateFrom, dateTo)
 
@@ -438,7 +363,7 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
   const bogotaClockStr = now.toLocaleString('sv', { timeZone: 'America/Bogota' }).replace(' ', 'T')
   const nowMs = new Date(`${bogotaClockStr}Z`).getTime()
 
-  const [schedules, programations, rawLogs, categorizationApps, rotations, { machinesByUser, stateByMachine }, lunchSkips, productivitySettings] =
+  const [schedules, programations, rawLogs, categorizationApps, rotations, { machinesByUser, stateByMachine }, lunchSkips] =
     await Promise.all([
       getSchedules(),
       getProgramations(),
@@ -447,7 +372,6 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
       getAllRotations(),
       loadMachinesAndStateLogs(users),
       getLunchSkips(dateFrom, dateTo),
-      getProductivitySettings(),
     ])
 
   const categoryMap = new Map(categorizationApps.map(a => [a.name.toLowerCase(), a.category]))
@@ -476,12 +400,7 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
     }
   }
 
-  const ctx: DayContext = {
-    schedules, rotations, programations, categoryMap, todayStr, nowMs, lunchSkipDates,
-    uncategorizedCredit: productivitySettings.uncategorized_credit,
-    productiveCredit: productivitySettings.productive_credit,
-    unproductiveCredit: productivitySettings.unproductive_credit,
-  }
+  const ctx: DayContext = { schedules, rotations, programations, categoryMap, todayStr, nowMs, lunchSkipDates }
   return { dates, ctx, machinesByUser, logsByMachineByDate, stateByMachineByDate }
 }
 
@@ -504,7 +423,7 @@ export async function computeProductivityRange(
     const userMachines = machinesByUser.get(userId) ?? []
     const primaryMachine = userMachines[0]
 
-    let productive = 0, unproductive = 0, uncategorized = 0, total = 0, scheduledMinutes = 0
+    let productive = 0, unproductive = 0, productiveAppSeconds = 0, scheduledMinutes = 0
     let lastProgramation: Programation | undefined
     const appMap = new Map<string, UserAppUsage>()
 
@@ -519,8 +438,7 @@ export async function computeProductivityRange(
       scheduledMinutes += day.scheduledMinutes
       productive += day.productive
       unproductive += day.unproductive
-      uncategorized += day.uncategorized
-      total += day.total
+      productiveAppSeconds += day.productiveAppSeconds
       for (const [app, usage] of day.appUsage) {
         const existing = appMap.get(app)
         if (existing) existing.seconds += usage.seconds
@@ -528,25 +446,18 @@ export async function computeProductivityRange(
       }
     }
 
-    const categorized = productive + unproductive
+    const total = productive + unproductive
     const scheduledSecs = scheduledMinutes * 60
     const workCompliancePercent = scheduledSecs > 0 ? Math.min(100, Math.round((total / scheduledSecs) * 100)) : 0
-
-    // Global = cumplimiento de malla horaria (presencia real, `total`) como base × factor de
-    // calidad de apps — no depende de que exista desglose de apps para no mostrar 0% cuando la
-    // persona sí cumplió horario (ver appQualityFactor).
-    const quality = appQualityFactor(productive, unproductive, uncategorized, ctx.productiveCredit, ctx.uncategorizedCredit, ctx.unproductiveCredit)
-    const overallProductivityPercent = scheduledSecs > 0
-      ? Math.min(100, Math.round(workCompliancePercent * quality))
-      : 0
+    // Productividad = tiempo en apps productivas ÷ Duración (Productivo+No productivo de malla).
+    const overallProductivityPercent = total > 0 ? Math.min(100, Math.round((productiveAppSeconds / total) * 100)) : 0
 
     return {
       user, machine: primaryMachine, programation: lastProgramation, scheduledMinutes,
       productiveSeconds: Math.round(productive),
       unproductiveSeconds: Math.round(unproductive),
-      uncategorizedSeconds: Math.round(uncategorized),
       totalSeconds: Math.round(total),
-      appProductivityPercent: categorized > 0 ? Math.round((productive / categorized) * 100) : 0,
+      productiveAppSeconds: Math.round(productiveAppSeconds),
       workCompliancePercent,
       overallProductivityPercent,
       topApps: [...appMap.values()].sort((a, b) => b.seconds - a.seconds).slice(0, 8),
@@ -558,13 +469,8 @@ export interface DailyProductivity {
   date: string
   productiveSeconds: number
   unproductiveSeconds: number
-  uncategorizedSeconds: number
-  // total - (productive+unproductive+uncategorized): presencia real (state_logs) sin desglose de
-  // apps ese intervalo (hueco del pipeline de app-usage-logs). Existe para que la curva pueda
-  // mostrar esta franja en vez de dejar que el área apilada (basada solo en apps) se quede corta
-  // frente a `totalSeconds`/el % de productividad (que sí usa `total`) — ver ProductivityCurveChart.
-  noAppDataSeconds: number
   totalSeconds: number
+  productiveAppSeconds: number
   scheduledMinutes: number
   overallProductivityPercent: number
 }
@@ -575,10 +481,10 @@ export interface DailyProductivity {
  * A diferencia de computeProductivityRange, nunca salta un día — uno sin horario/actividad
  * aporta cero, para que el gráfico tenga el eje de fechas continuo.
  *
- * `overallProductivityPercent` y los segundos (productiveSeconds, etc.) son PROMEDIOS — suma del
- * día ÷ cantidad de usuarios con turno ese día, no la suma cruda del grupo — así un día con menos
- * gente programada no muestra menos horas solo por tener menos gente, y un usuario muy productivo
- * con poca jornada no pesa más que uno con jornada larga.
+ * Los segundos y el % son PROMEDIOS — suma del día ÷ cantidad de usuarios con turno ese día, no
+ * la suma cruda del grupo — así un día con menos gente programada no muestra menos horas solo por
+ * tener menos gente, y un usuario muy productivo con poca jornada no pesa más que uno con jornada
+ * larga.
  */
 export async function computeProductivityDaily(
   users: AppUser[],
@@ -589,7 +495,7 @@ export async function computeProductivityDaily(
     await loadRangeContext(users, dateFrom, dateTo)
 
   return dates.map(date => {
-    let productive = 0, unproductive = 0, uncategorized = 0, total = 0, scheduledMinutes = 0
+    let productive = 0, unproductive = 0, productiveAppSeconds = 0, scheduledMinutes = 0
     let percentSum = 0, scheduledUserCount = 0
 
     for (const user of users) {
@@ -601,31 +507,26 @@ export async function computeProductivityDaily(
       )
       productive += day.productive
       unproductive += day.unproductive
-      uncategorized += day.uncategorized
-      total += day.total
+      productiveAppSeconds += day.productiveAppSeconds
       scheduledMinutes += day.scheduledMinutes
 
       if (day.scheduledMinutes > 0) {
-        const userScheduledSecs = day.scheduledMinutes * 60
-        const userCompliance = Math.min(100, (day.total / userScheduledSecs) * 100)
-        const userQuality = appQualityFactor(day.productive, day.unproductive, day.uncategorized, ctx.productiveCredit, ctx.uncategorizedCredit, ctx.unproductiveCredit)
-        percentSum += Math.min(100, userCompliance * userQuality)
+        const dayTotal = day.productive + day.unproductive
+        const userPercent = dayTotal > 0 ? Math.min(100, (day.productiveAppSeconds / dayTotal) * 100) : 0
+        percentSum += userPercent
         scheduledUserCount++
       }
     }
 
     const productiveSeconds = scheduledUserCount > 0 ? Math.round(productive / scheduledUserCount) : 0
     const unproductiveSeconds = scheduledUserCount > 0 ? Math.round(unproductive / scheduledUserCount) : 0
-    const uncategorizedSeconds = scheduledUserCount > 0 ? Math.round(uncategorized / scheduledUserCount) : 0
-    const totalSeconds = scheduledUserCount > 0 ? Math.round(total / scheduledUserCount) : 0
 
     return {
       date,
       productiveSeconds,
       unproductiveSeconds,
-      uncategorizedSeconds,
-      noAppDataSeconds: Math.max(0, totalSeconds - (productiveSeconds + unproductiveSeconds + uncategorizedSeconds)),
-      totalSeconds,
+      totalSeconds: productiveSeconds + unproductiveSeconds, // por definición, sin drift de redondeo
+      productiveAppSeconds: scheduledUserCount > 0 ? Math.round(productiveAppSeconds / scheduledUserCount) : 0,
       scheduledMinutes: scheduledUserCount > 0 ? Math.round(scheduledMinutes / scheduledUserCount) : 0,
       overallProductivityPercent: scheduledUserCount > 0 ? Math.round(percentSum / scheduledUserCount) : 0,
     }

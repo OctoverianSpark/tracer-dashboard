@@ -4,7 +4,6 @@ import { getProductivityReport } from '@/app/supervisors/actions'
 import { UserProductivity } from '@/lib/productivity'
 import { getGroups } from '@/app/app/groups/actions'
 import { getappuser } from '@/app/app/actions'
-import { getProductivitySettings } from '@/app/app/admin/config/actions'
 import { AppUser, Group } from '@/types/AppUser'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Button } from '@/app/_components/_ui/button'
@@ -61,7 +60,7 @@ function TopAppsRow({ data }: { data: UserProductivity }) {
 
   return (
     <TableRow className='bg-muted/30 hover:bg-muted/30'>
-      <TableCell colSpan={9} className='py-2 px-6'>
+      <TableCell colSpan={7} className='py-2 px-6'>
         <Collapsible open={open} onOpenChange={setOpen}>
           <CollapsibleTrigger className='flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer'>
             <ChevronDown className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -103,28 +102,26 @@ function exportXLSX(rows: UserProductivity[], groups: Group[], dateFrom: string,
   })
 
   const HEADERS = [
-    'Grupo', 'Usuario', 'Jornada prog. (min)', 'Tiempo en apps (min)',
-    'Apps prod. (%)', 'Cumplimiento (%)', 'Global (%)',
-    'Productivo (min)', 'Improductivo (min)', 'Sin categoría (min)',
+    'Grupo', 'Usuario', 'Jornada prog. (min)', 'Duración (min)',
+    'Cumplimiento (%)', 'Productividad (%)',
+    'Productivo (min)', 'No productivo (min)',
   ]
-  const COL_WIDTHS = [{ wch: 22 }, { wch: 32 }, ...Array(8).fill({ wch: 20 })]
+  const COL_WIDTHS = [{ wch: 22 }, { wch: 32 }, ...Array(6).fill({ wch: 20 })]
 
   const toRow = (d: UserProductivity) => [
     groupName(d), d.user.full_name,
     d.scheduledMinutes,
     Math.round(d.totalSeconds / 60),
-    d.appProductivityPercent, d.workCompliancePercent, d.overallProductivityPercent,
+    d.workCompliancePercent, d.overallProductivityPercent,
     Math.round(d.productiveSeconds / 60),
     Math.round(d.unproductiveSeconds / 60),
-    Math.round(d.uncategorizedSeconds / 60),
   ]
 
   const avgRow = (groupRows: UserProductivity[]) => [
     '', 'Promedio', '', '',
-    avgPercent(groupRows, d => d.appProductivityPercent),
     avgPercent(groupRows, d => d.workCompliancePercent),
     avgPercent(groupRows, d => d.overallProductivityPercent),
-    '', '', '',
+    '', '',
   ]
 
   const wb = XLSX.utils.book_new()
@@ -165,20 +162,10 @@ export default function ProductivityReport() {
   const [groups, setGroups]         = useState<Group[]>([])
   const [users, setUsers]           = useState<AppUser[]>([])
   const [loading, setLoading]       = useState(false)
-  const [productiveCreditPct, setProductiveCreditPct] = useState(150)
-  const [uncategorizedCreditPct, setUncategorizedCreditPct] = useState(70)
-  const [unproductiveCreditPct, setUnproductiveCreditPct] = useState(20)
 
   const rangeInvalid = dateTo < dateFrom
 
   useEffect(() => { getappuser().then(setUsers) }, [])
-  useEffect(() => {
-    getProductivitySettings().then(s => {
-      setProductiveCreditPct(Math.round(s.productive_credit * 100))
-      setUncategorizedCreditPct(Math.round(s.uncategorized_credit * 100))
-      setUnproductiveCreditPct(Math.round(s.unproductive_credit * 100))
-    })
-  }, [])
 
   const load = async () => {
     if (rangeInvalid) return
@@ -235,7 +222,7 @@ export default function ProductivityReport() {
           </div>
         </div>
         <div className='grid gap-1.5 w-full sm:w-auto'>
-          <Label>Productividad global mínima (%)</Label>
+          <Label>Productividad mínima (%)</Label>
           <Input
             type='number' min={0} max={100} value={minPercent}
             onChange={e => setMinPercent(Number(e.target.value))}
@@ -261,18 +248,14 @@ export default function ProductivityReport() {
       )}
 
       {/* Leyenda de métricas */}
-      <div className='grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-muted-foreground border rounded-md p-3'>
-        <span>
-          <span className='font-semibold text-foreground'>Apps prod.</span>
-          {' '}= tiempo en apps productivas ÷ (prod + improd), solo en estado activo
-        </span>
+      <div className='grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground border rounded-md p-3'>
         <span>
           <span className='font-semibold text-foreground'>Cumplimiento</span>
-          {' '}= intervalos activos × 5 min ÷ jornada programada
+          {' '}= Duración (Productivo + No productivo de malla) ÷ jornada programada
         </span>
         <span>
-          <span className='font-semibold text-foreground'>Global</span>
-          {' '}= Cumplimiento × factor de calidad de apps (0.8x–1.2x según productivo {productiveCreditPct}% / sin-categ {uncategorizedCreditPct}% / improductivo {unproductiveCreditPct}%; 1.0x sin datos de apps)
+          <span className='font-semibold text-foreground'>Productividad</span>
+          {' '}= tiempo en apps productivas ÷ Duración
         </span>
       </div>
 
@@ -287,7 +270,7 @@ export default function ProductivityReport() {
           {(() => {
             const conActividad = (data ?? []).filter(d => d.totalSeconds > 0).length
             if (soloActivos && conActividad === 0) return 'Ningún usuario registró actividad en esa fecha.'
-            if (minPercent > 0) return `Ningún usuario activo supera ${minPercent}% de productividad global.`
+            if (minPercent > 0) return `Ningún usuario activo supera ${minPercent}% de productividad.`
             return 'No hay datos para mostrar con los filtros actuales.'
           })()}
         </p>
@@ -303,16 +286,12 @@ export default function ProductivityReport() {
       {filtered.length > 0 && (
         <div className='flex flex-wrap gap-3 border rounded-md p-3'>
           <div className='flex items-baseline gap-2'>
-            <span className='text-xs text-muted-foreground'>Promedio Apps prod.</span>
-            {pctBadge(avgPercent(filtered, d => d.appProductivityPercent), 'Promedio de Apps prod. de los usuarios listados')}
-          </div>
-          <div className='flex items-baseline gap-2'>
             <span className='text-xs text-muted-foreground'>Promedio Cumplimiento</span>
             {pctBadge(avgPercent(filtered, d => d.workCompliancePercent), 'Promedio de Cumplimiento de los usuarios listados')}
           </div>
           <div className='flex items-baseline gap-2'>
-            <span className='text-xs text-muted-foreground'>Promedio Global</span>
-            {pctBadge(avgPercent(filtered, d => d.overallProductivityPercent), 'Promedio de Global de los usuarios listados')}
+            <span className='text-xs text-muted-foreground'>Promedio Productividad</span>
+            {pctBadge(avgPercent(filtered, d => d.overallProductivityPercent), 'Promedio de Productividad de los usuarios listados')}
           </div>
         </div>
       )}
@@ -325,13 +304,11 @@ export default function ProductivityReport() {
               <TableRow>
                 <TableHead>Usuario</TableHead>
                 <TableHead className='text-right'>Jornada</TableHead>
-                <TableHead className='text-right'>T. en apps</TableHead>
-                <TableHead className='text-center'>Apps prod.</TableHead>
+                <TableHead className='text-right'>Duración</TableHead>
                 <TableHead className='text-center'>Cumplimiento</TableHead>
-                <TableHead className='text-center'>Global</TableHead>
+                <TableHead className='text-center'>Productividad</TableHead>
                 <TableHead className='text-right text-green-600'>Productivo</TableHead>
-                <TableHead className='text-right text-red-500'>Improductivo</TableHead>
-                <TableHead className='text-right'>Sin categ.</TableHead>
+                <TableHead className='text-right text-red-500'>No productivo</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody ref={bodyRef}>
@@ -348,18 +325,13 @@ export default function ProductivityReport() {
                   </TableCell>
 
                   <TableCell className='text-center'>
-                    {pctBadge(d.appProductivityPercent,
-                      'Tiempo en apps productivas ÷ (productivas + improductivas)\nSolo se cuentan intervalos en estado ACTIVO')}
-                  </TableCell>
-
-                  <TableCell className='text-center'>
                     {pctBadge(d.workCompliancePercent,
-                      'Tiempo total en apps (estado activo) ÷ jornada programada')}
+                      'Duración (Productivo + No productivo de malla horaria) ÷ jornada programada')}
                   </TableCell>
 
                   <TableCell className='text-center'>
                     {pctBadge(d.overallProductivityPercent,
-                      'Tiempo en apps productivas (estado activo) ÷ jornada programada')}
+                      'Tiempo en apps productivas ÷ Duración')}
                   </TableCell>
 
                   <TableCell className='text-right text-green-600 text-sm'>
@@ -368,10 +340,6 @@ export default function ProductivityReport() {
 
                   <TableCell className='text-right text-red-500 text-sm'>
                     {d.unproductiveSeconds > 0 ? fmtSecs(d.unproductiveSeconds) : '—'}
-                  </TableCell>
-
-                  <TableCell className='text-right text-muted-foreground text-sm'>
-                    {d.uncategorizedSeconds > 0 ? fmtSecs(d.uncategorizedSeconds) : '—'}
                   </TableCell>
                 </TableRow>,
                 <TopAppsRow key={`apps-${d.user.id ?? d.user.full_name}`} data={d} />,
