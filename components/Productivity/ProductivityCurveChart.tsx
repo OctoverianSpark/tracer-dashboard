@@ -49,8 +49,8 @@ export default function ProductivityCurveChart({ data }: ProductivityCurveChartP
 
   // Áreas apiladas de la MALLA HORARIA (state_logs): Productivo (abajo, 'Trabajando'/'Tiempo
   // extra') → No productivo (arriba, 'Inactivo'/'Desconectado'). El tope de la pila es siempre
-  // `totalSeconds` (= productiveSeconds + unproductiveSeconds, por definición) — no hay franja
-  // aparte de "sin datos": la línea de % (apps productivas ÷ malla) es independiente del área.
+  // `totalSeconds` (= productiveSeconds + unproductiveSeconds, por definición). La línea de %
+  // (Productivo ÷ jornada programada, sin apps) es independiente del área.
   const base = data.map(() => 0)
   const prodTop = data.map(d => d.productiveSeconds / 3600)
   const nonProdTop = data.map((d, i) => prodTop[i]! + d.unproductiveSeconds / 3600)
@@ -182,7 +182,7 @@ export default function ProductivityCurveChart({ data }: ProductivityCurveChartP
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2 px-1">
         <LegendItem color="var(--series-prod)" shape="area" label="Productivo (malla)" />
         <LegendItem color="var(--series-nonprod)" shape="area" label="No productivo (malla)" />
-        <LegendItem color="var(--series-line)" shape="line" label="% Productividad (apps)" />
+        <LegendItem color="var(--series-line)" shape="line" label="% Productividad" />
       </div>
 
       {/* Tooltip: una lectura con todas las series de ese día */}
@@ -197,7 +197,6 @@ export default function ProductivityCurveChart({ data }: ProductivityCurveChartP
           <p className="font-medium mb-1.5">{fmtDateShort(hovered.date)}</p>
           <TooltipRow color="var(--series-prod)" label="Productivo (malla)" value={`${fmtHours(hovered.productiveSeconds)}h`} />
           <TooltipRow color="var(--series-nonprod)" label="No productivo (malla)" value={`${fmtHours(hovered.unproductiveSeconds)}h`} />
-          <TooltipRow color="var(--text-muted)" label="Apps productivas" value={`${fmtHours(hovered.productiveAppSeconds)}h`} />
           <TooltipRow color="var(--series-line)" label="% Productividad" value={`${hovered.overallProductivityPercent}%`} />
         </div>
       )}

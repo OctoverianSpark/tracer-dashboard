@@ -30,10 +30,9 @@ export interface UserProductivity {
   unproductiveSeconds: number
   // = productiveSeconds + unproductiveSeconds, por definición.
   totalSeconds: number
-  // Apps (app_usage_logs): tiempo en apps categorizadas como productivas, dentro de la malla.
-  productiveAppSeconds: number
   workCompliancePercent: number
-  // = productiveAppSeconds / totalSeconds — qué tanto de la malla horaria se usó en apps productivas.
+  // = productiveSeconds / (scheduledMinutes×60) — qué tanto de la jornada programada fue tiempo
+  // realmente productivo (Trabajando/Tiempo extra), sin depender de apps.
   overallProductivityPercent: number
   topApps: UserAppUsage[]
 }
@@ -212,20 +211,21 @@ interface UserDayStats {
   productive: number   // malla horaria: Trabajando + Tiempo extra
   unproductive: number // malla horaria: Inactivo + Desconectado
   total: number         // = productive + unproductive
-  productiveAppSeconds: number // apps: tiempo en apps productivas dentro de la malla
+  // Desglose por app dentro de la malla — solo para "Ver apps" (informativo), no alimenta
+  // Productivo/No productivo/Productividad, que son 100% de state_logs.
   appUsage: Map<string, UserAppUsage>
 }
 
 const EMPTY_DAY_STATS: UserDayStats = {
-  scheduledMinutes: 0, productive: 0, unproductive: 0, total: 0, productiveAppSeconds: 0,
+  scheduledMinutes: 0, productive: 0, unproductive: 0, total: 0,
   appUsage: new Map(),
 }
 
-// Un día puntual para un usuario. Productivo/No productivo salen de los ESTADOS de la malla
-// horaria (state_logs) — Apps (app_usage_logs) solo alimenta `productiveAppSeconds`, usado para
-// el % de Productividad. No decide si el día "cuenta" — computeProductivityRange lo salta cuando
-// scheduledMinutes=0; computeProductivityDaily lo devuelve igual (en cero) para que la curva
-// tenga el eje de fechas continuo.
+// Un día puntual para un usuario. Productivo/No productivo/Productividad salen enteramente de los
+// ESTADOS de la malla horaria (state_logs) — Apps (app_usage_logs) solo alimenta el desglose por
+// app de "Ver apps" (`appUsage`), informativo. No decide si el día "cuenta" —
+// computeProductivityRange lo salta cuando scheduledMinutes=0; computeProductivityDaily lo
+// devuelve igual (en cero) para que la curva tenga el eje de fechas continuo.
 function computeUserDayStats(
   userId: number,
   userMachines: Machine[],
@@ -255,8 +255,8 @@ function computeUserDayStats(
     dayIdleOfflineWindows.push(...buildIdleOfflineWindows(logs))
   }
   // Ya NO se corta acá por falta de app_usage_logs — state_logs es un canal de telemetría aparte
-  // y puede tener datos (Productivo/No productivo de malla) aunque ese día no haya intervalos de
-  // uso de apps (solo se pierde `productiveAppSeconds`, no la malla horaria).
+  // y puede tener datos (Productivo/No productivo/Productividad, todo de malla) aunque ese día no
+  // haya intervalos de uso de apps (solo se pierde el desglose informativo de "Ver apps").
   if (!dayIntervals.length && !dayActiveWindows.length && !dayIdleOfflineWindows.length) {
     return { ...EMPTY_DAY_STATS, programation, scheduledMinutes }
   }
@@ -301,9 +301,8 @@ function computeUserDayStats(
   const unproductive = sumWindowSecondsInRange(closedIdleOfflineWindows, dayWinStart, dayWinEnd)
   const total = productive + unproductive
 
-  // Apps: solo alimenta `productiveAppSeconds` (numerador del % de Productividad) y el desglose
-  // por app (`appUsage`, usado en "Ver apps") — ya no decide Productivo/No productivo.
-  let productiveAppSeconds = 0
+  // Apps: solo alimenta el desglose por app (`appUsage`, usado en "Ver apps") — informativo, ya
+  // no decide Productivo/No productivo ni el % de Productividad.
   const appUsage = new Map<string, UserAppUsage>()
 
   for (const interval of dayIntervals) {
@@ -323,15 +322,13 @@ function computeUserDayStats(
         : cat === 'unproductive' ? 'unproductive'
           : 'uncategorized'
 
-      if (resolvedCategory === 'productive') productiveAppSeconds += secs
-
       const existing = appUsage.get(a.app)
       if (existing) existing.seconds += secs
       else appUsage.set(a.app, { app: a.app, seconds: secs, category: resolvedCategory })
     }
   }
 
-  return { programation, scheduledMinutes, productive, unproductive, total, productiveAppSeconds, appUsage }
+  return { programation, scheduledMinutes, productive, unproductive, total, appUsage }
 }
 
 // Prepara todo lo que no depende de un usuario puntual (catálogos, logs de app-usage y de
@@ -413,7 +410,7 @@ export async function computeProductivityRange(
     const userMachines = machinesByUser.get(userId) ?? []
     const primaryMachine = userMachines[0]
 
-    let productive = 0, unproductive = 0, productiveAppSeconds = 0, scheduledMinutes = 0
+    let productive = 0, unproductive = 0, scheduledMinutes = 0
     let lastProgramation: Programation | undefined
     const appMap = new Map<string, UserAppUsage>()
 
@@ -428,7 +425,6 @@ export async function computeProductivityRange(
       scheduledMinutes += day.scheduledMinutes
       productive += day.productive
       unproductive += day.unproductive
-      productiveAppSeconds += day.productiveAppSeconds
       for (const [app, usage] of day.appUsage) {
         const existing = appMap.get(app)
         if (existing) existing.seconds += usage.seconds
@@ -439,15 +435,14 @@ export async function computeProductivityRange(
     const total = productive + unproductive
     const scheduledSecs = scheduledMinutes * 60
     const workCompliancePercent = scheduledSecs > 0 ? Math.min(100, Math.round((total / scheduledSecs) * 100)) : 0
-    // Productividad = tiempo en apps productivas ÷ Duración (Productivo+No productivo de malla).
-    const overallProductivityPercent = total > 0 ? Math.min(100, Math.round((productiveAppSeconds / total) * 100)) : 0
+    // Productividad = Productivo (Trabajando + Tiempo extra) ÷ jornada programada — sin apps.
+    const overallProductivityPercent = scheduledSecs > 0 ? Math.min(100, Math.round((productive / scheduledSecs) * 100)) : 0
 
     return {
       user, machine: primaryMachine, programation: lastProgramation, scheduledMinutes,
       productiveSeconds: Math.round(productive),
       unproductiveSeconds: Math.round(unproductive),
       totalSeconds: Math.round(total),
-      productiveAppSeconds: Math.round(productiveAppSeconds),
       workCompliancePercent,
       overallProductivityPercent,
       topApps: [...appMap.values()].sort((a, b) => b.seconds - a.seconds).slice(0, 8),
@@ -460,8 +455,8 @@ export interface DailyProductivity {
   productiveSeconds: number
   unproductiveSeconds: number
   totalSeconds: number
-  productiveAppSeconds: number
   scheduledMinutes: number
+  // = productiveSeconds / (scheduledMinutes×60) — sin apps, ver computeUserDayStats.
   overallProductivityPercent: number
 }
 
@@ -485,7 +480,7 @@ export async function computeProductivityDaily(
     await loadRangeContext(users, dateFrom, dateTo)
 
   return dates.map(date => {
-    let productive = 0, unproductive = 0, productiveAppSeconds = 0, scheduledMinutes = 0
+    let productive = 0, unproductive = 0, scheduledMinutes = 0
     let percentSum = 0, scheduledUserCount = 0
 
     for (const user of users) {
@@ -497,12 +492,11 @@ export async function computeProductivityDaily(
       )
       productive += day.productive
       unproductive += day.unproductive
-      productiveAppSeconds += day.productiveAppSeconds
       scheduledMinutes += day.scheduledMinutes
 
       if (day.scheduledMinutes > 0) {
-        const dayTotal = day.productive + day.unproductive
-        const userPercent = dayTotal > 0 ? Math.min(100, (day.productiveAppSeconds / dayTotal) * 100) : 0
+        const userScheduledSecs = day.scheduledMinutes * 60
+        const userPercent = Math.min(100, (day.productive / userScheduledSecs) * 100)
         percentSum += userPercent
         scheduledUserCount++
       }
@@ -516,7 +510,6 @@ export async function computeProductivityDaily(
       productiveSeconds,
       unproductiveSeconds,
       totalSeconds: productiveSeconds + unproductiveSeconds, // por definición, sin drift de redondeo
-      productiveAppSeconds: scheduledUserCount > 0 ? Math.round(productiveAppSeconds / scheduledUserCount) : 0,
       scheduledMinutes: scheduledUserCount > 0 ? Math.round(scheduledMinutes / scheduledUserCount) : 0,
       overallProductivityPercent: scheduledUserCount > 0 ? Math.round(percentSum / scheduledUserCount) : 0,
     }

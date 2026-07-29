@@ -255,7 +255,7 @@ export default function ProductivityReport() {
         </span>
         <span>
           <span className='font-semibold text-foreground'>Productividad</span>
-          {' '}= tiempo en apps productivas ÷ Duración
+          {' '}= Productivo (Trabajando + Tiempo extra) ÷ jornada programada
         </span>
       </div>
 
@@ -331,7 +331,7 @@ export default function ProductivityReport() {
 
                   <TableCell className='text-center'>
                     {pctBadge(d.overallProductivityPercent,
-                      'Tiempo en apps productivas ÷ Duración')}
+                      'Productivo (Trabajando + Tiempo extra) ÷ jornada programada')}
                   </TableCell>
 
                   <TableCell className='text-right text-green-600 text-sm'>
