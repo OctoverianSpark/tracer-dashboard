@@ -382,6 +382,22 @@ function computeUserDayStats(
   // propias columnas.
   total = Math.max(total, productive + unproductive + uncategorized)
 
+  // Tiempo con presencia (state_logs) pero sin ningún dato de apps ese tramo (hueco del pipeline
+  // de app_usage_logs) — en vez de dejarlo aparte como "sin datos", se reparte entre
+  // productivo/improductivo según la MISMA proporción que ya tenía el resto del día con datos
+  // reales (ej. día 70% productivo / 30% improductivo → el hueco se reparte igual 70/30). Sin
+  // ningún productivo/improductivo ese día para sacar una proporción real, se reparte 50/50 en vez
+  // de inventar un sesgo hacia alguno sin evidencia — mismo criterio "neutro" que ya usa
+  // appQualityFactor cuando faltan datos de apps. `uncategorized` no participa del reparto ni de
+  // la proporción: sigue siendo su propio balde (apps usadas pero no categorizadas).
+  const noAppDataGapSecs = total - (productive + unproductive + uncategorized)
+  if (noAppDataGapSecs > 0) {
+    const categorizedPU = productive + unproductive
+    const productiveShare = categorizedPU > 0 ? productive / categorizedPU : 0.5
+    productive += noAppDataGapSecs * productiveShare
+    unproductive += noAppDataGapSecs * (1 - productiveShare)
+  }
+
   // Con horario real y SIN 'Tiempo extra' marcado, el total del día no puede superar la jornada
   // programada + 1h de margen (ej. jornada de 10h → tope de 11h) — reescala productivo/
   // improductivo/sin-categorizar proporcionalmente para que sigan sumando el nuevo total en vez
