@@ -265,22 +265,21 @@ function computeUserDayStats(
   // parsea como hora LOCAL DEL SERVIDOR, que puede no ser UTC, desfasando la ventana contra la
   // actividad real y descartando horas de trabajo enteras silenciosamente.
   //
-  // Ventana del DÍA COMPLETO, no del turno programado (programation.start_day–end_day) — pero
-  // SOLO si el usuario tiene horario o rotación real asignada (`resolved`). Sin eso, "horas
-  // extra" no tiene contra qué medirse (DEFAULT_PROGRAMATION es un supuesto, no un turno real):
-  // para ese caso se mantiene el tope de la jornada por defecto.
+  // La ventana es la MALLA HORARIA asignada (programation.start_day–end_day) — si son 8h, Productivo
+  // + No productivo se reparten dentro de esas 8h exactas, ni más ni menos. Solo se amplía al día
+  // completo cuando hay 'Tiempo extra' (code=1, ver WORK_STATE_CODE) marcado explícitamente ese
+  // día: sin esa marca no hay forma de distinguir "de verdad se quedó trabajando" de datos
+  // ruidosos (ventanas mal cerradas, relojes desincronizados, etc.), así que cualquier estado
+  // fuera de la malla simplemente no se cuenta.
   const hasRealSchedule = resolved != null
-  // Estado 'overtime' (code=1, ver WORK_STATE_CODE) marcado explícitamente ese día — habilita
-  // superar el tope de jornada+1h de abajo. Sin esta marca, cualquier exceso se recorta: no hay
-  // forma de distinguir "de verdad se quedó trabajando" de datos ruidosos (ventanas mal cerradas,
-  // relojes desincronizados, etc.) sin una señal explícita del agente/supervisor.
   const hasOvertimeLog = dayStateLogsFlat.some(sl => sl.state?.code === WORK_STATE_CODE.OVERTIME)
+  const useFullDay = hasRealSchedule && hasOvertimeLog
   const dayNowMs = date === ctx.todayStr ? ctx.nowMs : Infinity
-  const dayWinStart = hasRealSchedule
+  const dayWinStart = useFullDay
     ? new Date(`${date}T00:00:00Z`).getTime()
     : new Date(`${date}T${programation.start_day}:00Z`).getTime()
   const dayWinEnd = Math.min(
-    hasRealSchedule
+    useFullDay
       ? new Date(`${date}T23:59:59Z`).getTime()
       : new Date(`${date}T${programation.end_day || '23:00'}:00Z`).getTime(),
     dayNowMs,
@@ -296,16 +295,8 @@ function computeUserDayStats(
   const closedActiveWindows = closeTrailingWindows(dayActiveWindows, lastEvidenceMs, dayWinEnd)
   const closedIdleOfflineWindows = closeTrailingWindows(dayIdleOfflineWindows, lastEvidenceMs, dayWinEnd)
 
-  let productive = sumWindowSecondsInRange(closedActiveWindows, dayWinStart, dayWinEnd)
+  const productive = sumWindowSecondsInRange(closedActiveWindows, dayWinStart, dayWinEnd)
   const unproductive = sumWindowSecondsInRange(closedIdleOfflineWindows, dayWinStart, dayWinEnd)
-
-  // Con horario real y SIN 'Tiempo extra' marcado, Productivo no puede superar la jornada
-  // programada + 1h de margen (ej. jornada de 10h → tope de 11h) — ver comentario de hasOvertimeLog.
-  if (hasRealSchedule && !hasOvertimeLog) {
-    const capSecs = scheduledMinutes * 60 + 3600
-    if (productive > capSecs) productive = capSecs
-  }
-
   const total = productive + unproductive
 
   // Apps: solo alimenta `productiveAppSeconds` (numerador del % de Productividad) y el desglose
