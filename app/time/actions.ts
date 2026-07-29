@@ -2,6 +2,7 @@
 import { Programation, RotationCycle, RotationData, RotationSlot, Schedule } from "@/types/Schedules"
 import { revalidatePath } from "next/cache"
 import { AppUsageLog, FlatAppUsageLog } from "@/types/AppUser"
+import { bogotaToMs, bogotaDateOf } from "@/lib/bogotaTime"
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -119,13 +120,14 @@ export const getEffectiveProgramation = async (
 ): Promise<Programation | null> =>
   fetcher(`${API}/schedules/effective?appuser_id=${appuser_id}&date=${date}`)
 
-// Los timestamps de la DB vienen en hora local Colombia (sin sufijo de zona horaria).
-// Formato: '2026-06-12 20:44:21'. No se hace conversión UTC — se compara por prefijo de fecha.
-
+// Los timestamps que devuelve la API son UTC real (ver lib/bogotaTime.ts) — el rango que se le
+// manda al backend tiene que ser el instante UTC real que corresponde a "00:00–23:59 hora de
+// Bogotá" de esa fecha, no los mismos dígitos sin convertir (eso desfasaba la ventana ~5h,
+// perdiendo la mayoría de los intervalos del día real).
 function colDayRange(localDate: string): { from: string; to: string } {
   return {
-    from: `${localDate} 00:00:00`,
-    to:   `${localDate} 23:59:59`,
+    from: new Date(bogotaToMs(localDate, '00:00:00')).toISOString(),
+    to:   new Date(bogotaToMs(localDate, '23:59:59')).toISOString(),
   }
 }
 
@@ -143,9 +145,9 @@ export const getRawAppUsageLogs = async (date: string, computer_id?: number): Pr
     interval_end:   log.interval_end?.replace(' ', 'T')   ?? log.interval_end,
   }))
 
-  // Filtro por prefijo de fecha directamente (timestamps en hora Colombia local, sin conversión UTC)
+  // Filtro por fecha calendario de Bogotá real (no el prefijo UTC crudo del timestamp).
   const filtered = normalized.filter(log =>
-    log.interval_start?.slice(0, 10) === date
+    log.interval_start != null && bogotaDateOf(log.interval_start) === date
   )
 
   console.log(
@@ -158,8 +160,8 @@ export const getRawAppUsageLogs = async (date: string, computer_id?: number): Pr
 }
 
 export const getRawAppUsageLogsRange = async (dateFrom: string, dateTo: string, computer_id?: number): Promise<AppUsageLog[]> => {
-  const from = `${dateFrom} 00:00:00`
-  const to   = `${dateTo} 23:59:59`
+  const from = new Date(bogotaToMs(dateFrom, '00:00:00')).toISOString()
+  const to   = new Date(bogotaToMs(dateTo, '23:59:59')).toISOString()
   const params = new URLSearchParams({ from, to })
   if (computer_id != null) params.set('computer_id', String(computer_id))
 
@@ -172,10 +174,11 @@ export const getRawAppUsageLogsRange = async (dateFrom: string, dateTo: string, 
     interval_end:   log.interval_end?.replace(' ', 'T')   ?? log.interval_end,
   }))
 
-  // Igual que getRawAppUsageLogs pero por rango: conserva cualquier intervalo cuyo día caiga
-  // dentro de [dateFrom, dateTo] (comparación por prefijo de fecha, sin conversión UTC).
+  // Igual que getRawAppUsageLogs pero por rango: conserva cualquier intervalo cuyo día de Bogotá
+  // (no el prefijo UTC crudo) caiga dentro de [dateFrom, dateTo].
   const filtered = normalized.filter(log => {
-    const day = log.interval_start?.slice(0, 10)
+    if (log.interval_start == null) return false
+    const day = bogotaDateOf(log.interval_start)
     return day >= dateFrom && day <= dateTo
   })
 
@@ -197,7 +200,7 @@ export const getAppUsageLogs = async (date: string, computer_id?: number): Promi
   if (!Array.isArray(raw)) return []
 
   const byKey = new Map<string, FlatAppUsageLog>()
-  for (const log of raw.filter(l => l.interval_start?.slice(0, 10) === date)) {
+  for (const log of raw.filter(l => l.interval_start != null && bogotaDateOf(l.interval_start) === date)) {
     for (const a of log.apps ?? []) {
       const key = `${log.computer_id}__${a.app}`
       const existing = byKey.get(key)

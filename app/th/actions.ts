@@ -16,6 +16,7 @@ export const setAbsenceStatus = async (userId: number, status: AbsenceStatus): P
 import { getSchedules, getProgramations, getAllRotations } from '../time/actions'
 import { resolveEffectiveProgramation } from '@/lib/scheduleResolver'
 import { loadMachinesAndStateLogs } from '@/lib/productivity'
+import { bogotaDateOf } from '@/lib/bogotaTime'
 import { AppUser } from '@/types/AppUser'
 import { LunchSkip, Programation } from '@/types/Schedules'
 import { StateLog } from '@/types/StateLog'
@@ -142,7 +143,7 @@ export const getLateArrivals = async (date: string): Promise<LateArrival[]> => {
     // Toma el primer log activo (no OFFLINE) de cualquier máquina del usuario
     const allLogs: StateLog[] = []
     for (const m of userMachines) {
-      allLogs.push(...(stateByMachine.get(Number(m.id)) ?? []).filter(l => l.timestamp?.slice(0, 10) === date))
+      allLogs.push(...(stateByMachine.get(Number(m.id)) ?? []).filter(l => l.timestamp != null && bogotaDateOf(l.timestamp) === date))
     }
 
     const activeLogs = allLogs

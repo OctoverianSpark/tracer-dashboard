@@ -8,6 +8,7 @@ import { Machine } from '@/types/Machine'
 import { Programation, Schedule, RotationData } from '@/types/Schedules'
 import { StateLog } from '@/types/StateLog'
 import { WORK_STATE_CODE } from '@/types/States'
+import { bogotaToMs, bogotaDateOf } from '@/lib/bogotaTime'
 
 const DAY_KEYS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'] as const
 
@@ -260,10 +261,11 @@ function computeUserDayStats(
     return { ...EMPTY_DAY_STATS, programation, scheduledMinutes }
   }
 
-  // 'Z' explícito: los timestamps de BD son horas de Bogotá "sin conversión", igual que
-  // interval_start/interval_end (ver comentario en loadRangeContext) — sin el 'Z', esto se
-  // parsea como hora LOCAL DEL SERVIDOR, que puede no ser UTC, desfasando la ventana contra la
-  // actividad real y descartando horas de trabajo enteras silenciosamente.
+  // Conversión real Bogotá→UTC (ver lib/bogotaTime.ts) — los timestamps que devuelve la API son
+  // UTC real y correcto, verificado contra el header `Date` de la propia API y los `last_seen` de
+  // las máquinas (tratarlos como "dígitos de Bogotá sin convertir" ponía actividad reciente horas
+  // en el futuro). Sin esta conversión la ventana queda desfasada 5h contra la actividad real,
+  // descartando la mayoría de las horas trabajadas silenciosamente.
   //
   // La ventana es la MALLA HORARIA asignada (programation.start_day–end_day) — si son 8h, Productivo
   // + No productivo se reparten dentro de esas 8h exactas, ni más ni menos. Solo se amplía al día
@@ -276,12 +278,12 @@ function computeUserDayStats(
   const useFullDay = hasRealSchedule && hasOvertimeLog
   const dayNowMs = date === ctx.todayStr ? ctx.nowMs : Infinity
   const dayWinStart = useFullDay
-    ? new Date(`${date}T00:00:00Z`).getTime()
-    : new Date(`${date}T${programation.start_day}:00Z`).getTime()
+    ? bogotaToMs(date, '00:00:00')
+    : bogotaToMs(date, programation.start_day)
   const dayWinEnd = Math.min(
     useFullDay
-      ? new Date(`${date}T23:59:59Z`).getTime()
-      : new Date(`${date}T${programation.end_day || '23:00'}:00Z`).getTime(),
+      ? bogotaToMs(date, '23:59:59')
+      : bogotaToMs(date, programation.end_day || '23:00'),
     dayNowMs,
   )
 
@@ -338,21 +340,15 @@ function computeUserDayStats(
 async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: string) {
   const dates = dateRange(dateFrom, dateTo)
 
-  // "Ahora" en dos formas, ambas independientes del timezone del proceso que corre esto:
-  // - todayStr: fecha de Bogotá, calculada directo desde el instante real (`now`) con
-  //   `timeZone` explícito — no depende de re-parsear un string sin offset.
-  // - nowMs: OJO, no es el instante real — son los dígitos de reloj de Bogotá tratados como si
-  //   fueran UTC (agregando 'Z' al re-parsear). Es el mismo criterio que usan
-  //   interval_start/interval_end al llegar del backend (ver dayWinStart/dayWinEnd en
-  //   computeUserDayStats) — MySQL DATETIME no tiene timezone, así que la hora de Bogotá que
-  //   manda el agente queda guardada tal cual y Prisma la serializa con 'Z' sin convertirla.
-  //   nowMs tiene que vivir en ese mismo espacio "dígitos de Bogotá + Z" para que
-  //   `Math.min(dayWinEnd, dayNowMs)` compare cosas comparables sin importar en qué timezone
-  //   corra este proceso.
+  // Los timestamps que devuelve la API son UTC real (ver lib/bogotaTime.ts) — así que "ahora" es
+  // directo, sin ningún truco de reinterpretación de dígitos:
+  // - todayStr: fecha de Bogotá, para saber qué día del rango es "hoy" en la zona horaria real
+  //   del negocio, no la del proceso que corre esto.
+  // - nowMs: el instante real, tal cual — comparable 1:1 contra interval_start/interval_end y
+  //   state_logs.timestamp porque todos viven en el mismo espacio (UTC real).
   const now = new Date()
   const todayStr = now.toLocaleDateString('sv', { timeZone: 'America/Bogota' })
-  const bogotaClockStr = now.toLocaleString('sv', { timeZone: 'America/Bogota' }).replace(' ', 'T')
-  const nowMs = new Date(`${bogotaClockStr}Z`).getTime()
+  const nowMs = now.getTime()
 
   const [schedules, programations, rawLogs, categorizationApps, rotations, { machinesByUser, stateByMachine }, lunchSkips] =
     await Promise.all([
@@ -368,10 +364,13 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
   const categoryMap = new Map(categorizationApps.map(a => [a.name.toLowerCase(), a.category]))
   const lunchSkipDates = new Set(lunchSkips.map(ls => `${ls.appuser_id}_${ls.date.slice(0, 10)}`))
 
+  // Agrupar por la fecha CALENDARIO DE BOGOTÁ del timestamp real (bogotaDateOf), no por el
+  // prefijo crudo del string (que es fecha UTC) — un log de las 20:30 Bogotá (01:30 UTC del día
+  // siguiente) debe caer en el día de Bogotá, no en el de UTC, o se pierde/desplaza un día entero.
   const logsByMachineByDate = new Map<string, Map<number, AppUsageLog[]>>()
   for (const date of dates) logsByMachineByDate.set(date, new Map())
   for (const log of rawLogs) {
-    const date = log.interval_start?.slice(0, 10)
+    const date = bogotaDateOf(log.interval_start)
     const byMachine = logsByMachineByDate.get(date)
     if (!byMachine) continue // fuera del rango pedido, no debería pasar
     const cid = Number(log.computer_id)
@@ -383,7 +382,7 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
   for (const date of dates) stateByMachineByDate.set(date, new Map())
   for (const [machineId, logs] of stateByMachine) {
     for (const log of logs) {
-      const date = log.timestamp?.slice(0, 10)
+      const date = bogotaDateOf(log.timestamp)
       const byMachine = stateByMachineByDate.get(date)
       if (!byMachine) continue // fuera del rango pedido
       if (!byMachine.has(machineId)) byMachine.set(machineId, [])
