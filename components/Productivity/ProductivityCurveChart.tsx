@@ -32,7 +32,7 @@ export default function ProductivityCurveChart({ data }: ProductivityCurveChartP
   const n = data.length
   const xFor = (i: number) => n === 1 ? MARGIN.left + PLOT_W / 2 : MARGIN.left + (PLOT_W * i) / (n - 1)
 
-  const hoursOf = (d: DailyProductivity) => d.totalSeconds / 3600
+  const hoursOf = (d: DailyProductivity) => (d.totalSeconds + d.neutralSeconds) / 3600
   const maxHours = Math.max(...data.map(hoursOf), 0)
   const hoursStep = niceStep(maxHours)
   const hoursMax = hoursStep * 4
@@ -48,12 +48,13 @@ export default function ProductivityCurveChart({ data }: ProductivityCurveChartP
   const yPct = (p: number) => MARGIN.top + PLOT_H - ((p - pctMin) / pctRange) * PLOT_H
 
   // Áreas apiladas de la MALLA HORARIA (state_logs): Productivo (abajo, 'Trabajando'/'Tiempo
-  // extra') → No productivo (arriba, 'Inactivo'/'Desconectado'). El tope de la pila es siempre
-  // `totalSeconds` (= productiveSeconds + unproductiveSeconds, por definición). La línea de %
-  // (Productivo ÷ jornada programada, sin apps) es independiente del área.
+  // extra') → No productivo → Neutral (arriba, 'Descanso'/'Baño'/'Almuerzo' — informativo, no
+  // cuenta en Duración ni en ningún %). La línea de % (Productivo ÷ jornada programada, sin apps)
+  // es independiente del área.
   const base = data.map(() => 0)
   const prodTop = data.map(d => d.productiveSeconds / 3600)
   const nonProdTop = data.map((d, i) => prodTop[i]! + d.unproductiveSeconds / 3600)
+  const neutralTop = data.map((d, i) => nonProdTop[i]! + d.neutralSeconds / 3600)
 
   const areaPath = (bottom: number[], top: number[]) => {
     const upper = top.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xFor(i)} ${yHours(v)}`).join(' ')
@@ -95,6 +96,7 @@ export default function ProductivityCurveChart({ data }: ProductivityCurveChartP
           --series-line:    #2a78d6;
           --series-prod:    #008300;
           --series-nonprod: #e87ba4;
+          --series-neutral: #eda100;
           position: relative;
         }
         @media (prefers-color-scheme: dark) {
@@ -109,6 +111,7 @@ export default function ProductivityCurveChart({ data }: ProductivityCurveChartP
             --series-line:    #3987e5;
             --series-prod:    #008300;
             --series-nonprod: #d55181;
+            --series-neutral: #c98500;
           }
         }
         :root[data-theme="dark"] .viz-root {
@@ -122,6 +125,7 @@ export default function ProductivityCurveChart({ data }: ProductivityCurveChartP
           --series-line:    #3987e5;
           --series-prod:    #008300;
           --series-nonprod: #d55181;
+          --series-neutral: #c98500;
         }
       `}</style>
 
@@ -135,11 +139,14 @@ export default function ProductivityCurveChart({ data }: ProductivityCurveChartP
         {/* Áreas apiladas, wash ~10% opacidad, con gap de superficie entre segmentos */}
         <path d={areaPath(base, prodTop)} fill="var(--series-prod)" fillOpacity={0.12} />
         <path d={areaPath(prodTop, nonProdTop)} fill="var(--series-nonprod)" fillOpacity={0.14} />
+        <path d={areaPath(nonProdTop, neutralTop)} fill="var(--series-neutral)" fillOpacity={0.12} />
         {/* Trazo de 2px en el borde superior de cada segmento — separa las áreas sin usar borde alrededor */}
         <path d={prodTop.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xFor(i)} ${yHours(v)}`).join(' ')}
           fill="none" stroke="var(--series-prod)" strokeWidth={2} strokeLinejoin="round" />
         <path d={nonProdTop.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xFor(i)} ${yHours(v)}`).join(' ')}
           fill="none" stroke="var(--series-nonprod)" strokeWidth={2} strokeLinejoin="round" />
+        <path d={neutralTop.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xFor(i)} ${yHours(v)}`).join(' ')}
+          fill="none" stroke="var(--series-neutral)" strokeWidth={2} strokeLinejoin="round" strokeDasharray="4,3" />
 
         {/* Baseline */}
         <line x1={MARGIN.left} x2={W - MARGIN.right} y1={yHours(0)} y2={yHours(0)} stroke="var(--baseline)" strokeWidth={1} />
@@ -182,6 +189,7 @@ export default function ProductivityCurveChart({ data }: ProductivityCurveChartP
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2 px-1">
         <LegendItem color="var(--series-prod)" shape="area" label="Productivo (malla)" />
         <LegendItem color="var(--series-nonprod)" shape="area" label="No productivo (malla)" />
+        <LegendItem color="var(--series-neutral)" shape="area" label="Neutral (descanso/baño/almuerzo)" />
         <LegendItem color="var(--series-line)" shape="line" label="% Productividad" />
       </div>
 
@@ -197,6 +205,7 @@ export default function ProductivityCurveChart({ data }: ProductivityCurveChartP
           <p className="font-medium mb-1.5">{fmtDateShort(hovered.date)}</p>
           <TooltipRow color="var(--series-prod)" label="Productivo (malla)" value={`${fmtHours(hovered.productiveSeconds)}h`} />
           <TooltipRow color="var(--series-nonprod)" label="No productivo (malla)" value={`${fmtHours(hovered.unproductiveSeconds)}h`} />
+          <TooltipRow color="var(--series-neutral)" label="Neutral" value={`${fmtHours(hovered.neutralSeconds)}h`} />
           <TooltipRow color="var(--series-line)" label="% Productividad" value={`${hovered.overallProductivityPercent}%`} />
         </div>
       )}

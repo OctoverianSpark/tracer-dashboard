@@ -28,7 +28,10 @@ export interface UserProductivity {
   // Malla horaria (state_logs): tiempo en 'Inactivo'/'Desconectado'. Descanso/Baño/Almuerzo NO
   // cuentan acá (son pausas legítimas, igual que el almuerzo ya se excluye de scheduledMinutes).
   unproductiveSeconds: number
-  // = productiveSeconds + unproductiveSeconds, por definición.
+  // Malla horaria (state_logs): tiempo en 'Descanso'/'Baño'/'Almuerzo' — informativo, no suma a
+  // totalSeconds ni a ningún % (ni Cumplimiento ni Productividad).
+  neutralSeconds: number
+  // = productiveSeconds + unproductiveSeconds, por definición (neutralSeconds queda fuera).
   totalSeconds: number
   workCompliancePercent: number
   // = productiveSeconds / (scheduledMinutes×60) — qué tanto de la jornada programada fue tiempo
@@ -97,6 +100,11 @@ export const buildActiveWindows = (stateLogs: StateLog[]): Array<{ start: number
 // Almuerzo quedan fuera a propósito — son pausas legítimas, no tiempo improductivo.
 export const buildIdleOfflineWindows = (stateLogs: StateLog[]): Array<{ start: number; end: number }> =>
   buildStateWindows(stateLogs, [WORK_STATE_CODE.IDLE, WORK_STATE_CODE.OFFLINE])
+
+// Ventanas "Neutral" de la malla horaria: 'Descanso' + 'Baño' + 'Almuerzo' — pausas legítimas,
+// ni productivas ni improductivas, informativas.
+export const buildNeutralWindows = (stateLogs: StateLog[]): Array<{ start: number; end: number }> =>
+  buildStateWindows(stateLogs, [WORK_STATE_CODE.BREAK, WORK_STATE_CODE.WC, WORK_STATE_CODE.LUNCH])
 
 // Buffer para una ventana que quedó abierta sin ningún log/intervalo posterior ese día (agente
 // que se quedó pegado en un estado, PC apagado sin log de cierre, etc.) y tampoco hay evidencia
@@ -210,14 +218,15 @@ interface UserDayStats {
   scheduledMinutes: number
   productive: number   // malla horaria: Trabajando + Tiempo extra
   unproductive: number // malla horaria: Inactivo + Desconectado
-  total: number         // = productive + unproductive
+  neutral: number       // malla horaria: Descanso + Baño + Almuerzo — informativo, no suma a total
+  total: number         // = productive + unproductive (neutral queda fuera)
   // Desglose por app dentro de la malla — solo para "Ver apps" (informativo), no alimenta
   // Productivo/No productivo/Productividad, que son 100% de state_logs.
   appUsage: Map<string, UserAppUsage>
 }
 
 const EMPTY_DAY_STATS: UserDayStats = {
-  scheduledMinutes: 0, productive: 0, unproductive: 0, total: 0,
+  scheduledMinutes: 0, productive: 0, unproductive: 0, neutral: 0, total: 0,
   appUsage: new Map(),
 }
 
@@ -245,6 +254,7 @@ function computeUserDayStats(
   const dayIntervals: AppUsageLog[] = []
   const dayActiveWindows: Array<{ start: number; end: number }> = []
   const dayIdleOfflineWindows: Array<{ start: number; end: number }> = []
+  const dayNeutralWindows: Array<{ start: number; end: number }> = []
   const dayStateLogsFlat: StateLog[] = []
   for (const m of userMachines) {
     const mid = Number(m.id)
@@ -253,11 +263,12 @@ function computeUserDayStats(
     dayStateLogsFlat.push(...logs)
     dayActiveWindows.push(...buildActiveWindows(logs))
     dayIdleOfflineWindows.push(...buildIdleOfflineWindows(logs))
+    dayNeutralWindows.push(...buildNeutralWindows(logs))
   }
   // Ya NO se corta acá por falta de app_usage_logs — state_logs es un canal de telemetría aparte
   // y puede tener datos (Productivo/No productivo/Productividad, todo de malla) aunque ese día no
   // haya intervalos de uso de apps (solo se pierde el desglose informativo de "Ver apps").
-  if (!dayIntervals.length && !dayActiveWindows.length && !dayIdleOfflineWindows.length) {
+  if (!dayIntervals.length && !dayActiveWindows.length && !dayIdleOfflineWindows.length && !dayNeutralWindows.length) {
     return { ...EMPTY_DAY_STATS, programation, scheduledMinutes }
   }
 
@@ -296,9 +307,11 @@ function computeUserDayStats(
   )
   const closedActiveWindows = closeTrailingWindows(dayActiveWindows, lastEvidenceMs, dayWinEnd)
   const closedIdleOfflineWindows = closeTrailingWindows(dayIdleOfflineWindows, lastEvidenceMs, dayWinEnd)
+  const closedNeutralWindows = closeTrailingWindows(dayNeutralWindows, lastEvidenceMs, dayWinEnd)
 
   const productive = sumWindowSecondsInRange(closedActiveWindows, dayWinStart, dayWinEnd)
   const unproductive = sumWindowSecondsInRange(closedIdleOfflineWindows, dayWinStart, dayWinEnd)
+  const neutral = sumWindowSecondsInRange(closedNeutralWindows, dayWinStart, dayWinEnd)
   const total = productive + unproductive
 
   // Apps: solo alimenta el desglose por app (`appUsage`, usado en "Ver apps") — informativo, ya
@@ -328,7 +341,7 @@ function computeUserDayStats(
     }
   }
 
-  return { programation, scheduledMinutes, productive, unproductive, total, appUsage }
+  return { programation, scheduledMinutes, productive, unproductive, neutral, total, appUsage }
 }
 
 // Prepara todo lo que no depende de un usuario puntual (catálogos, logs de app-usage y de
@@ -410,7 +423,7 @@ export async function computeProductivityRange(
     const userMachines = machinesByUser.get(userId) ?? []
     const primaryMachine = userMachines[0]
 
-    let productive = 0, unproductive = 0, scheduledMinutes = 0
+    let productive = 0, unproductive = 0, neutral = 0, scheduledMinutes = 0
     let lastProgramation: Programation | undefined
     const appMap = new Map<string, UserAppUsage>()
 
@@ -425,6 +438,7 @@ export async function computeProductivityRange(
       scheduledMinutes += day.scheduledMinutes
       productive += day.productive
       unproductive += day.unproductive
+      neutral += day.neutral
       for (const [app, usage] of day.appUsage) {
         const existing = appMap.get(app)
         if (existing) existing.seconds += usage.seconds
@@ -442,6 +456,7 @@ export async function computeProductivityRange(
       user, machine: primaryMachine, programation: lastProgramation, scheduledMinutes,
       productiveSeconds: Math.round(productive),
       unproductiveSeconds: Math.round(unproductive),
+      neutralSeconds: Math.round(neutral),
       totalSeconds: Math.round(total),
       workCompliancePercent,
       overallProductivityPercent,
@@ -454,6 +469,7 @@ export interface DailyProductivity {
   date: string
   productiveSeconds: number
   unproductiveSeconds: number
+  neutralSeconds: number
   totalSeconds: number
   scheduledMinutes: number
   // = productiveSeconds / (scheduledMinutes×60) — sin apps, ver computeUserDayStats.
@@ -480,7 +496,7 @@ export async function computeProductivityDaily(
     await loadRangeContext(users, dateFrom, dateTo)
 
   return dates.map(date => {
-    let productive = 0, unproductive = 0, scheduledMinutes = 0
+    let productive = 0, unproductive = 0, neutral = 0, scheduledMinutes = 0
     let percentSum = 0, scheduledUserCount = 0
 
     for (const user of users) {
@@ -492,6 +508,7 @@ export async function computeProductivityDaily(
       )
       productive += day.productive
       unproductive += day.unproductive
+      neutral += day.neutral
       scheduledMinutes += day.scheduledMinutes
 
       if (day.scheduledMinutes > 0) {
@@ -509,6 +526,7 @@ export async function computeProductivityDaily(
       date,
       productiveSeconds,
       unproductiveSeconds,
+      neutralSeconds: scheduledUserCount > 0 ? Math.round(neutral / scheduledUserCount) : 0,
       totalSeconds: productiveSeconds + unproductiveSeconds, // por definición, sin drift de redondeo
       scheduledMinutes: scheduledUserCount > 0 ? Math.round(scheduledMinutes / scheduledUserCount) : 0,
       overallProductivityPercent: scheduledUserCount > 0 ? Math.round(percentSum / scheduledUserCount) : 0,

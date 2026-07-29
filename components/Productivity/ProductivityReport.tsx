@@ -60,7 +60,7 @@ function TopAppsRow({ data }: { data: UserProductivity }) {
 
   return (
     <TableRow className='bg-muted/30 hover:bg-muted/30'>
-      <TableCell colSpan={7} className='py-2 px-6'>
+      <TableCell colSpan={8} className='py-2 px-6'>
         <Collapsible open={open} onOpenChange={setOpen}>
           <CollapsibleTrigger className='flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer'>
             <ChevronDown className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -104,9 +104,9 @@ function exportXLSX(rows: UserProductivity[], groups: Group[], dateFrom: string,
   const HEADERS = [
     'Grupo', 'Usuario', 'Jornada prog. (min)', 'Duración (min)',
     'Cumplimiento (%)', 'Productividad (%)',
-    'Productivo (min)', 'No productivo (min)',
+    'Productivo (min)', 'No productivo (min)', 'Neutral (min)',
   ]
-  const COL_WIDTHS = [{ wch: 22 }, { wch: 32 }, ...Array(6).fill({ wch: 20 })]
+  const COL_WIDTHS = [{ wch: 22 }, { wch: 32 }, ...Array(7).fill({ wch: 20 })]
 
   const toRow = (d: UserProductivity) => [
     groupName(d), d.user.full_name,
@@ -115,13 +115,14 @@ function exportXLSX(rows: UserProductivity[], groups: Group[], dateFrom: string,
     d.workCompliancePercent, d.overallProductivityPercent,
     Math.round(d.productiveSeconds / 60),
     Math.round(d.unproductiveSeconds / 60),
+    Math.round(d.neutralSeconds / 60),
   ]
 
   const avgRow = (groupRows: UserProductivity[]) => [
     '', 'Promedio', '', '',
     avgPercent(groupRows, d => d.workCompliancePercent),
     avgPercent(groupRows, d => d.overallProductivityPercent),
-    '', '',
+    '', '', '',
   ]
 
   const wb = XLSX.utils.book_new()
@@ -257,6 +258,10 @@ export default function ProductivityReport() {
           <span className='font-semibold text-foreground'>Productividad</span>
           {' '}= Productivo (Trabajando + Tiempo extra) ÷ jornada programada
         </span>
+        <span>
+          <span className='font-semibold text-foreground'>Neutral</span>
+          {' '}= Descanso + Baño + Almuerzo — pausas legítimas, no cuentan en ningún %
+        </span>
       </div>
 
       {/* Estados vacíos */}
@@ -309,6 +314,7 @@ export default function ProductivityReport() {
                 <TableHead className='text-center'>Productividad</TableHead>
                 <TableHead className='text-right text-green-600'>Productivo</TableHead>
                 <TableHead className='text-right text-red-500'>No productivo</TableHead>
+                <TableHead className='text-right text-yellow-500'>Neutral</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody ref={bodyRef}>
@@ -340,6 +346,10 @@ export default function ProductivityReport() {
 
                   <TableCell className='text-right text-red-500 text-sm'>
                     {d.unproductiveSeconds > 0 ? fmtSecs(d.unproductiveSeconds) : '—'}
+                  </TableCell>
+
+                  <TableCell className='text-right text-yellow-500 text-sm'>
+                    {d.neutralSeconds > 0 ? fmtSecs(d.neutralSeconds) : '—'}
                   </TableCell>
                 </TableRow>,
                 <TopAppsRow key={`apps-${d.user.id ?? d.user.full_name}`} data={d} />,

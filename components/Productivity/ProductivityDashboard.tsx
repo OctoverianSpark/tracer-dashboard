@@ -280,6 +280,7 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
                         <TableHead>Fecha</TableHead>
                         <TableHead className="text-right">Productivo</TableHead>
                         <TableHead className="text-right">No productivo</TableHead>
+                        <TableHead className="text-right">Neutral</TableHead>
                         <TableHead className="text-right">Duración</TableHead>
                         <TableHead className="text-right">Productividad</TableHead>
                       </TableRow>
@@ -290,6 +291,7 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
                           <TableCell className="font-medium">{fmtDate(d.date)}</TableCell>
                           <TableCell className="text-right text-sm">{fmtHM(d.productiveSeconds)}</TableCell>
                           <TableCell className="text-right text-sm">{fmtHM(d.unproductiveSeconds)}</TableCell>
+                          <TableCell className="text-right text-sm">{fmtHM(d.neutralSeconds)}</TableCell>
                           <TableCell className="text-right text-sm">{fmtHM(d.totalSeconds)}</TableCell>
                           <TableCell className="text-right font-medium">{d.overallProductivityPercent}%</TableCell>
                         </TableRow>
