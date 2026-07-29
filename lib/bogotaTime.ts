@@ -11,7 +11,16 @@ export function bogotaToMs(date: string, time: string): number {
   return new Date(`${date}T${hhmmss}${BOGOTA_UTC_OFFSET}`).getTime()
 }
 
+const BOGOTA_OFFSET_MS = 5 * 60 * 60 * 1000
+
 // Fecha calendario de Bogotá ("YYYY-MM-DD") a partir de un timestamp UTC real (ISO, con o sin 'Z').
+// Aritmética simple (offset fijo, sin DST) en vez de Intl/toLocaleDateString — esto se llama por
+// cada log al agrupar por fecha en loadRangeContext (potencialmente miles en la vista Global, ya
+// que el backend no filtra state_logs por fecha), y Intl es notablemente más lento por llamada.
 export function bogotaDateOf(utcTimestamp: string): string {
-  return new Date(utcTimestamp).toLocaleDateString('sv', { timeZone: 'America/Bogota' })
+  const d = new Date(new Date(utcTimestamp).getTime() - BOGOTA_OFFSET_MS)
+  const y = d.getUTCFullYear()
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
