@@ -76,16 +76,30 @@ export const scheduledWorkMinutes = (prog: Programation, skipLunch = false): num
 // Construye ventanas de tiempo para un día dado, donde el estado (code) estaba en `codes`.
 // Cada StateLog marca el inicio de un nuevo estado; el siguiente log marca su fin.
 function buildStateWindows(stateLogs: StateLog[], codes: readonly number[]): Array<{ start: number; end: number }> {
-  const sorted = [...stateLogs].sort((a, b) =>
-    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  )
+  const sorted = [...stateLogs].sort((a, b) => {
+    const byTime = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    return byTime !== 0 ? byTime : Number(a.id ?? 0) - Number(b.id ?? 0)
+  })
+
+  // Algunos agentes mandan lecturas contradictorias en el mismo timestamp exacto (ej.
+  // 'Trabajando' e 'Inactivo' al mismo segundo — visto en un caso real: ~8500 timestamps
+  // duplicados de ~11700 logs en un solo día para una máquina). Sin deduplicar, cada par así crea
+  // una ventana de 0 segundos de duración, diluyendo el cálculo. Se conserva solo la ÚLTIMA
+  // lectura de cada timestamp (mayor id = insertada después = más "afinada" para ese instante).
+  const deduped: StateLog[] = []
+  for (const log of sorted) {
+    const prev = deduped[deduped.length - 1]
+    if (prev && prev.timestamp === log.timestamp) deduped[deduped.length - 1] = log
+    else deduped.push(log)
+  }
+
   const windows: Array<{ start: number; end: number }> = []
-  for (let i = 0; i < sorted.length; i++) {
-    const code = sorted[i].state?.code
+  for (let i = 0; i < deduped.length; i++) {
+    const code = deduped[i].state?.code
     if (code == null || !codes.includes(code)) continue
-    const start = new Date(sorted[i].timestamp).getTime()
-    const end = i + 1 < sorted.length
-      ? new Date(sorted[i + 1].timestamp).getTime()
+    const start = new Date(deduped[i].timestamp).getTime()
+    const end = i + 1 < deduped.length
+      ? new Date(deduped[i + 1].timestamp).getTime()
       : Infinity
     windows.push({ start, end })
   }
