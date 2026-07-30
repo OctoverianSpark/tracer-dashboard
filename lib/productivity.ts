@@ -96,10 +96,15 @@ function buildStateWindows(stateLogs: StateLog[], codes: readonly number[]): Arr
 export const buildActiveWindows = (stateLogs: StateLog[]): Array<{ start: number; end: number }> =>
   buildStateWindows(stateLogs, [WORK_STATE_CODE.WORKING, WORK_STATE_CODE.OVERTIME])
 
-// Ventanas "No productivo" de la malla horaria: 'Inactivo' + 'Desconectado'. Descanso/Baño/
-// Almuerzo quedan fuera a propósito — son pausas legítimas, no tiempo improductivo.
-export const buildIdleOfflineWindows = (stateLogs: StateLog[]): Array<{ start: number; end: number }> =>
-  buildStateWindows(stateLogs, [WORK_STATE_CODE.IDLE, WORK_STATE_CODE.OFFLINE])
+// 'Inactivo' y 'Desconectado' se construyen por separado (no combinados) porque 'Inactivo' que
+// cae dentro del rango de almuerzo del horario se reclasifica a Neutral más abajo — alguien
+// idle mientras almuerza no es "improductivo", es que está almorzando sin haber marcado el
+// estado explícito 'Almuerzo'. 'Desconectado' nunca se reclasifica así.
+export const buildIdleWindows = (stateLogs: StateLog[]): Array<{ start: number; end: number }> =>
+  buildStateWindows(stateLogs, [WORK_STATE_CODE.IDLE])
+
+export const buildOfflineWindows = (stateLogs: StateLog[]): Array<{ start: number; end: number }> =>
+  buildStateWindows(stateLogs, [WORK_STATE_CODE.OFFLINE])
 
 // Ventanas "Neutral" de la malla horaria: 'Descanso' + 'Baño' + 'Almuerzo' — pausas legítimas,
 // ni productivas ni improductivas, informativas.
@@ -253,7 +258,8 @@ function computeUserDayStats(
 
   const dayIntervals: AppUsageLog[] = []
   const dayActiveWindows: Array<{ start: number; end: number }> = []
-  const dayIdleOfflineWindows: Array<{ start: number; end: number }> = []
+  const dayIdleWindows: Array<{ start: number; end: number }> = []
+  const dayOfflineWindows: Array<{ start: number; end: number }> = []
   const dayNeutralWindows: Array<{ start: number; end: number }> = []
   const dayStateLogsFlat: StateLog[] = []
   for (const m of userMachines) {
@@ -262,13 +268,14 @@ function computeUserDayStats(
     const logs = dayStateByMachine.get(mid) ?? []
     dayStateLogsFlat.push(...logs)
     dayActiveWindows.push(...buildActiveWindows(logs))
-    dayIdleOfflineWindows.push(...buildIdleOfflineWindows(logs))
+    dayIdleWindows.push(...buildIdleWindows(logs))
+    dayOfflineWindows.push(...buildOfflineWindows(logs))
     dayNeutralWindows.push(...buildNeutralWindows(logs))
   }
   // Ya NO se corta acá por falta de app_usage_logs — state_logs es un canal de telemetría aparte
   // y puede tener datos (Productivo/No productivo/Productividad, todo de malla) aunque ese día no
   // haya intervalos de uso de apps (solo se pierde el desglose informativo de "Ver apps").
-  if (!dayIntervals.length && !dayActiveWindows.length && !dayIdleOfflineWindows.length && !dayNeutralWindows.length) {
+  if (!dayIntervals.length && !dayActiveWindows.length && !dayIdleWindows.length && !dayOfflineWindows.length && !dayNeutralWindows.length) {
     return { ...EMPTY_DAY_STATS, programation, scheduledMinutes }
   }
 
@@ -306,12 +313,31 @@ function computeUserDayStats(
     ...dayStateLogsFlat.map(sl => new Date(sl.timestamp).getTime()),
   )
   const closedActiveWindows = closeTrailingWindows(dayActiveWindows, lastEvidenceMs, dayWinEnd)
-  const closedIdleOfflineWindows = closeTrailingWindows(dayIdleOfflineWindows, lastEvidenceMs, dayWinEnd)
+  const closedIdleWindows = closeTrailingWindows(dayIdleWindows, lastEvidenceMs, dayWinEnd)
+  const closedOfflineWindows = closeTrailingWindows(dayOfflineWindows, lastEvidenceMs, dayWinEnd)
   const closedNeutralWindows = closeTrailingWindows(dayNeutralWindows, lastEvidenceMs, dayWinEnd)
 
   const productive = sumWindowSecondsInRange(closedActiveWindows, dayWinStart, dayWinEnd)
-  const unproductive = sumWindowSecondsInRange(closedIdleOfflineWindows, dayWinStart, dayWinEnd)
-  const neutral = sumWindowSecondsInRange(closedNeutralWindows, dayWinStart, dayWinEnd)
+  const offlineSecs = sumWindowSecondsInRange(closedOfflineWindows, dayWinStart, dayWinEnd)
+  const idleSecs = sumWindowSecondsInRange(closedIdleWindows, dayWinStart, dayWinEnd)
+
+  // 'Inactivo' que cae dentro del rango de almuerzo del horario (programation.start_lunch–
+  // end_lunch) se reclasifica a Neutral — alguien idle mientras almuerza no marcó explícitamente
+  // 'Almuerzo', pero tampoco es tiempo improductivo. Si el día tiene la excepción "sin almuerzo"
+  // (skipLunch), no hay ventana de almuerzo contra la cual reclasificar nada.
+  let idleDuringLunch = 0
+  if (!skipLunch && programation.start_lunch && programation.end_lunch) {
+    const lunchStart = bogotaToMs(date, programation.start_lunch)
+    const lunchEnd = bogotaToMs(date, programation.end_lunch)
+    idleDuringLunch = sumWindowSecondsInRange(
+      closedIdleWindows,
+      Math.max(dayWinStart, lunchStart),
+      Math.min(dayWinEnd, lunchEnd),
+    )
+  }
+
+  const unproductive = offlineSecs + (idleSecs - idleDuringLunch)
+  const neutral = sumWindowSecondsInRange(closedNeutralWindows, dayWinStart, dayWinEnd) + idleDuringLunch
   const total = productive + unproductive
 
   // Apps: solo alimenta el desglose por app (`appUsage`, usado en "Ver apps") — informativo, ya
