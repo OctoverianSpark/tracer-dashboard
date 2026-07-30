@@ -331,27 +331,33 @@ function computeUserDayStats(
   const closedOfflineWindows = closeTrailingWindows(dayOfflineWindows, lastEvidenceMs, dayWinEnd)
   const closedNeutralWindows = closeTrailingWindows(dayNeutralWindows, lastEvidenceMs, dayWinEnd)
 
-  const productive = sumWindowSecondsInRange(closedActiveWindows, dayWinStart, dayWinEnd)
-  const offlineSecs = sumWindowSecondsInRange(closedOfflineWindows, dayWinStart, dayWinEnd)
-  const idleSecs = sumWindowSecondsInRange(closedIdleWindows, dayWinStart, dayWinEnd)
-
-  // 'Inactivo' que cae dentro del rango de almuerzo del horario (programation.start_lunch–
-  // end_lunch) se reclasifica a Neutral — alguien idle mientras almuerza no marcó explícitamente
-  // 'Almuerzo', pero tampoco es tiempo improductivo. Si el día tiene la excepción "sin almuerzo"
-  // (skipLunch), no hay ventana de almuerzo contra la cual reclasificar nada.
-  let idleDuringLunch = 0
+  // Rango de almuerzo del horario (programation.start_lunch–end_lunch), recortado a la ventana
+  // del día — TODO ese tramo cuenta como Neutral sin importar qué estado haya (o no haya)
+  // registrado ahí: si la persona quedó marcada 'Trabajando' durante su almuerzo, ese tramo
+  // igual es almuerzo, no tiempo productivo; si no hay NINGÚN log ese rango (hueco de
+  // telemetría), también cuenta como almuerzo en vez de quedar invisible. Si el día tiene la
+  // excepción "sin almuerzo" (skipLunch), no hay rango que recortar — todo se cuenta normal.
+  let lunchOverlapSecs = 0
+  let lunchClipStart = 0, lunchClipEnd = 0
   if (!skipLunch && programation.start_lunch && programation.end_lunch) {
     const lunchStart = bogotaToMs(date, programation.start_lunch)
     const lunchEnd = bogotaToMs(date, programation.end_lunch)
-    idleDuringLunch = sumWindowSecondsInRange(
-      closedIdleWindows,
-      Math.max(dayWinStart, lunchStart),
-      Math.min(dayWinEnd, lunchEnd),
-    )
+    lunchClipStart = Math.max(dayWinStart, lunchStart)
+    lunchClipEnd = Math.min(dayWinEnd, lunchEnd)
+    lunchOverlapSecs = Math.max(0, Math.round((lunchClipEnd - lunchClipStart) / 1000))
   }
 
-  const unproductive = offlineSecs + (idleSecs - idleDuringLunch)
-  const neutral = sumWindowSecondsInRange(closedNeutralWindows, dayWinStart, dayWinEnd) + idleDuringLunch
+  // Suma una serie de ventanas dentro de la malla, EXCLUYENDO lo que caiga en el rango de
+  // almuerzo (ese tramo se cuenta aparte, una sola vez, como `lunchOverlapSecs` en Neutral).
+  const sumExcludingLunch = (windows: Array<{ start: number; end: number }>): number => {
+    const full = sumWindowSecondsInRange(windows, dayWinStart, dayWinEnd)
+    if (lunchOverlapSecs === 0) return full
+    return full - sumWindowSecondsInRange(windows, lunchClipStart, lunchClipEnd)
+  }
+
+  const productive = sumExcludingLunch(closedActiveWindows)
+  const unproductive = sumExcludingLunch(closedOfflineWindows) + sumExcludingLunch(closedIdleWindows)
+  const neutral = sumExcludingLunch(closedNeutralWindows) + lunchOverlapSecs
   const total = productive + unproductive
 
   // Apps: solo alimenta el desglose por app (`appUsage`, usado en "Ver apps") — informativo, ya
