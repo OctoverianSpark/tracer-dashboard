@@ -1,9 +1,11 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getProductivityReport } from '@/app/supervisors/actions'
 import { getDailyProductivity, getGlobalDailyProductivity, getGroupDailyProductivity } from '@/app/productivity/actions'
+import { findAsignedMachines } from '@/app/computers/actions'
 import { DailyProductivity, UserProductivity } from '@/lib/productivity'
 import { AppUser, Group } from '@/types/AppUser'
+import { Machine, machineLabel } from '@/types/Machine'
 import { Card } from '@/app/_components/_ui/card'
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
@@ -53,6 +55,8 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
   const [viewMode, setViewMode] = useState<ViewMode>('global')
   const [userId, setUserId] = useState('')
   const [groupId, setGroupId] = useState('')
+  const [computers, setComputers] = useState<Machine[]>([])
+  const [computerId, setComputerId] = useState('')
   const [report, setReport] = useState<UserProductivity[] | null>(null)
   const [daily, setDaily] = useState<DailyProductivity[] | null>(null)
   const [loading, setLoading] = useState(false)
@@ -61,7 +65,15 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
 
   const rangeInvalid = dateTo < dateFrom
 
-  const loadDaily = async (mode: ViewMode, selectedUserId: string, selectedGroupId: string) => {
+  // Un usuario puede tener más de un equipo asignado — sin elegir cuál, la curva junta los datos
+  // de todos. Se trae la lista cada vez que cambia el usuario elegido en modo "Por usuario".
+  useEffect(() => {
+    if (viewMode !== 'user' || !userId) { setComputers([]); setComputerId(''); return }
+    findAsignedMachines(Number(userId)).then(setComputers)
+    setComputerId('')
+  }, [viewMode, userId])
+
+  const loadDaily = async (mode: ViewMode, selectedUserId: string, selectedGroupId: string, selectedComputerId: string) => {
     if (mode === 'global') {
       setDaily(await getGlobalDailyProductivity(dateFrom, dateTo))
       return
@@ -71,8 +83,12 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
       else setDaily([])
       return
     }
-    if (selectedUserId) setDaily(await getDailyProductivity(Number(selectedUserId), dateFrom, dateTo))
-    else setDaily([])
+    if (selectedUserId) {
+      const machineId = selectedComputerId ? Number(selectedComputerId) : undefined
+      setDaily(await getDailyProductivity(Number(selectedUserId), dateFrom, dateTo, machineId))
+    } else {
+      setDaily([])
+    }
   }
 
   const defaultTopUserId = (rep: UserProductivity[]) => {
@@ -100,7 +116,7 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
         setGroupId(effectiveGroupId)
       }
 
-      await loadDaily(viewMode, effectiveUserId, effectiveGroupId)
+      await loadDaily(viewMode, effectiveUserId, effectiveGroupId, computerId)
     } finally {
       setLoading(false)
     }
@@ -129,6 +145,11 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
 
   const handleGroupChange = (value: string) => {
     setGroupId(value)
+    setDaily(null)
+  }
+
+  const handleComputerChange = (value: string) => {
+    setComputerId(value)
     setDaily(null)
   }
 
@@ -237,6 +258,19 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
                   <div className="w-56">
                     <UserSelect users={users} value={userId} onValueChange={handleUserChange} placeholder="Seleccionar usuario" />
                   </div>
+                )}
+                {viewMode === 'user' && computers.length > 1 && (
+                  <Select value={computerId || 'all'} onValueChange={v => handleComputerChange(v === 'all' ? '' : v)}>
+                    <SelectTrigger className="w-56">
+                      <SelectValue placeholder="Todos los equipos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los equipos</SelectItem>
+                      {computers.map(c => (
+                        <SelectItem key={c.id} value={String(c.id)}>{machineLabel(c)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
                 {viewMode === 'group' && (
                   <Select value={groupId} onValueChange={handleGroupChange}>

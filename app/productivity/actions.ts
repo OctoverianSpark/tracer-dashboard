@@ -2,11 +2,11 @@
 import { computeProductivityDaily } from '@/lib/productivity'
 import { getappuser } from '../app/actions'
 
-export const getDailyProductivity = async (appuserId: number, dateFrom: string, dateTo: string) => {
+export const getDailyProductivity = async (appuserId: number, dateFrom: string, dateTo: string, machineId?: number) => {
   const users = await getappuser()
   const user = users.find(u => Number(u.id) === appuserId)
   if (!user) return []
-  return computeProductivityDaily([user], dateFrom, dateTo)
+  return computeProductivityDaily([user], dateFrom, dateTo, machineId)
 }
 
 export const getGlobalDailyProductivity = async (dateFrom: string, dateTo: string) => {

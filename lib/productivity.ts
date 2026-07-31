@@ -537,6 +537,9 @@ export async function computeProductivityDaily(
   users: AppUser[],
   dateFrom: string,
   dateTo: string,
+  // Si se pasa, solo se cuenta esa máquina (ej. un usuario con dos equipos, viendo la curva de
+  // uno puntual) en vez de agregar todas las asignadas al usuario.
+  machineId?: number,
 ): Promise<DailyProductivity[]> {
   const { dates, ctx, machinesByUser, logsByMachineByDate, stateByMachineByDate } =
     await loadRangeContext(users, dateFrom, dateTo)
@@ -547,7 +550,10 @@ export async function computeProductivityDaily(
 
     for (const user of users) {
       const userId = Number(user.id)
-      const userMachines = machinesByUser.get(userId) ?? []
+      const allUserMachines = machinesByUser.get(userId) ?? []
+      const userMachines = machineId != null
+        ? allUserMachines.filter(m => Number(m.id) === machineId)
+        : allUserMachines
       const day = computeUserDayStats(
         userId, userMachines, date, ctx,
         logsByMachineByDate.get(date)!, stateByMachineByDate.get(date)!,
