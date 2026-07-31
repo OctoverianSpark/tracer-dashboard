@@ -14,7 +14,7 @@ import { getCategorizationApps } from '@/app/supervisors/categorization-actions'
 import { getStates, getStateCategories } from '@/app/states/actions'
 import { Timeline } from '@/components/TimeReporting/Timeline'
 import AppUsageList from '@/components/TimeReporting/AppUsageList'
-import { Machine, machineLabel } from '@/types/Machine'
+import { Machine, machineDisplayName } from '@/types/Machine'
 import { AppUser, FlatAppUsageLog, Group } from '@/types/AppUser'
 import { StateLog } from '@/types/StateLog'
 import { Programation } from '@/types/Schedules'
@@ -136,7 +136,7 @@ export default function Page() {
               <SelectContent>
                 {computers.map(computer => (
                   <SelectItem key={computer.id} value={`${computer.id}`}>
-                    {machineLabel(computer)}
+                    {machineDisplayName(computer)}
                   </SelectItem>
                 ))}
               </SelectContent>
