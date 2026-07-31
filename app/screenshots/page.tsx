@@ -7,7 +7,7 @@ import { getGroups, getGroupVisibility } from '../app/groups/actions'
 import { getRawAppUsageLogs } from '../time/actions'
 import ReportScreenshotsList from '@/components/UserReporting/ReportScreenshots'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../_components/_ui/select'
-import { Machine, machineLabel } from '@/types/Machine'
+import { Machine, machineDisplayName } from '@/types/Machine'
 import { AppUser, Group } from '@/types/AppUser'
 import { Input } from '../_components/_ui/input'
 import { UserSelect } from '@/components/UserSelect'
@@ -176,7 +176,7 @@ export default function Page() {
           <SelectContent>
             {machines.map(m => (
               <SelectItem key={m.serial_number} value={m.serial_number}>
-                {machineLabel(m)}
+                {machineDisplayName(m)}
               </SelectItem>
             ))}
           </SelectContent>

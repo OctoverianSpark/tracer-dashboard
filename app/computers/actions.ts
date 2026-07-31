@@ -111,3 +111,15 @@ export const setTakeScreenshots = async (serial: string, enabled: boolean) => {
   revalidatePath('/computers/dashboard')
   return data
 }
+
+export const setNickname = async (serial: string, nickname: string | null) => {
+  const res = await fetch(`${API_URL}/machines/${serial}/nickname`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nickname }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || `Error ${res.status}`)
+  revalidatePath('/computers/dashboard')
+  return data
+}

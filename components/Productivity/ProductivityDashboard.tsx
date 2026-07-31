@@ -5,7 +5,7 @@ import { getDailyProductivity, getGlobalDailyProductivity, getGroupDailyProducti
 import { findAsignedMachines } from '@/app/computers/actions'
 import { DailyProductivity, UserProductivity } from '@/lib/productivity'
 import { AppUser, Group } from '@/types/AppUser'
-import { Machine, machineLabel } from '@/types/Machine'
+import { Machine, machineDisplayName } from '@/types/Machine'
 import { Card } from '@/app/_components/_ui/card'
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
@@ -267,7 +267,7 @@ export default function ProductivityDashboard({ users, groups }: ProductivityDas
                     <SelectContent>
                       <SelectItem value="all">Todos los equipos</SelectItem>
                       {computers.map(c => (
-                        <SelectItem key={c.id} value={String(c.id)}>{machineLabel(c)}</SelectItem>
+                        <SelectItem key={c.id} value={String(c.id)}>{machineDisplayName(c)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

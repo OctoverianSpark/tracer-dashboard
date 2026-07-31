@@ -13,6 +13,7 @@ export type Machine = {
   appuser_id: string;
   machineBrand?: string;
   machineModel?: string;
+  nickname?: string | null;
   take_screenshots?: boolean;
 }
 
@@ -23,6 +24,13 @@ export function machineLabel(m: Machine): string {
   if (brand) return brand
   if (model) return model
   return m.hostname
+}
+
+// Identificador con prioridad al apodo — usar donde hay que distinguir equipos a simple vista
+// (selects de "elegir equipo" cuando un usuario tiene varios, tarjetas). machineLabel() se deja
+// intacto porque también se usa en columnas que específicamente muestran marca/modelo.
+export function machineDisplayName(m: Machine): string {
+  return m.nickname?.trim() || machineLabel(m)
 }
 
 // Respuesta de las acciones sobre /machines/:serial/*. Con un serial concreto viene solo `ok`;

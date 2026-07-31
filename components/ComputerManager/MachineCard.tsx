@@ -32,8 +32,10 @@ export default function MachineCard({ machine, appuser, onDelete }: CardMachineP
         <div className='flex items-center gap-2 min-w-0'>
           <Monitor className='size-4 text-muted-foreground shrink-0' />
           <div className='min-w-0'>
-            <span className='font-medium text-sm truncate block'>{machine.hostname}</span>
-            <p className='text-[11px] text-muted-foreground leading-none mt-0.5 truncate'>{machineLabel(machine)}</p>
+            <span className='font-medium text-sm truncate block'>{machine.nickname || machine.hostname}</span>
+            <p className='text-[11px] text-muted-foreground leading-none mt-0.5 truncate'>
+              {machine.nickname ? machine.hostname : machineLabel(machine)}
+            </p>
           </div>
         </div>
 

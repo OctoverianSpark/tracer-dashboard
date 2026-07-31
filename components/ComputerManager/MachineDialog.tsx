@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Button } from '@/app/_components/_ui/button'
 import { Badge } from '@/app/_components/_ui/badge'
 import { Switch } from '@/app/_components/_ui/switch'
+import { Input } from '@/app/_components/_ui/input'
 import {
   Dialog,
   DialogContent,
@@ -12,7 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/app/_components/_ui/dialog'
-import { getIPInfo, lockMachine, restartMachine, shutdownMachine, sendFileToMachine, sendNotice, setTakeScreenshots, syncMachine } from '@/app/computers/actions'
+import { getIPInfo, lockMachine, restartMachine, shutdownMachine, sendFileToMachine, sendNotice, setTakeScreenshots, setNickname, syncMachine } from '@/app/computers/actions'
 import { Machine, machineLabel } from '@/types/Machine'
 import MachineActions from './MachineActions'
 
@@ -43,10 +44,28 @@ export default function MachineDialog({ machine }: MachineDialogProps) {
   const [ip, setIp]     = useState<Record<string, string>>()
   const [screenshotsEnabled, setScreenshotsEnabled] = useState(machine.take_screenshots !== false)
   const [updatingScreenshots, setUpdatingScreenshots] = useState(false)
+  const [nickname, setNicknameValue] = useState(machine.nickname ?? '')
+  const [savingNickname, setSavingNickname] = useState(false)
 
   const online = machine.alive || machine.isAlive
 
   useEffect(() => { setScreenshotsEnabled(machine.take_screenshots !== false) }, [machine.take_screenshots])
+  useEffect(() => { setNicknameValue(machine.nickname ?? '') }, [machine.nickname])
+
+  const handleSaveNickname = async () => {
+    const trimmed = nickname.trim()
+    if (trimmed === (machine.nickname ?? '')) return
+    setSavingNickname(true)
+    try {
+      await setNickname(machine.serial_number, trimmed || null)
+      toast.success('Apodo actualizado')
+    } catch (e) {
+      setNicknameValue(machine.nickname ?? '')
+      toast.error(e instanceof Error ? e.message : 'Error al actualizar el apodo')
+    } finally {
+      setSavingNickname(false)
+    }
+  }
 
   const handleToggleScreenshots = async (enabled: boolean) => {
     setUpdatingScreenshots(true)
@@ -99,9 +118,9 @@ export default function MachineDialog({ machine }: MachineDialogProps) {
         <DialogHeader>
           <div className='flex items-start justify-between gap-3'>
             <div className='flex-1 min-w-0'>
-              <DialogTitle className='text-lg leading-tight'>{machine.hostname}</DialogTitle>
+              <DialogTitle className='text-lg leading-tight'>{machine.nickname || machine.hostname}</DialogTitle>
               <p className='text-sm text-muted-foreground mt-0.5'>
-                {machineLabel(machine)}
+                {machine.nickname ? machine.hostname : machineLabel(machine)}
                 {' · '}
                 <span className='font-mono text-xs'>{machine.serial_number}</span>
               </p>
@@ -117,6 +136,19 @@ export default function MachineDialog({ machine }: MachineDialogProps) {
             )}
           </div>
         </DialogHeader>
+
+        {/* Apodo */}
+        <div className='flex items-center gap-2'>
+          <Input
+            placeholder='Apodo (opcional)'
+            value={nickname}
+            disabled={savingNickname}
+            onChange={e => setNicknameValue(e.target.value)}
+            onBlur={handleSaveNickname}
+            onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+            className='h-8 text-sm'
+          />
+        </div>
 
         {/* Actions row */}
         <div className='flex items-center border rounded-lg px-3 py-2 bg-muted/30'>

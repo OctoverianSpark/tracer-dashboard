@@ -34,6 +34,7 @@ function exportXLSX(machines: Machine[], appusers: AppUser[], groups: Group[]) {
     const appuser = appusers.find(u => String(u.id) === String(m.appuser_id))
     const group   = groups.find(g => g.id === appuser?.group_id)
     return {
+      'Apodo':           m.nickname || '',
       'Hostname':        m.hostname,
       'Marca/Modelo':    machineLabel(m),
       'Estado':          (m.alive || m.isAlive) ? 'Online' : 'Offline',
@@ -47,7 +48,7 @@ function exportXLSX(machines: Machine[], appusers: AppUser[], groups: Group[]) {
     }
   })
   const ws = XLSX.utils.json_to_sheet(rows)
-  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: 9 } }) }
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: 10 } }) }
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Equipos')
   XLSX.writeFile(wb, `equipos_${new Date().toISOString().slice(0, 10)}.xlsx`)
@@ -61,6 +62,7 @@ export default function MachineList({ machines, appusers, groups }: MachineListP
 
   const filtered = useMemo(() => machines.filter(m =>
     m.hostname.toLowerCase().includes(search.toLowerCase()) ||
+    m.nickname?.toLowerCase().includes(search.toLowerCase()) ||
     machineLabel(m).toLowerCase().includes(search.toLowerCase()) ||
     m.username?.toLowerCase().includes(search.toLowerCase()) ||
     m.displayName?.toLowerCase().includes(search.toLowerCase()) ||
@@ -103,7 +105,7 @@ export default function MachineList({ machines, appusers, groups }: MachineListP
         <div className="relative flex-1 min-w-50">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
           <Input
-            placeholder="Buscar hostname, marca, usuario, IP..."
+            placeholder="Buscar apodo, hostname, marca, usuario, IP..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-8 h-8 text-sm"
@@ -169,6 +171,7 @@ export default function MachineList({ machines, appusers, groups }: MachineListP
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Apodo</TableHead>
                   <TableHead>Hostname</TableHead>
                   <TableHead>Marca / Modelo</TableHead>
                   <TableHead>Estado</TableHead>
@@ -184,6 +187,7 @@ export default function MachineList({ machines, appusers, groups }: MachineListP
                   const online = m.alive || m.isAlive
                   return (
                     <TableRow key={m.serial_number} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
+                      <TableCell className="text-sm">{m.nickname || '—'}</TableCell>
                       <TableCell className="font-medium">{m.hostname}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">{machineLabel(m) || '—'}</TableCell>
                       <TableCell>
