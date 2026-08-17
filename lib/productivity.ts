@@ -250,12 +250,18 @@ interface UserDayStats {
   // distingue de overtimeSeconds>0 sin esa marca, que puede ser una desconexión tardía en vez de
   // trabajo real.
   overtimeConfirmed: boolean
+  // false = no hay schedule/rotación real para este usuario+día, se usó DEFAULT_PROGRAMATION
+  // (08:00-18:00) como referencia. Cumplimiento/Productividad ya toleran esa aproximación, pero
+  // Horas Extra la compara contra una hora de salida que puede no tener nada que ver con el
+  // horario real de la persona — cualquier trabajo normal después de las 18:00 se vería como
+  // "hora extra" sin serlo. Ver computeOvertimeRange/UserOvertime.usesDefaultSchedule.
+  hasRealSchedule: boolean
 }
 
 const EMPTY_DAY_STATS: UserDayStats = {
   scheduledMinutes: 0, productive: 0, unproductive: 0, neutral: 0, total: 0,
   appUsage: new Map(),
-  overtimeSeconds: 0, overtimeConfirmed: false,
+  overtimeSeconds: 0, overtimeConfirmed: false, hasRealSchedule: false,
 }
 
 // Un día puntual para un usuario. Productivo/No productivo/Productividad salen enteramente de los
@@ -299,7 +305,7 @@ function computeUserDayStats(
   // y puede tener datos (Productivo/No productivo/Productividad, todo de malla) aunque ese día no
   // haya intervalos de uso de apps (solo se pierde el desglose informativo de "Ver apps").
   if (!dayIntervals.length && !dayActiveWindows.length && !dayIdleWindows.length && !dayOfflineWindows.length && !dayNeutralWindows.length) {
-    return { ...EMPTY_DAY_STATS, programation, scheduledMinutes }
+    return { ...EMPTY_DAY_STATS, programation, scheduledMinutes, hasRealSchedule: resolved != null }
   }
 
   // Conversión real Bogotá→UTC (ver lib/bogotaTime.ts) — los timestamps que devuelve la API son
@@ -396,21 +402,26 @@ function computeUserDayStats(
     }
   }
 
-  // Horas extra: última evidencia real de telemetría vs. la hora de salida PROGRAMADA (no
-  // dayWinEnd, que useFullDay ya amplió al día completo y dejó de servir como referencia de
-  // "hora de salida"). Margen de gracia de 5 min — igual al que ya usa TimerService.cs en el
-  // agente para llegadas tarde — para no contar como "hora extra" una desconexión normal justo
-  // al filo del horario.
+  // Horas extra: última vez que la persona estuvo REALMENTE en 'Trabajando'/'Tiempo extra' ese
+  // día (fin de la última ventana activa), NO lastEvidenceMs — ese es cualquier log, incluyendo
+  // Inactivo/Desconectado, y un equipo que queda encendido e inactivo hasta medianoche no
+  // significa que la persona trabajó hasta medianoche. Se compara contra la hora de salida
+  // PROGRAMADA (no dayWinEnd, que useFullDay ya amplió al día completo). Margen de gracia de
+  // 5 min — igual al que ya usa TimerService.cs en el agente para llegadas tarde — para no
+  // contar como "hora extra" una desconexión normal justo al filo del horario.
   const OVERTIME_GRACE_MS = 5 * 60 * 1000
   const scheduledEndMs = Math.min(bogotaToMs(date, programation.end_day || '23:00'), dayNowMs)
-  const lastActivityMs = Math.min(lastEvidenceMs, dayNowMs)
+  const lastActiveEndMs = closedActiveWindows.length > 0
+    ? Math.max(...closedActiveWindows.map(w => w.end))
+    : dayWinStart
+  const lastActivityMs = Math.min(lastActiveEndMs, dayNowMs)
   const overtimeSeconds = lastActivityMs > scheduledEndMs + OVERTIME_GRACE_MS
     ? Math.round((lastActivityMs - scheduledEndMs) / 1000)
     : 0
 
   return {
     programation, scheduledMinutes, productive, unproductive, neutral, total, appUsage,
-    overtimeSeconds, overtimeConfirmed: hasOvertimeLog,
+    overtimeSeconds, overtimeConfirmed: hasOvertimeLog, hasRealSchedule,
   }
 }
 
@@ -546,6 +557,13 @@ export interface UserOvertime {
   detectedSeconds: number
   totalSeconds: number
   daysWithOvertime: number
+  // true si NINGÚN día con horas extra en el rango tuvo un horario/rotación real asignado —
+  // el "confirmedSeconds"/"detectedSeconds" de esta fila están comparados contra
+  // DEFAULT_PROGRAMATION (08:00-18:00), que puede no parecerse en nada al horario real de la
+  // persona. No descartar sin más, pero tratar como no confiable hasta que tenga un horario
+  // asignado (ver [[productivity_global_formula_redesign]] — mismo problema de fondo, esta vez
+  // en Horas Extra en vez de Cumplimiento).
+  usesDefaultSchedule: boolean
 }
 
 /**
@@ -567,6 +585,7 @@ export async function computeOvertimeRange(
     const userMachines = machinesByUser.get(userId) ?? []
 
     let confirmedSeconds = 0, detectedSeconds = 0, daysWithOvertime = 0
+    let sawRealScheduleOnOvertimeDay = false
     let lastProgramation: Programation | undefined
 
     for (const date of dates) {
@@ -579,6 +598,7 @@ export async function computeOvertimeRange(
       if (day.overtimeSeconds <= 0) continue
 
       daysWithOvertime++
+      if (day.hasRealSchedule) sawRealScheduleOnOvertimeDay = true
       if (day.overtimeConfirmed) confirmedSeconds += day.overtimeSeconds
       else detectedSeconds += day.overtimeSeconds
     }
@@ -589,6 +609,7 @@ export async function computeOvertimeRange(
       detectedSeconds: Math.round(detectedSeconds),
       totalSeconds: Math.round(confirmedSeconds + detectedSeconds),
       daysWithOvertime,
+      usesDefaultSchedule: daysWithOvertime > 0 && !sawRealScheduleOnOvertimeDay,
     }
   })
 }

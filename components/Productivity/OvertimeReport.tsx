@@ -14,8 +14,9 @@ import { UserSelect } from '@/components/UserSelect'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/app/_components/_ui/table'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/app/_components/_ui/tooltip'
 import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
-import { Loader2, Download, X } from 'lucide-react'
+import { Loader2, Download, X, TriangleAlert } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
 const today = () => {
@@ -45,10 +46,11 @@ function exportXLSX(rows: UserOvertime[], groups: Group[], dateFrom: string, dat
 
   const sorted = [...rows].sort((a, b) => b.totalSeconds - a.totalSeconds)
 
-  const HEADERS = ['Grupo', 'Usuario', 'Salida programada', 'Días con horas extra', 'Confirmado (min)', 'Detectado (min)', 'Total (min)']
+  const HEADERS = ['Grupo', 'Usuario', 'Salida programada', 'Horario real', 'Días con horas extra', 'Confirmado (min)', 'Detectado (min)', 'Total (min)']
   const toRow = (d: UserOvertime) => [
     groupName(d), d.user.full_name,
     d.programation?.end_day ?? '—',
+    d.usesDefaultSchedule ? 'No — usa horario genérico 08:00-18:00' : 'Sí',
     d.daysWithOvertime,
     Math.round(d.confirmedSeconds / 60),
     Math.round(d.detectedSeconds / 60),
@@ -57,7 +59,7 @@ function exportXLSX(rows: UserOvertime[], groups: Group[], dateFrom: string, dat
 
   const ws = XLSX.utils.aoa_to_sheet([HEADERS, ...sorted.map(toRow)])
   ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { c: 0, r: 0 }, e: { c: HEADERS.length - 1, r: sorted.length } }) }
-  ws['!cols'] = [{ wch: 22 }, { wch: 32 }, ...Array(5).fill({ wch: 18 })]
+  ws['!cols'] = [{ wch: 22 }, { wch: 32 }, { wch: 18 }, { wch: 32 }, ...Array(4).fill({ wch: 18 })]
 
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Horas extra')
@@ -70,6 +72,10 @@ export default function OvertimeReport() {
   const [dateTo, setDateTo]     = useState(today())
   const [userId, setUserId]     = useState('')
   const [soloConHoras, setSoloConHoras] = useState(true)
+  // Por defecto se ocultan las filas sin horario real: su "salida programada" es el fallback
+  // genérico (08:00-18:00) de lib/productivity.ts, así que cualquier jornada normal más larga se
+  // ve como "hora extra" sin serlo. Se pueden mostrar igual, pero con advertencia visible.
+  const [excluirSinHorario, setExcluirSinHorario] = useState(true)
   const [data, setData]         = useState<UserOvertime[] | null>(null)
   const [groups, setGroups]     = useState<Group[]>([])
   const [users, setUsers]       = useState<AppUser[]>([])
@@ -96,12 +102,15 @@ export default function OvertimeReport() {
 
   const filtered = (data ?? [])
     .filter(d => !soloConHoras || d.totalSeconds > 0)
+    .filter(d => !excluirSinHorario || !d.usesDefaultSchedule)
     .sort((a, b) => b.totalSeconds - a.totalSeconds)
 
   const withOvertime = (data ?? []).filter(d => d.totalSeconds > 0)
-  const totalSeconds = withOvertime.reduce((s, d) => s + d.totalSeconds, 0)
-  const avgSeconds = withOvertime.length > 0 ? Math.round(totalSeconds / withOvertime.length) : 0
-  const detectedOnlyCount = withOvertime.filter(d => d.confirmedSeconds === 0).length
+  const reliable = withOvertime.filter(d => !d.usesDefaultSchedule)
+  const unreliableCount = withOvertime.length - reliable.length
+  const totalSeconds = reliable.reduce((s, d) => s + d.totalSeconds, 0)
+  const avgSeconds = reliable.length > 0 ? Math.round(totalSeconds / reliable.length) : 0
+  const detectedOnlyCount = reliable.filter(d => d.confirmedSeconds === 0).length
 
   const bodyRef = useRef<HTMLTableSectionElement>(null)
   useStaggerChildren(bodyRef, { deps: [filtered.map(d => d.user.id).join(',')] })
@@ -141,6 +150,10 @@ export default function OvertimeReport() {
           <Switch id='solo-con-horas' checked={soloConHoras} onCheckedChange={setSoloConHoras} />
           <Label htmlFor='solo-con-horas' className='cursor-pointer'>Solo con horas extra</Label>
         </div>
+        <div className='flex items-center gap-2 pb-0.5'>
+          <Switch id='excluir-sin-horario' checked={excluirSinHorario} onCheckedChange={setExcluirSinHorario} />
+          <Label htmlFor='excluir-sin-horario' className='cursor-pointer'>Excluir sin horario real</Label>
+        </div>
         <Button onClick={load} disabled={loading || rangeInvalid}>
           {loading ? <><Loader2 className='h-4 w-4 animate-spin mr-2' />Cargando…</> : 'Generar reporte'}
         </Button>
@@ -156,7 +169,7 @@ export default function OvertimeReport() {
       )}
 
       {/* Leyenda */}
-      <div className='grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-muted-foreground border rounded-md p-3'>
+      <div className='grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground border rounded-md p-3'>
         <span>
           <span className='font-semibold text-foreground'>Confirmado</span>
           {' '}= la persona marcó &quot;Horas Extras&quot; en el agente antes de quedarse
@@ -166,6 +179,11 @@ export default function OvertimeReport() {
           {' '}= siguió activa después de su salida programada, sin marcar el estado — revisar antes de cargar
         </span>
         <span>Margen de gracia: 5 min después de la hora de salida programada.</span>
+        <span className='flex items-center gap-1'>
+          <TriangleAlert className='h-3.5 w-3.5 text-yellow-600 shrink-0' />
+          <span className='font-semibold text-foreground'>Sin horario real</span>
+          {' '}= no tiene horario asignado, se comparó contra un horario genérico (08:00-18:00) — no confiable
+        </span>
       </div>
 
       {/* Estados vacíos */}
@@ -176,30 +194,43 @@ export default function OvertimeReport() {
       )}
       {data !== null && filtered.length === 0 && (
         <p className='text-center text-sm text-muted-foreground py-10'>
-          {soloConHoras ? 'Nadie registró horas extra en ese rango.' : 'No hay datos para mostrar.'}
+          {soloConHoras ? 'Nadie registró horas extra confiables en ese rango.' : 'No hay datos para mostrar.'}
         </p>
       )}
 
-      {/* Resumen */}
+      {/* Resumen — calculado SOLO sobre personas con horario real; ver aviso aparte para las que no */}
       {withOvertime.length > 0 && (
-        <div className='flex flex-wrap gap-4 border rounded-md p-3'>
-          <div className='flex flex-col gap-0.5'>
-            <span className='text-xs text-muted-foreground'>Horas extra totales</span>
-            <span className='text-lg font-semibold'>{fmtSecs(totalSeconds)}</span>
+        <>
+          <div className='flex flex-wrap gap-4 border rounded-md p-3'>
+            <div className='flex flex-col gap-0.5'>
+              <span className='text-xs text-muted-foreground'>Horas extra totales</span>
+              <span className='text-lg font-semibold'>{fmtSecs(totalSeconds)}</span>
+            </div>
+            <div className='flex flex-col gap-0.5'>
+              <span className='text-xs text-muted-foreground'>Personas con horas extra</span>
+              <span className='text-lg font-semibold'>{reliable.length} <span className='text-sm font-normal text-muted-foreground'>/ {(data ?? []).length}</span></span>
+            </div>
+            <div className='flex flex-col gap-0.5'>
+              <span className='text-xs text-muted-foreground'>Promedio por persona</span>
+              <span className='text-lg font-semibold'>{fmtSecs(avgSeconds)}</span>
+            </div>
+            <div className='flex flex-col gap-0.5'>
+              <span className='text-xs text-muted-foreground'>Sin confirmar en el agente</span>
+              <span className='text-lg font-semibold text-yellow-600'>{detectedOnlyCount} <span className='text-sm font-normal text-muted-foreground'>/ {reliable.length}</span></span>
+            </div>
           </div>
-          <div className='flex flex-col gap-0.5'>
-            <span className='text-xs text-muted-foreground'>Personas con horas extra</span>
-            <span className='text-lg font-semibold'>{withOvertime.length} <span className='text-sm font-normal text-muted-foreground'>/ {(data ?? []).length}</span></span>
-          </div>
-          <div className='flex flex-col gap-0.5'>
-            <span className='text-xs text-muted-foreground'>Promedio por persona</span>
-            <span className='text-lg font-semibold'>{fmtSecs(avgSeconds)}</span>
-          </div>
-          <div className='flex flex-col gap-0.5'>
-            <span className='text-xs text-muted-foreground'>Sin confirmar en el agente</span>
-            <span className='text-lg font-semibold text-yellow-600'>{detectedOnlyCount} <span className='text-sm font-normal text-muted-foreground'>/ {withOvertime.length}</span></span>
-          </div>
-        </div>
+          {unreliableCount > 0 && (
+            <div className='flex items-center gap-2 text-xs text-yellow-700 dark:text-yellow-500 bg-yellow-500/10 border border-yellow-500/30 rounded-md p-3'>
+              <TriangleAlert className='h-4 w-4 shrink-0' />
+              <span>
+                {unreliableCount} persona(s) más muestran actividad después de las 18:00 pero no
+                tienen horario asignado — no se cuentan arriba porque no son horas extra
+                confiables, solo reflejan un horario real distinto al genérico.
+                {excluirSinHorario ? ' Desactiva "Excluir sin horario real" para verlas.' : ''}
+              </span>
+            </div>
+          )}
+        </>
       )}
 
       {/* Tabla */}
@@ -219,8 +250,27 @@ export default function OvertimeReport() {
             </TableHeader>
             <TableBody ref={bodyRef}>
               {filtered.map(d => (
-                <TableRow key={d.user.id ?? d.user.full_name} data-stagger-item style={STAGGER_ITEM_INITIAL_STYLE}>
-                  <TableCell className='font-medium whitespace-nowrap'>{d.user.full_name}</TableCell>
+                <TableRow
+                  key={d.user.id ?? d.user.full_name}
+                  data-stagger-item
+                  style={STAGGER_ITEM_INITIAL_STYLE}
+                  className={d.usesDefaultSchedule ? 'bg-yellow-500/5' : ''}
+                >
+                  <TableCell className='font-medium whitespace-nowrap'>
+                    <div className='flex items-center gap-1.5'>
+                      {d.user.full_name}
+                      {d.usesDefaultSchedule && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <TriangleAlert className='h-3.5 w-3.5 text-yellow-600 shrink-0 cursor-default' />
+                          </TooltipTrigger>
+                          <TooltipContent side='top' className='max-w-xs text-center'>
+                            Sin horario asignado — comparado contra el horario genérico (08:00-18:00), no confiable
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className='text-right text-muted-foreground text-sm'>
                     {d.programation?.end_day ?? '—'}
                   </TableCell>
