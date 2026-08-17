@@ -11,6 +11,7 @@ import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
 import { Switch } from '@/app/_components/_ui/switch'
 import { UserSelect } from '@/components/UserSelect'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/app/_components/_ui/table'
@@ -157,6 +158,7 @@ export default function ProductivityReport() {
   const [dateFrom, setDateFrom]     = useState(today())
   const [dateTo, setDateTo]         = useState(today())
   const [userId, setUserId]         = useState('')
+  const [groupId, setGroupId]       = useState('')
   const [minPercent, setMinPercent] = useState(0)
   const [soloActivos, setSoloActivos] = useState(true)
   const [data, setData]             = useState<UserProductivity[] | null>(null)
@@ -167,6 +169,7 @@ export default function ProductivityReport() {
   const rangeInvalid = dateTo < dateFrom
 
   useEffect(() => { getappuser().then(setUsers) }, [])
+  useEffect(() => { getGroups().then(setGroups) }, [])
 
   const load = async () => {
     if (rangeInvalid) return
@@ -186,6 +189,7 @@ export default function ProductivityReport() {
   const filtered = (data ?? [])
     .filter(d => !soloActivos || d.totalSeconds > 0)
     .filter(d => d.overallProductivityPercent >= minPercent)
+    .filter(d => !groupId || d.user.group_id === Number(groupId))
     .sort((a, b) => b.overallProductivityPercent - a.overallProductivityPercent)
 
   const bodyRef = useRef<HTMLTableSectionElement>(null)
@@ -217,6 +221,26 @@ export default function ProductivityReport() {
             <UserSelect users={users} value={userId} onValueChange={setUserId} placeholder='Todos los usuarios' />
             {userId && (
               <Button type='button' variant='ghost' size='icon-sm' className='shrink-0 cursor-pointer' onClick={() => setUserId('')}>
+                <X className='h-4 w-4' />
+              </Button>
+            )}
+          </div>
+        </div>
+        <div className='grid gap-1.5 w-full sm:w-48'>
+          <Label>Grupo</Label>
+          <div className='flex items-center gap-1'>
+            <Select value={groupId} onValueChange={setGroupId}>
+              <SelectTrigger className='w-full'>
+                <SelectValue placeholder='Todos los grupos' />
+              </SelectTrigger>
+              <SelectContent>
+                {groups.map(g => (
+                  <SelectItem key={g.id} value={`${g.id}`}>{g.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {groupId && (
+              <Button type='button' variant='ghost' size='icon-sm' className='shrink-0 cursor-pointer' onClick={() => setGroupId('')}>
                 <X className='h-4 w-4' />
               </Button>
             )}

@@ -11,6 +11,7 @@ import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
 import { Switch } from '@/app/_components/_ui/switch'
 import { UserSelect } from '@/components/UserSelect'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/app/_components/_ui/table'
@@ -71,6 +72,7 @@ export default function OvertimeReport() {
   const [dateFrom, setDateFrom] = useState(today())
   const [dateTo, setDateTo]     = useState(today())
   const [userId, setUserId]     = useState('')
+  const [groupId, setGroupId]   = useState('')
   const [soloConHoras, setSoloConHoras] = useState(true)
   // Por defecto se ocultan las filas sin horario real: su "salida programada" es el fallback
   // genérico (08:00-18:00) de lib/productivity.ts, así que cualquier jornada normal más larga se
@@ -84,6 +86,7 @@ export default function OvertimeReport() {
   const rangeInvalid = dateTo < dateFrom
 
   useEffect(() => { getappuser().then(setUsers) }, [])
+  useEffect(() => { getGroups().then(setGroups) }, [])
 
   const load = async () => {
     if (rangeInvalid) return
@@ -103,6 +106,7 @@ export default function OvertimeReport() {
   const filtered = (data ?? [])
     .filter(d => !soloConHoras || d.totalSeconds > 0)
     .filter(d => !excluirSinHorario || !d.usesDefaultSchedule)
+    .filter(d => !groupId || d.user.group_id === Number(groupId))
     .sort((a, b) => b.totalSeconds - a.totalSeconds)
 
   const withOvertime = (data ?? []).filter(d => d.totalSeconds > 0)
@@ -141,6 +145,26 @@ export default function OvertimeReport() {
             <UserSelect users={users} value={userId} onValueChange={setUserId} placeholder='Todos los usuarios' />
             {userId && (
               <Button type='button' variant='ghost' size='icon-sm' className='shrink-0 cursor-pointer' onClick={() => setUserId('')}>
+                <X className='h-4 w-4' />
+              </Button>
+            )}
+          </div>
+        </div>
+        <div className='grid gap-1.5 w-full sm:w-48'>
+          <Label>Grupo</Label>
+          <div className='flex items-center gap-1'>
+            <Select value={groupId} onValueChange={setGroupId}>
+              <SelectTrigger className='w-full'>
+                <SelectValue placeholder='Todos los grupos' />
+              </SelectTrigger>
+              <SelectContent>
+                {groups.map(g => (
+                  <SelectItem key={g.id} value={`${g.id}`}>{g.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {groupId && (
+              <Button type='button' variant='ghost' size='icon-sm' className='shrink-0 cursor-pointer' onClick={() => setGroupId('')}>
                 <X className='h-4 w-4' />
               </Button>
             )}
