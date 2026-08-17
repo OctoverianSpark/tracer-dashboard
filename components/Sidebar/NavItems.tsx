@@ -30,6 +30,7 @@ import {
   ShieldAlert,
   TrendingUp,
   ClipboardCheck,
+  Clock,
 } from 'lucide-react'
 import { join } from 'path'
 import UserForm from '../UserManager/UserForm'
@@ -238,6 +239,14 @@ const PRODUCTIVITY: NavSection = {
       icon: ClipboardCheck,
       url: '/productivity/compliance',
       desc: 'Reporte detallado de cumplimiento y productividad por usuario',
+      perm: 'view_productivity_dashboard'
+    },
+    {
+      title: 'Horas Extra',
+      type: NavTypes.LINK,
+      icon: Clock,
+      url: '/productivity/overtime',
+      desc: 'Actividad detectada después de la hora de salida programada',
       perm: 'view_productivity_dashboard'
     }
   ]

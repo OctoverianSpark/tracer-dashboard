@@ -19,11 +19,18 @@ import { toast } from 'sonner'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
 import { getRoles } from '@/app/app/roles/actions'
 import { getGroups } from '@/app/app/groups/actions'
+import { getProgramations, saveSchedule } from '@/app/time/actions'
+import { Programation } from '@/types/Schedules'
 
 interface AppUserFormProps {
   action: FormActions
   appUser?: AppUser
 }
+
+// Días hábiles a los que se aplica el horario elegido al crear la persona — cubre el caso
+// común (un solo turno de lunes a viernes); turnos con fin de semana o rotativos se siguen
+// ajustando después desde ScheduleAssigner, que ya soporta eso.
+const WEEKDAYS = ['L', 'M', 'X', 'J', 'V']
 
 export default function UserForm({ appUser, action }: AppUserFormProps): JSX.Element {
   const [values, setValues] = useState<AppUser>(
@@ -31,6 +38,8 @@ export default function UserForm({ appUser, action }: AppUserFormProps): JSX.Ele
   )
   const [groups,setGroups] = useState<Group[]>([])
   const [roles,setRoles] = useState<Group[]>([])
+  const [programations, setProgramations] = useState<Programation[]>([])
+  const [programationId, setProgramationId] = useState<number | undefined>()
   const [errors, setErrors] = useState<Partial<Record<keyof AppUser, string>>>({})
   const [open, setOpen] = useState(false)
 
@@ -50,7 +59,21 @@ export default function UserForm({ appUser, action }: AppUserFormProps): JSX.Ele
     if (!validate()) {
       toast.error("Corrige los errores antes de enviar el formulario")
     } else {
-      await saveappuser(values)
+      const saved = await saveappuser(values)
+
+      // Solo al crear: si se eligió un horario, se asigna de una vez en vez de dejarlo para un
+      // segundo paso aparte en ScheduleAssigner.
+      const newAppuserId = saved?.id
+      if (action === FormActions.SAVE && programationId && newAppuserId) {
+        await saveSchedule(
+          WEEKDAYS.map(day_of_week => ({
+            appuser_id: newAppuserId,
+            programation_id: programationId,
+            day_of_week,
+          }))
+        )
+      }
+
       toast.success('Formulario enviado con éxito')
       setErrors({})
       setOpen(false)
@@ -61,8 +84,9 @@ export default function UserForm({ appUser, action }: AppUserFormProps): JSX.Ele
     const getData = async () => {
         getRoles().then(setRoles)
         getGroups().then(setGroups)
-      
-      
+        getProgramations().then(setProgramations)
+
+
     }
     getData()
   },[])
@@ -150,7 +174,25 @@ export default function UserForm({ appUser, action }: AppUserFormProps): JSX.Ele
           </div>
           </div>
 
-
+          {action === FormActions.SAVE && (
+            <div className="grid gap-3">
+              <Label>Horario (opcional)</Label>
+              <Select onValueChange={val => setProgramationId(Number(val))}>
+                <SelectTrigger className='w-full'>
+                  <SelectValue placeholder='Sin asignar por ahora' />
+                </SelectTrigger>
+                <SelectContent>
+                  {programations.map(p => (
+                    <SelectItem key={p.id} value={`${p.id}`}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className='text-xs text-muted-foreground'>
+                Se asigna de lunes a viernes. Para fines de semana o turnos rotativos, ajústalo
+                después desde Horarios.
+              </p>
+            </div>
+          )}
 
         </div>
         <DialogFooter>

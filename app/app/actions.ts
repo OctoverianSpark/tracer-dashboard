@@ -9,13 +9,15 @@ export const getappuser = async (): Promise<AppUser[]> => {
   return appuser
 }
 
-export const saveappuser = async (body: AppUser) => {
-  await fetch(`${API_URL}/appuser${body.id ? `/update/${body.id}` : '/save'}`, {
+export const saveappuser = async (body: AppUser): Promise<AppUser> => {
+  const res = await fetch(`${API_URL}/appuser${body.id ? `/update/${body.id}` : '/save'}`, {
     method: body.id ? 'PUT' : 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
+  const data = await res.json()
   revalidatePath('/app/users')
+  return data
 }
 
 export const setUserVacation = async (userId: number, on_vacation: boolean) => {

@@ -242,11 +242,20 @@ interface UserDayStats {
   // Desglose por app dentro de la malla — solo para "Ver apps" (informativo), no alimenta
   // Productivo/No productivo/Productividad, que son 100% de state_logs.
   appUsage: Map<string, UserAppUsage>
+  // Tiempo detectado DESPUÉS de programation.end_day (con margen de gracia, ver
+  // OVERTIME_GRACE_MS) — independiente de useFullDay/dayWinEnd, que se amplían al día completo
+  // y ya no sirven como referencia de "hora de salida programada". Ver computeOvertimeRange.
+  overtimeSeconds: number
+  // true si la persona marcó explícitamente 'Tiempo Extra' (WORK_STATE_CODE.OVERTIME) ese día —
+  // distingue de overtimeSeconds>0 sin esa marca, que puede ser una desconexión tardía en vez de
+  // trabajo real.
+  overtimeConfirmed: boolean
 }
 
 const EMPTY_DAY_STATS: UserDayStats = {
   scheduledMinutes: 0, productive: 0, unproductive: 0, neutral: 0, total: 0,
   appUsage: new Map(),
+  overtimeSeconds: 0, overtimeConfirmed: false,
 }
 
 // Un día puntual para un usuario. Productivo/No productivo/Productividad salen enteramente de los
@@ -387,7 +396,22 @@ function computeUserDayStats(
     }
   }
 
-  return { programation, scheduledMinutes, productive, unproductive, neutral, total, appUsage }
+  // Horas extra: última evidencia real de telemetría vs. la hora de salida PROGRAMADA (no
+  // dayWinEnd, que useFullDay ya amplió al día completo y dejó de servir como referencia de
+  // "hora de salida"). Margen de gracia de 5 min — igual al que ya usa TimerService.cs en el
+  // agente para llegadas tarde — para no contar como "hora extra" una desconexión normal justo
+  // al filo del horario.
+  const OVERTIME_GRACE_MS = 5 * 60 * 1000
+  const scheduledEndMs = Math.min(bogotaToMs(date, programation.end_day || '23:00'), dayNowMs)
+  const lastActivityMs = Math.min(lastEvidenceMs, dayNowMs)
+  const overtimeSeconds = lastActivityMs > scheduledEndMs + OVERTIME_GRACE_MS
+    ? Math.round((lastActivityMs - scheduledEndMs) / 1000)
+    : 0
+
+  return {
+    programation, scheduledMinutes, productive, unproductive, neutral, total, appUsage,
+    overtimeSeconds, overtimeConfirmed: hasOvertimeLog,
+  }
 }
 
 // Prepara todo lo que no depende de un usuario puntual (catálogos, logs de app-usage y de
@@ -507,6 +531,64 @@ export async function computeProductivityRange(
       workCompliancePercent,
       overallProductivityPercent,
       topApps: [...appMap.values()].sort((a, b) => b.seconds - a.seconds).slice(0, 8),
+    }
+  })
+}
+
+export interface UserOvertime {
+  user: AppUser
+  programation?: Programation
+  // Suma de días donde la persona marcó explícitamente 'Tiempo Extra' en el agente.
+  confirmedSeconds: number
+  // Suma de días con actividad detectada después de la salida programada (+ margen de gracia)
+  // SIN esa marca explícita — puede ser tiempo extra real o una desconexión tardía; queda para
+  // que Talento Humano lo revise antes de cargarlo.
+  detectedSeconds: number
+  totalSeconds: number
+  daysWithOvertime: number
+}
+
+/**
+ * Horas extra por usuario acumuladas sobre [dateFrom, dateTo] — reutiliza exactamente la misma
+ * ventana/estado por día que computeProductivityRange (ver overtimeSeconds/overtimeConfirmed en
+ * computeUserDayStats), separando el total en "confirmado" (la persona marcó 'Tiempo Extra') vs
+ * "detectado" (siguió activa después de su salida programada sin marcar nada).
+ */
+export async function computeOvertimeRange(
+  users: AppUser[],
+  dateFrom: string,
+  dateTo: string,
+): Promise<UserOvertime[]> {
+  const { dates, ctx, machinesByUser, logsByMachineByDate, stateByMachineByDate } =
+    await loadRangeContext(users, dateFrom, dateTo)
+
+  return users.map(user => {
+    const userId = Number(user.id)
+    const userMachines = machinesByUser.get(userId) ?? []
+
+    let confirmedSeconds = 0, detectedSeconds = 0, daysWithOvertime = 0
+    let lastProgramation: Programation | undefined
+
+    for (const date of dates) {
+      const day = computeUserDayStats(
+        userId, userMachines, date, ctx,
+        logsByMachineByDate.get(date)!, stateByMachineByDate.get(date)!,
+      )
+      if (day.scheduledMinutes === 0) continue
+      if (day.programation) lastProgramation = day.programation
+      if (day.overtimeSeconds <= 0) continue
+
+      daysWithOvertime++
+      if (day.overtimeConfirmed) confirmedSeconds += day.overtimeSeconds
+      else detectedSeconds += day.overtimeSeconds
+    }
+
+    return {
+      user, programation: lastProgramation,
+      confirmedSeconds: Math.round(confirmedSeconds),
+      detectedSeconds: Math.round(detectedSeconds),
+      totalSeconds: Math.round(confirmedSeconds + detectedSeconds),
+      daysWithOvertime,
     }
   })
 }

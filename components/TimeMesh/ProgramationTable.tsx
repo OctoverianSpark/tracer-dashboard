@@ -13,9 +13,10 @@ import {
 import { useStaggerChildren, STAGGER_ITEM_INITIAL_STYLE } from '@/lib/animation'
 import { Button } from '@/app/_components/_ui/button';
 import { Checkbox } from '@/app/_components/_ui/checkbox';
-import { Trash2, FileDown } from 'lucide-react';
+import { Trash2, FileDown, Pencil } from 'lucide-react';
 import * as XLSX from 'xlsx'
 import { deleteProgramation } from '@/app/time/actions';
+import ProgramationForm from './ProgramationForm';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/app/_components/_ui/alert-dialog';
 import ListToolbar from '@/components/shared/ListToolbar'
 import Paginator from '@/components/ComputerManager/Paginator'
@@ -175,25 +176,35 @@ export default function ProgramationTable({ programations }: Props) {
               />
             </TableCell>
             <TableCell>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button className='text-destructive hover:text-destructive cursor-pointer' variant={'ghost'} size={'icon-sm'}>
-                    <Trash2 />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>¿Eliminar programación?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Se eliminará <strong>{p.name}</strong> permanentemente. Esta acción no se puede deshacer.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => handleDelete(p.id!)}>Eliminar</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <div className='flex items-center gap-1'>
+                <ProgramationForm
+                  programation={p}
+                  trigger={
+                    <Button className='cursor-pointer' variant={'ghost'} size={'icon-sm'}>
+                      <Pencil />
+                    </Button>
+                  }
+                />
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button className='text-destructive hover:text-destructive cursor-pointer' variant={'ghost'} size={'icon-sm'}>
+                      <Trash2 />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Eliminar programación?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Se eliminará <strong>{p.name}</strong> permanentemente. Esta acción no se puede deshacer.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDelete(p.id!)}>Eliminar</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </TableCell>
           </TableRow>
         ))}

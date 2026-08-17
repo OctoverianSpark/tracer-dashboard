@@ -3,9 +3,9 @@ import { Button } from '@/app/_components/_ui/button'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/app/_components/_ui/dialog'
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
-import { saveProgramation } from '@/app/time/actions'
+import { saveProgramation, updateProgramation } from '@/app/time/actions'
 import { Programation } from '@/types/Schedules'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { MallaHoraria, TimeField } from './shared'
 
@@ -13,10 +13,24 @@ const EMPTY_FORM: Programation = {
   name: '', start_day: '', start_lunch: '', end_lunch: '', end_day: ''
 }
 
-export default function ProgramationForm() {
-  const [form, setForm] = useState<Programation>(EMPTY_FORM)
+interface ProgramationFormProps {
+  // Si se pasa, el formulario edita esta plantilla (PUT) en vez de crear una nueva (POST) —
+  // usado por el botón "Editar" de ProgramationTable. Sin esto, se comporta como antes.
+  programation?: Programation
+  trigger?: React.ReactNode
+}
+
+export default function ProgramationForm({ programation, trigger }: ProgramationFormProps) {
+  const isEdit = !!programation
+  const [form, setForm] = useState<Programation>(programation ?? EMPTY_FORM)
   const [errors, setErrors] = useState<Partial<Record<keyof Programation, string>>>({})
   const [open, setOpen] = useState(false)
+
+  // Recarga el form cada vez que se abre en modo edición, por si programation cambió entre
+  // aperturas (ej. otro admin lo editó mientras tanto).
+  useEffect(() => {
+    if (open) setForm(programation ?? EMPTY_FORM)
+  }, [open, programation])
 
   function handleChange(field: keyof Programation, value: string) {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -37,30 +51,36 @@ export default function ProgramationForm() {
   async function saveData() {
     if (!validate()) {
       toast.error('Corrige los errores antes de guardar el horario')
-      
+
     }else{
 
-      await saveProgramation({
+      const data = {
         name:        form.name,
         start_day:   form.start_day,
         start_lunch: form.start_lunch,
         ...(form.end_lunch && { end_lunch: form.end_lunch }),
         ...(form.end_day   && { end_day:   form.end_day }),
-      })
+      }
+
+      if (isEdit) {
+        await updateProgramation(programation!.id!, data)
+      } else {
+        await saveProgramation(data)
+      }
       setForm(EMPTY_FORM)
       setErrors({})
       setOpen(false)
-      toast.success('Horario guardado exitosamente')
+      toast.success(isEdit ? 'Horario actualizado exitosamente' : 'Horario guardado exitosamente')
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Agregar Horario</Button>
+        {trigger ?? <Button>Agregar Horario</Button>}
       </DialogTrigger>
       <DialogContent className="max-w-lg">
-        <DialogTitle>Registrar Malla</DialogTitle>
+        <DialogTitle>{isEdit ? 'Editar Malla' : 'Registrar Malla'}</DialogTitle>
 
         <div className="grid gap-1">
           <Label>Descripcion del horario</Label>
@@ -115,7 +135,7 @@ export default function ProgramationForm() {
           end_day={form.end_day}
         />
 
-        <Button className="w-full" onClick={saveData}>Guardar</Button>
+        <Button className="w-full" onClick={saveData}>{isEdit ? 'Guardar cambios' : 'Guardar'}</Button>
       </DialogContent>
     </Dialog>
   )

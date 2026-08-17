@@ -37,6 +37,15 @@ export const saveProgramation = async (body: Programation) => {
   revalidatePath('/time/control')
 }
 
+export const updateProgramation = async (id: number, body: Omit<Programation, 'id'>) => {
+  await fetch(`${API}/programations/update/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+  revalidatePath('/time/control')
+}
+
 export const getSchedules = async (): Promise<Schedule[]> =>
   fetcher(`${API}/schedules`)
 

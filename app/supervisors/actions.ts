@@ -3,7 +3,7 @@ import { getappuser } from '../app/actions'
 import { getMachines, findAsignedMachines } from '../computers/actions'
 import { getSchedules, getProgramations, getRawAppUsageLogs, getAllRotations } from '../time/actions'
 import { resolveEffectiveProgramation } from '@/lib/scheduleResolver'
-import { computeProductivityRange, type UserProductivity } from '@/lib/productivity'
+import { computeProductivityRange, computeOvertimeRange, type UserProductivity, type UserOvertime } from '@/lib/productivity'
 import { AppUser } from '@/types/AppUser'
 import { Machine } from '@/types/Machine'
 import { Programation } from '@/types/Schedules'
@@ -135,4 +135,15 @@ export const getProductivityReport = async (
   const allUsers = await getappuser()
   const users = appuserId != null ? allUsers.filter(u => Number(u.id) === appuserId) : allUsers
   return computeProductivityRange(users, dateFrom, dateTo)
+}
+
+// Mismo criterio que getProductivityReport — appuserId acota el cálculo a un solo usuario.
+export const getOvertimeReport = async (
+  dateFrom: string,
+  dateTo: string,
+  appuserId?: number,
+): Promise<UserOvertime[]> => {
+  const allUsers = await getappuser()
+  const users = appuserId != null ? allUsers.filter(u => Number(u.id) === appuserId) : allUsers
+  return computeOvertimeRange(users, dateFrom, dateTo)
 }
