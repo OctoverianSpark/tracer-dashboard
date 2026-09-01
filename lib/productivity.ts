@@ -8,7 +8,7 @@ import { Machine } from '@/types/Machine'
 import { Programation, Schedule, RotationData } from '@/types/Schedules'
 import { StateLog } from '@/types/StateLog'
 import { WORK_STATE_CODE } from '@/types/States'
-import { bogotaToMs, bogotaDateOf } from '@/lib/bogotaTime'
+import { bogotaToMs, bogotaDateOf, BOGOTA_OFFSET_MINUTES } from '@/lib/bogotaTime'
 
 const DAY_KEYS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'] as const
 
@@ -320,17 +320,24 @@ function computeUserDayStats(
   // día: sin esa marca no hay forma de distinguir "de verdad se quedó trabajando" de datos
   // ruidosos (ventanas mal cerradas, relojes desincronizados, etc.), así que cualquier estado
   // fuera de la malla simplemente no se cuenta.
+  // Offset del PAÍS del equipo (computers.timezone_offset_minutes, derivado de su IP pública —
+  // ver geoTimezone.service.ts en tracer-ingestor), no un valor fijo de Colombia — un usuario con
+  // varias máquinas usa la primera como referencia (mismo criterio que `primaryMachine` en
+  // computeProductivityRange). Cae a Bogotá si el equipo aún no tiene timezone resuelta (recién
+  // agregado, sin conexión con este código todavía).
+  const machineOffsetMinutes = userMachines[0]?.timezone_offset_minutes ?? BOGOTA_OFFSET_MINUTES
+
   const hasRealSchedule = resolved != null
   const hasOvertimeLog = dayStateLogsFlat.some(sl => sl.state?.code === WORK_STATE_CODE.OVERTIME)
   const useFullDay = hasRealSchedule && hasOvertimeLog
   const dayNowMs = date === ctx.todayStr ? ctx.nowMs : Infinity
   const dayWinStart = useFullDay
-    ? bogotaToMs(date, '00:00:00')
-    : bogotaToMs(date, programation.start_day)
+    ? bogotaToMs(date, '00:00:00', machineOffsetMinutes)
+    : bogotaToMs(date, programation.start_day, machineOffsetMinutes)
   const dayWinEnd = Math.min(
     useFullDay
-      ? bogotaToMs(date, '23:59:59')
-      : bogotaToMs(date, programation.end_day || '23:00'),
+      ? bogotaToMs(date, '23:59:59', machineOffsetMinutes)
+      : bogotaToMs(date, programation.end_day || '23:00', machineOffsetMinutes),
     dayNowMs,
   )
 
@@ -355,8 +362,8 @@ function computeUserDayStats(
   let lunchOverlapSecs = 0
   let lunchClipStart = 0, lunchClipEnd = 0
   if (!skipLunch && programation.start_lunch && programation.end_lunch) {
-    const lunchStart = bogotaToMs(date, programation.start_lunch)
-    const lunchEnd = bogotaToMs(date, programation.end_lunch)
+    const lunchStart = bogotaToMs(date, programation.start_lunch, machineOffsetMinutes)
+    const lunchEnd = bogotaToMs(date, programation.end_lunch, machineOffsetMinutes)
     lunchClipStart = Math.max(dayWinStart, lunchStart)
     lunchClipEnd = Math.min(dayWinEnd, lunchEnd)
     lunchOverlapSecs = Math.max(0, Math.round((lunchClipEnd - lunchClipStart) / 1000))
@@ -410,7 +417,7 @@ function computeUserDayStats(
   // 5 min — igual al que ya usa TimerService.cs en el agente para llegadas tarde — para no
   // contar como "hora extra" una desconexión normal justo al filo del horario.
   const OVERTIME_GRACE_MS = 5 * 60 * 1000
-  const scheduledEndMs = Math.min(bogotaToMs(date, programation.end_day || '23:00'), dayNowMs)
+  const scheduledEndMs = Math.min(bogotaToMs(date, programation.end_day || '23:00', machineOffsetMinutes), dayNowMs)
   const lastActiveEndMs = closedActiveWindows.length > 0
     ? Math.max(...closedActiveWindows.map(w => w.end))
     : dayWinStart
@@ -433,8 +440,12 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
 
   // Los timestamps que devuelve la API son UTC real (ver lib/bogotaTime.ts) — así que "ahora" es
   // directo, sin ningún truco de reinterpretación de dígitos:
-  // - todayStr: fecha de Bogotá, para saber qué día del rango es "hoy" en la zona horaria real
-  //   del negocio, no la del proceso que corre esto.
+  // - todayStr: fecha de Bogotá, para saber qué día del rango es "hoy" — límite conocido: para un
+  //   equipo en OTRA zona horaria, su calendario local (usado al agrupar logs más abajo) puede no
+  //   coincidir con "hoy en Bogotá" justo cerca de medianoche, así que `dayNowMs` en
+  //   computeUserDayStats podría no capar correctamente ese caso puntual. No se generaliza a un
+  //   "todayStr" por equipo porque la inmensa mayoría de la operación es Colombia — se deja como
+  //   limitación conocida en vez de complicar todo el rango de fechas por un caso de borde raro.
   // - nowMs: el instante real, tal cual — comparable 1:1 contra interval_start/interval_end y
   //   state_logs.timestamp porque todos viven en el mismo espacio (UTC real).
   const now = new Date()
@@ -455,16 +466,27 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
   const categoryMap = new Map(categorizationApps.map(a => [a.name.toLowerCase(), a.category]))
   const lunchSkipDates = new Set(lunchSkips.map(ls => `${ls.appuser_id}_${ls.date.slice(0, 10)}`))
 
-  // Agrupar por la fecha CALENDARIO DE BOGOTÁ del timestamp real (bogotaDateOf), no por el
-  // prefijo crudo del string (que es fecha UTC) — un log de las 20:30 Bogotá (01:30 UTC del día
-  // siguiente) debe caer en el día de Bogotá, no en el de UTC, o se pierde/desplaza un día entero.
+  // Offset por equipo (computers.timezone_offset_minutes) para agrupar cada log por SU propia
+  // fecha calendario local, no la de Bogotá para todos — un equipo sin timezone resuelta todavía
+  // cae a Bogotá (ver BOGOTA_OFFSET_MINUTES en lib/bogotaTime.ts).
+  const machineOffsetByCid = new Map<number, number>()
+  for (const machines of machinesByUser.values()) {
+    for (const m of machines) {
+      if (m.id != null) machineOffsetByCid.set(Number(m.id), m.timezone_offset_minutes ?? BOGOTA_OFFSET_MINUTES)
+    }
+  }
+  const offsetForCid = (cid: number) => machineOffsetByCid.get(cid) ?? BOGOTA_OFFSET_MINUTES
+
+  // Agrupar por la fecha CALENDARIO LOCAL del equipo (bogotaDateOf + su offset), no por el
+  // prefijo crudo del string (que es fecha UTC) — un log de las 20:30 locales (01:30 UTC del día
+  // siguiente) debe caer en el día local, no en el de UTC, o se pierde/desplaza un día entero.
   const logsByMachineByDate = new Map<string, Map<number, AppUsageLog[]>>()
   for (const date of dates) logsByMachineByDate.set(date, new Map())
   for (const log of rawLogs) {
-    const date = bogotaDateOf(log.interval_start)
+    const cid = Number(log.computer_id)
+    const date = bogotaDateOf(log.interval_start, offsetForCid(cid))
     const byMachine = logsByMachineByDate.get(date)
     if (!byMachine) continue // fuera del rango pedido, no debería pasar
-    const cid = Number(log.computer_id)
     if (!byMachine.has(cid)) byMachine.set(cid, [])
     byMachine.get(cid)!.push(log)
   }
@@ -472,8 +494,9 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
   const stateByMachineByDate = new Map<string, Map<number, StateLog[]>>()
   for (const date of dates) stateByMachineByDate.set(date, new Map())
   for (const [machineId, logs] of stateByMachine) {
+    const offset = offsetForCid(machineId)
     for (const log of logs) {
-      const date = bogotaDateOf(log.timestamp)
+      const date = bogotaDateOf(log.timestamp, offset)
       const byMachine = stateByMachineByDate.get(date)
       if (!byMachine) continue // fuera del rango pedido
       if (!byMachine.has(machineId)) byMachine.set(machineId, [])

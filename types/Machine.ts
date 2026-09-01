@@ -15,6 +15,10 @@ export type Machine = {
   machineModel?: string;
   nickname?: string | null;
   take_screenshots?: boolean;
+  // Derivada server-side de ip_address (ver wsHub.ts) — null hasta la primera conexión con IP
+  // pública detectada. Usada por lib/productivity.ts para convertir timestamps con la zona
+  // horaria REAL del equipo en vez de asumir Colombia (-05:00) para todos.
+  timezone_offset_minutes?: number | null;
 }
 
 export function machineLabel(m: Machine): string {
