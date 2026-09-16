@@ -190,6 +190,7 @@ export default function ProductivityReport() {
   const [groups, setGroups]         = useState<Group[]>([])
   const [users, setUsers]           = useState<AppUser[]>([])
   const [loading, setLoading]       = useState(false)
+  const [loadError, setLoadError]   = useState<string | null>(null)
 
   const rangeInvalid = dateTo < dateFrom
 
@@ -199,6 +200,7 @@ export default function ProductivityReport() {
   const load = async () => {
     if (rangeInvalid) return
     setLoading(true)
+    setLoadError(null)
     try {
       const [report, grps] = await Promise.all([
         getProductivityReport(dateFrom, dateTo, userId ? Number(userId) : undefined),
@@ -206,6 +208,12 @@ export default function ProductivityReport() {
       ])
       setData(report)
       setGroups(grps)
+    } catch (err) {
+      // El detalle real del error del Server Action solo queda en el log del proceso de Next.js
+      // (no llega al navegador en producción) — acá al menos se ve un mensaje claro en vez de un
+      // rechazo de promesa sin manejar en consola.
+      console.error('[ProductivityReport] error al generar el reporte:', err)
+      setLoadError('No se pudo generar el reporte. Intenta con un rango más corto o vuelve a intentarlo.')
     } finally {
       setLoading(false)
     }
@@ -293,6 +301,9 @@ export default function ProductivityReport() {
           </Button>
         )}
       </div>
+      {loadError && (
+        <p className='text-xs text-destructive'>{loadError}</p>
+      )}
       {rangeInvalid && (
         <p className='text-xs text-destructive'>La fecha &quot;Hasta&quot; no puede ser anterior a &quot;Desde&quot;.</p>
       )}

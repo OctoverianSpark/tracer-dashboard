@@ -493,13 +493,20 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
       getLunchSkips(dateFrom, dateTo),
     ])
 
-  const rawLogs: AppUsageLog[] = detailed
-    ? (await Promise.all(
-        [...machinesByUser.values()].flat()
-          .filter(m => m.id != null)
-          .map(m => getRawAppUsageLogsRange(dateFrom, dateTo, Number(m.id)))
-      )).flat()
-    : await getRawAppUsageLogsSummaryRange(dateFrom, dateTo)
+  // Una llamada POR MÁQUINA (con concurrencia acotada, ver FAN_OUT_CONCURRENCY) en vez de un solo
+  // query de toda la empresa de un tirón — con "Todos los usuarios" en un rango de un mes, un
+  // único query sin acotar por máquina podía devolver millones de filas en una sola respuesta,
+  // suficiente para tumbar el reporte (500 por payload/memoria) aunque cada fila pesara poco sin
+  // el JSON de apps (variante "summary"). Partido en llamadas chicas por máquina, ninguna
+  // respuesta individual crece con el tamaño de la empresa.
+  const machineIds = [...machinesByUser.values()].flat()
+    .filter(m => m.id != null)
+    .map(m => Number(m.id))
+  const rawLogs: AppUsageLog[] = (await mapWithConcurrency(machineIds, FAN_OUT_CONCURRENCY, mid =>
+    detailed
+      ? getRawAppUsageLogsRange(dateFrom, dateTo, mid)
+      : getRawAppUsageLogsSummaryRange(dateFrom, dateTo, mid)
+  )).flat()
 
   const categoryMap = new Map(categorizationApps.map(a => [a.name.toLowerCase(), a.category]))
   const lunchSkipDates = new Set(lunchSkips.map(ls => `${ls.appuser_id}_${ls.date.slice(0, 10)}`))

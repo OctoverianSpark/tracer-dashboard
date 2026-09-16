@@ -213,11 +213,16 @@ export const getRawAppUsageLogsRange = async (dateFrom: string, dateTo: string, 
 // toda la empresa con el desglose completo de apps en un reporte de "Todos los usuarios" en un
 // rango de varios días era el cuello de botella detrás del 504 al generar el reporte de
 // Cumplimiento y Productividad — el desglose real se pide aparte, por usuario, bajo demanda
-// (ver getUserTopApps).
-export const getRawAppUsageLogsSummaryRange = async (dateFrom: string, dateTo: string): Promise<AppUsageLog[]> => {
+// (ver getUserTopApps). computer_id opcional — loadRangeContext SIEMPRE debe pasarlo (una llamada
+// por máquina, con concurrencia acotada, ver FAN_OUT_CONCURRENCY): un solo query sin acotar por
+// máquina para toda la empresa en un rango de un mes podía devolver millones de filas en una sola
+// respuesta — eso seguía tumbando el reporte (500 por payload/memoria) aunque cada fila pesara
+// poco sin el JSON de apps.
+export const getRawAppUsageLogsSummaryRange = async (dateFrom: string, dateTo: string, computer_id?: number): Promise<AppUsageLog[]> => {
   const from = new Date(bogotaToMs(dateFrom, '00:00:00')).toISOString()
   const to   = new Date(bogotaToMs(dateTo, '23:59:59')).toISOString()
   const params = new URLSearchParams({ from, to })
+  if (computer_id != null) params.set('computer_id', String(computer_id))
 
   const raw = await fetcher<any>(`${API}/app-usage-logs/by-date/summary?${params}`)
   const list: AppUsageLog[] = Array.isArray(raw) ? raw : (raw?.data ?? raw?.logs ?? [])
