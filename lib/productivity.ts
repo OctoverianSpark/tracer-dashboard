@@ -170,6 +170,28 @@ function sumWindowSecondsInRange(
   return secs
 }
 
+// Tope de peticiones HTTP simultáneas para los fan-out de abajo (una por usuario, luego una por
+// máquina) — con "Todos los usuarios" eso son cientos de llamadas disparadas a la vez con
+// Promise.all, cada una abriendo su propia conexión Prisma contra la BD. El pool de Prisma por
+// defecto (~ núcleos×2+1, normalmente <20) se agota mucho antes que eso, y las conexiones que no
+// alcanzan a tomar un slot revientan con PrismaClientKnownRequestError P2024 ("Timed out fetching
+// a new connection from the pool") — eso es lo que se veía como 500 al generar el reporte para
+// un rango de un mes con todos los usuarios. Iterar en tandas de este tamaño evita saturar el pool.
+const FAN_OUT_CONCURRENCY = 12
+
+async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let next = 0
+  async function worker() {
+    while (next < items.length) {
+      const i = next++
+      results[i] = await fn(items[i])
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return results
+}
+
 // Máquinas asignadas + state logs por máquina, acotados a [dateFrom, dateTo] cuando se pasan —
 // antes traía el historial COMPLETO de cada máquina en cada carga del reporte (el backend no
 // soportaba rango de fechas), lo que con "Todos los usuarios" en un rango de varios días saturaba
@@ -183,12 +205,10 @@ export const loadMachinesAndStateLogs = async (
   machinesByUser: Map<number, Machine[]>
   stateByMachine: Map<number, StateLog[]>
 }> => {
-  const machinesPerUser = await Promise.all(
-    users.map(u =>
-      findAsignedMachines(Number(u.id))
-        .then(ms => ({ userId: Number(u.id), machines: ms }))
-        .catch(() => ({ userId: Number(u.id), machines: [] as Machine[] }))
-    )
+  const machinesPerUser = await mapWithConcurrency(users, FAN_OUT_CONCURRENCY, u =>
+    findAsignedMachines(Number(u.id))
+      .then(ms => ({ userId: Number(u.id), machines: ms }))
+      .catch(() => ({ userId: Number(u.id), machines: [] as Machine[] }))
   )
   const machinesByUser = new Map(machinesPerUser.map(r => [r.userId, r.machines]))
 
@@ -199,16 +219,14 @@ export const loadMachinesAndStateLogs = async (
     }
   }
 
-  const stateLogResults = await Promise.all(
-    pairs.map(async ({ userId, machine }) => {
-      try {
-        const raw = await getStateLog(userId, Number(machine.id), dateFrom, dateTo)
-        return { machineId: Number(machine.id), logs: Array.isArray(raw) ? raw as StateLog[] : [] }
-      } catch {
-        return { machineId: Number(machine.id), logs: [] as StateLog[] }
-      }
-    })
-  )
+  const stateLogResults = await mapWithConcurrency(pairs, FAN_OUT_CONCURRENCY, async ({ userId, machine }) => {
+    try {
+      const raw = await getStateLog(userId, Number(machine.id), dateFrom, dateTo)
+      return { machineId: Number(machine.id), logs: Array.isArray(raw) ? raw as StateLog[] : [] }
+    } catch {
+      return { machineId: Number(machine.id), logs: [] as StateLog[] }
+    }
+  })
   const stateByMachine = new Map(stateLogResults.map(r => [r.machineId, r.logs]))
 
   return { machinesByUser, stateByMachine }
