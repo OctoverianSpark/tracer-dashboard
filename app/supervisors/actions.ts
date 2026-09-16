@@ -3,7 +3,7 @@ import { getappuser } from '../app/actions'
 import { getMachines, findAsignedMachines } from '../computers/actions'
 import { getSchedules, getProgramations, getRawAppUsageLogs, getAllRotations } from '../time/actions'
 import { resolveEffectiveProgramation } from '@/lib/scheduleResolver'
-import { computeProductivityRange, computeOvertimeRange, type UserProductivity, type UserOvertime } from '@/lib/productivity'
+import { computeProductivityRange, computeOvertimeRange, computeUserTopApps, type UserProductivity, type UserOvertime, type UserAppUsage } from '@/lib/productivity'
 import { AppUser } from '@/types/AppUser'
 import { Machine } from '@/types/Machine'
 import { Programation } from '@/types/Schedules'
@@ -135,6 +135,20 @@ export const getProductivityReport = async (
   const allUsers = await getappuser()
   const users = appuserId != null ? allUsers.filter(u => Number(u.id) === appuserId) : allUsers
   return computeProductivityRange(users, dateFrom, dateTo)
+}
+
+// Desglose de apps de un solo usuario, bajo demanda — getProductivityReport ya NO trae apps para
+// nadie (ver loadRangeContext en lib/productivity.ts), así que "Ver apps" pide esto aparte, por
+// usuario, solo cuando esa fila se despliega en la tabla.
+export const getUserTopApps = async (
+  appuserId: number,
+  dateFrom: string,
+  dateTo: string,
+): Promise<UserAppUsage[]> => {
+  const allUsers = await getappuser()
+  const user = allUsers.find(u => Number(u.id) === appuserId)
+  if (!user) return []
+  return computeUserTopApps(user, dateFrom, dateTo)
 }
 
 // Mismo criterio que getProductivityReport — appuserId acota el cálculo a un solo usuario.

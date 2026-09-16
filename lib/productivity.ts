@@ -1,5 +1,5 @@
 import { findAsignedMachines } from '@/app/computers/actions'
-import { getRawAppUsageLogsRange, getSchedules, getProgramations, getStateLog, getAllRotations } from '@/app/time/actions'
+import { getRawAppUsageLogsRange, getRawAppUsageLogsSummaryRange, getSchedules, getProgramations, getStateLog, getAllRotations } from '@/app/time/actions'
 import { getCategorizationApps } from '@/app/supervisors/categorization-actions'
 import { getLunchSkips } from '@/app/th/actions'
 import { resolveEffectiveProgramation } from '@/lib/scheduleResolver'
@@ -439,7 +439,16 @@ function computeUserDayStats(
 // Prepara todo lo que no depende de un usuario puntual (catálogos, logs de app-usage y de
 // estado agrupados por fecha) — compartido entre computeProductivityRange y
 // computeProductivityDaily para no duplicar los mismos fetches.
-async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: string) {
+//
+// `detailed` controla qué tan pesado es el fetch de app_usage_logs:
+// - false (default, usado por el reporte masivo): variante "summary" — solo timestamps, SIN el
+//   JSON de apps, de TODA la empresa. Alcanza para lastEvidenceMs (cerrar ventanas abiertas de
+//   state_logs); `topApps` sale vacío para todos. Traer el desglose completo de apps de la
+//   empresa entera en un reporte de "Todos los usuarios" en un rango de varios días era el
+//   cuello de botella detrás del 504 al generar Cumplimiento y Productividad.
+// - true (usado solo por computeUserTopApps, un usuario a la vez): logs completos con apps,
+//   acotados a las máquinas de los `users` pedidos — barato porque son pocos usuarios.
+async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: string, detailed = false) {
   const dates = dateRange(dateFrom, dateTo)
 
   // Los timestamps que devuelve la API son UTC real (ver lib/bogotaTime.ts) — así que "ahora" es
@@ -456,16 +465,23 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
   const todayStr = now.toLocaleDateString('sv', { timeZone: 'America/Bogota' })
   const nowMs = now.getTime()
 
-  const [schedules, programations, rawLogs, categorizationApps, rotations, { machinesByUser, stateByMachine }, lunchSkips] =
+  const [schedules, programations, categorizationApps, rotations, { machinesByUser, stateByMachine }, lunchSkips] =
     await Promise.all([
       getSchedules(),
       getProgramations(),
-      getRawAppUsageLogsRange(dateFrom, dateTo),
       getCategorizationApps(),
       getAllRotations(),
       loadMachinesAndStateLogs(users, dateFrom, dateTo),
       getLunchSkips(dateFrom, dateTo),
     ])
+
+  const rawLogs: AppUsageLog[] = detailed
+    ? (await Promise.all(
+        [...machinesByUser.values()].flat()
+          .filter(m => m.id != null)
+          .map(m => getRawAppUsageLogsRange(dateFrom, dateTo, Number(m.id)))
+      )).flat()
+    : await getRawAppUsageLogsSummaryRange(dateFrom, dateTo)
 
   const categoryMap = new Map(categorizationApps.map(a => [a.name.toLowerCase(), a.category]))
   const lunchSkipDates = new Set(lunchSkips.map(ls => `${ls.appuser_id}_${ls.date.slice(0, 10)}`))
@@ -571,6 +587,40 @@ export async function computeProductivityRange(
       topApps: [...appMap.values()].sort((a, b) => b.seconds - a.seconds).slice(0, 8),
     }
   })
+}
+
+/**
+ * Desglose de apps de UN usuario puntual, bajo demanda (ver "Ver apps" en ProductivityReport) —
+ * separado del reporte masivo (computeProductivityRange ya NO trae apps, ver loadRangeContext)
+ * para no pagar el costo de traer el JSON de apps de toda la empresa solo para un acordeón
+ * informativo que la mayoría de las veces no se abre. Mismo criterio de acumulación día a día
+ * que computeProductivityRange, pero con logs completos (detailed=true) acotados a este usuario.
+ */
+export async function computeUserTopApps(
+  user: AppUser,
+  dateFrom: string,
+  dateTo: string,
+): Promise<UserAppUsage[]> {
+  const { dates, ctx, machinesByUser, logsByMachineByDate, stateByMachineByDate } =
+    await loadRangeContext([user], dateFrom, dateTo, true)
+
+  const userId = Number(user.id)
+  const userMachines = machinesByUser.get(userId) ?? []
+  const appMap = new Map<string, UserAppUsage>()
+
+  for (const date of dates) {
+    const day = computeUserDayStats(
+      userId, userMachines, date, ctx,
+      logsByMachineByDate.get(date)!, stateByMachineByDate.get(date)!,
+    )
+    for (const [app, usage] of day.appUsage) {
+      const existing = appMap.get(app)
+      if (existing) existing.seconds += usage.seconds
+      else appMap.set(app, { ...usage })
+    }
+  }
+
+  return [...appMap.values()].sort((a, b) => b.seconds - a.seconds).slice(0, 8)
 }
 
 export interface UserOvertime {

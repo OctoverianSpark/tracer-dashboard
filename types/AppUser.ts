@@ -37,7 +37,9 @@ export interface AppUsageLog {
   computer_id: number
   interval_start: string
   interval_end: string
-  apps: { app: string; seconds: number }[]
+  // Ausente en la variante "summary" (getRawAppUsageLogsSummaryRange) — solo trae timestamps,
+  // sin el JSON de apps, para el camino masivo del reporte de Cumplimiento y Productividad.
+  apps?: { app: string; seconds: number }[]
   mouse_clicks?: number
   keystrokes?: number
   active_seconds?: number

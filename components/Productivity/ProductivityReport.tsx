@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { getProductivityReport } from '@/app/supervisors/actions'
-import { UserProductivity } from '@/lib/productivity'
+import { getProductivityReport, getUserTopApps } from '@/app/supervisors/actions'
+import { UserAppUsage, UserProductivity } from '@/lib/productivity'
 import { getGroups } from '@/app/app/groups/actions'
 import { getappuser } from '@/app/app/actions'
 import { AppUser, Group } from '@/types/AppUser'
@@ -55,28 +55,53 @@ const pctBadge = (pct: number, tip: string) => {
 const categoryDot = (cat: string) =>
   cat === 'productive' ? 'bg-green-500' : cat === 'unproductive' ? 'bg-red-400' : 'bg-muted-foreground/40'
 
-function TopAppsRow({ data }: { data: UserProductivity }) {
-  const [open, setOpen] = useState(false)
-  if (data.topApps.length === 0) return null
+// El reporte masivo ya NO trae apps (ver nota en loadRangeContext, lib/productivity.ts) — traer
+// el desglose de apps de toda la empresa en un reporte de "Todos los usuarios" en un rango de
+// varios días era el cuello de botella detrás del 504 al generar Cumplimiento y Productividad.
+// Acá se pide bajo demanda, un usuario a la vez, solo cuando se despliega su fila.
+function TopAppsRow({ userId, totalSeconds, dateFrom, dateTo }: {
+  userId: number | undefined, totalSeconds: number, dateFrom: string, dateTo: string,
+}) {
+  const [open, setOpen]       = useState(false)
+  const [apps, setApps]       = useState<UserAppUsage[] | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  if (totalSeconds === 0 || userId == null) return null
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next)
+    if (next && apps === null && !loading) {
+      setLoading(true)
+      getUserTopApps(userId, dateFrom, dateTo).then(setApps).finally(() => setLoading(false))
+    }
+  }
 
   return (
     <TableRow className='bg-muted/30 hover:bg-muted/30'>
       <TableCell colSpan={8} className='py-2 px-6'>
-        <Collapsible open={open} onOpenChange={setOpen}>
+        <Collapsible open={open} onOpenChange={handleOpenChange}>
           <CollapsibleTrigger className='flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer'>
             <ChevronDown className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} />
-            Ver apps ({data.topApps.length})
+            Ver apps
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className='flex flex-wrap gap-2 pt-2'>
-              {data.topApps.map(a => (
-                <span key={a.app} className='flex items-center gap-1 text-xs bg-background border rounded px-2 py-0.5'>
-                  <span className={`w-1.5 h-1.5 rounded-full ${categoryDot(a.category)}`} />
-                  {a.app}
-                  <span className='text-muted-foreground ml-1'>{fmtSecs(a.seconds)}</span>
-                </span>
-              ))}
-            </div>
+            {loading ? (
+              <p className='flex items-center gap-1 text-xs text-muted-foreground pt-2'>
+                <Loader2 className='h-3 w-3 animate-spin' />Cargando…
+              </p>
+            ) : apps !== null && apps.length === 0 ? (
+              <p className='text-xs text-muted-foreground pt-2'>Sin apps registradas.</p>
+            ) : (
+              <div className='flex flex-wrap gap-2 pt-2'>
+                {(apps ?? []).map(a => (
+                  <span key={a.app} className='flex items-center gap-1 text-xs bg-background border rounded px-2 py-0.5'>
+                    <span className={`w-1.5 h-1.5 rounded-full ${categoryDot(a.category)}`} />
+                    {a.app}
+                    <span className='text-muted-foreground ml-1'>{fmtSecs(a.seconds)}</span>
+                  </span>
+                ))}
+              </div>
+            )}
           </CollapsibleContent>
         </Collapsible>
       </TableCell>
@@ -376,7 +401,13 @@ export default function ProductivityReport() {
                     {d.neutralSeconds > 0 ? fmtSecs(d.neutralSeconds) : '—'}
                   </TableCell>
                 </TableRow>,
-                <TopAppsRow key={`apps-${d.user.id ?? d.user.full_name}`} data={d} />,
+                <TopAppsRow
+                  key={`apps-${d.user.id ?? d.user.full_name}`}
+                  userId={d.user.id != null ? Number(d.user.id) : undefined}
+                  totalSeconds={d.totalSeconds}
+                  dateFrom={dateFrom}
+                  dateTo={dateTo}
+                />,
               ])}
             </TableBody>
           </Table>

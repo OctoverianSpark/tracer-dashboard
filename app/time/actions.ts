@@ -207,6 +207,41 @@ export const getRawAppUsageLogsRange = async (dateFrom: string, dateTo: string, 
   return filtered
 }
 
+// Igual que getRawAppUsageLogsRange pero sin el JSON `apps` de cada fila (variante "summary" del
+// backend) — para el camino masivo de computeProductivityRange, que solo necesita SABER cuándo
+// hubo actividad de apps (cierra ventanas abiertas de state_logs), no QUÉ apps se usaron. Traer
+// toda la empresa con el desglose completo de apps en un reporte de "Todos los usuarios" en un
+// rango de varios días era el cuello de botella detrás del 504 al generar el reporte de
+// Cumplimiento y Productividad — el desglose real se pide aparte, por usuario, bajo demanda
+// (ver getUserTopApps).
+export const getRawAppUsageLogsSummaryRange = async (dateFrom: string, dateTo: string): Promise<AppUsageLog[]> => {
+  const from = new Date(bogotaToMs(dateFrom, '00:00:00')).toISOString()
+  const to   = new Date(bogotaToMs(dateTo, '23:59:59')).toISOString()
+  const params = new URLSearchParams({ from, to })
+
+  const raw = await fetcher<any>(`${API}/app-usage-logs/by-date/summary?${params}`)
+  const list: AppUsageLog[] = Array.isArray(raw) ? raw : (raw?.data ?? raw?.logs ?? [])
+
+  const normalized = list.map(log => ({
+    ...log,
+    interval_start: log.interval_start?.replace(' ', 'T') ?? log.interval_start,
+    interval_end:   log.interval_end?.replace(' ', 'T')   ?? log.interval_end,
+  }))
+
+  const filtered = normalized.filter(log => {
+    if (log.interval_start == null) return false
+    const day = bogotaDateOf(log.interval_start)
+    return day >= dateFrom && day <= dateTo
+  })
+
+  console.log(
+    `[getRawAppUsageLogsSummaryRange] ${dateFrom} → ${dateTo}`,
+    `| raw=${list.length} → filtered=${filtered.length}`,
+  )
+
+  return filtered
+}
+
 export const getAppUsageLogs = async (date: string, computer_id?: number): Promise<FlatAppUsageLog[]> => {
   const { from, to } = colDayRange(date)
   const params = new URLSearchParams({ from, to })
