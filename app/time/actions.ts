@@ -12,8 +12,16 @@ const fetcher = async <T>(url: string): Promise<T> => {
   return res.json()
 }
 
-export const getStateLog = async (appuser_id: number, computer_id: number) => {
-  const { data } = await fetcher<{ data: any }>(`${API}/tracer/get-state-logs?appuser_id=${appuser_id}&computer_id=${computer_id}`)
+// dateFrom/dateTo opcionales — sin ellos el backend trae el historial COMPLETO de la máquina.
+// computeProductivityRange SIEMPRE debe pasarlos: sin acotar, el fan-out usuarios×máquinas de
+// loadMachinesAndStateLogs terminaba trayendo el historial entero de cada equipo en cada carga
+// del reporte de Cumplimiento y Productividad, sin importar el rango elegido — eso era lo que
+// saturaba el gateway (504) con "Todos los usuarios" en un rango de varios días.
+export const getStateLog = async (appuser_id: number, computer_id: number, dateFrom?: string, dateTo?: string) => {
+  const params = new URLSearchParams({ appuser_id: String(appuser_id), computer_id: String(computer_id) })
+  if (dateFrom) params.set('from', new Date(bogotaToMs(dateFrom, '00:00:00')).toISOString())
+  if (dateTo) params.set('to', new Date(bogotaToMs(dateTo, '23:59:59')).toISOString())
+  const { data } = await fetcher<{ data: any }>(`${API}/tracer/get-state-logs?${params}`)
   return data
 }
 

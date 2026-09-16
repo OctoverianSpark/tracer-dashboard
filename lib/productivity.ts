@@ -170,11 +170,15 @@ function sumWindowSecondsInRange(
   return secs
 }
 
-// Máquinas asignadas + historial COMPLETO de state logs por máquina (sin filtrar por fecha — el
-// backend no soporta rango de fechas para state logs, así que se trae todo una sola vez y cada
-// llamador filtra los días que le interesan a partir de este mismo resultado).
+// Máquinas asignadas + state logs por máquina, acotados a [dateFrom, dateTo] cuando se pasan —
+// antes traía el historial COMPLETO de cada máquina en cada carga del reporte (el backend no
+// soportaba rango de fechas), lo que con "Todos los usuarios" en un rango de varios días saturaba
+// el gateway (504) sin importar qué tan corto fuera el rango pedido. Opcionales por compatibilidad
+// con llamadores que de verdad necesitan el historial completo.
 export const loadMachinesAndStateLogs = async (
-  users: AppUser[]
+  users: AppUser[],
+  dateFrom?: string,
+  dateTo?: string,
 ): Promise<{
   machinesByUser: Map<number, Machine[]>
   stateByMachine: Map<number, StateLog[]>
@@ -198,7 +202,7 @@ export const loadMachinesAndStateLogs = async (
   const stateLogResults = await Promise.all(
     pairs.map(async ({ userId, machine }) => {
       try {
-        const raw = await getStateLog(userId, Number(machine.id))
+        const raw = await getStateLog(userId, Number(machine.id), dateFrom, dateTo)
         return { machineId: Number(machine.id), logs: Array.isArray(raw) ? raw as StateLog[] : [] }
       } catch {
         return { machineId: Number(machine.id), logs: [] as StateLog[] }
@@ -459,7 +463,7 @@ async function loadRangeContext(users: AppUser[], dateFrom: string, dateTo: stri
       getRawAppUsageLogsRange(dateFrom, dateTo),
       getCategorizationApps(),
       getAllRotations(),
-      loadMachinesAndStateLogs(users),
+      loadMachinesAndStateLogs(users, dateFrom, dateTo),
       getLunchSkips(dateFrom, dateTo),
     ])
 

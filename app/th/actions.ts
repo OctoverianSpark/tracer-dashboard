@@ -127,9 +127,7 @@ export const getLateArrivals = async (date: string): Promise<LateArrival[]> => {
     resolveEffectiveProgramation(schedules, rotations, programations, Number(user.id), dayKey, date) != null
   )
 
-  // loadMachinesAndStateLogs ya no filtra por fecha (trae el historial completo por par
-  // usuario-máquina) — se filtra aquí al día pedido, mismo criterio que antes.
-  const { machinesByUser, stateByMachine } = await loadMachinesAndStateLogs(scheduledUsers)
+  const { machinesByUser, stateByMachine } = await loadMachinesAndStateLogs(scheduledUsers, date, date)
 
   return scheduledUsers.map(user => {
     const userId       = Number(user.id)
