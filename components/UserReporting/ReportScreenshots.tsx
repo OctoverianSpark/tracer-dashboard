@@ -192,11 +192,12 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
                 <CardContent className="p-0">
                   <div className="relative">
                     <Image
-                      src={`/api/screenshot/${machineName}/${file}`}
+                      src={`/api/screenshot/${machineName}/${file}?thumb=1`}
+                      unoptimized
                       loading="lazy"
                       alt={parseDate(file)}
-                      width={800}
-                      height={450}
+                      width={400}
+                      height={225}
                       className="w-full object-contain h-36"
                     />
                     <button
@@ -260,6 +261,7 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
             {currentSrc && (
               <Image
                 src={currentSrc}
+                unoptimized
                 loading="eager"
                 decoding="async"
                 alt={currentFile ?? ''}
