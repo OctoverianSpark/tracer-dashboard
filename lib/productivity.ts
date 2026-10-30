@@ -790,3 +790,99 @@ export async function computeProductivityDaily(
     }
   })
 }
+
+export interface DayAttendance {
+  user: AppUser
+  date: string
+  machines: string[]
+  // Horario programado (malla/rotación real o DEFAULT_PROGRAMATION) — ver hasRealSchedule.
+  scheduledStart?: string
+  scheduledEnd?: string
+  hasRealSchedule: boolean
+  // "HH:mm" en la hora LOCAL del equipo (computers.timezone_offset_minutes), null si no hubo
+  // actividad ese día.
+  firstActivity: string | null
+  lastActivity: string | null
+  // Segundos entre firstActivity y lastActivity (presencia, no tiempo productivo).
+  spanSeconds: number
+  // true si la fecha es hoy — la salida es "hasta ahora", el día no ha terminado.
+  inProgress: boolean
+}
+
+const fmtLocalHHmm = (ms: number, offsetMinutes: number) =>
+  new Date(ms + offsetMinutes * 60_000).toISOString().slice(11, 16)
+
+/**
+ * Hora de inicio y de salida por usuario y día sobre [dateFrom, dateTo], para el registro de
+ * entradas/salidas de Talento Humano. Mismos criterios que los reportes existentes, para que los
+ * números cuadren entre sí:
+ * - Inicio: primer state_log que no sea 'Desconectado' — igual que Llegadas tarde (getLateArrivals).
+ * - Salida: fin de la última ventana 'Trabajando'/'Tiempo extra' — igual que lastActivityMs de
+ *   Horas Extra (computeUserDayStats). No el último log a secas: un equipo que queda encendido e
+ *   inactivo hasta medianoche no significa que la persona salió a medianoche.
+ * Se omiten los días sin horario Y sin actividad (fines de semana/días libres sin nada que mostrar).
+ */
+export async function computeAttendanceRange(
+  users: AppUser[],
+  dateFrom: string,
+  dateTo: string,
+): Promise<DayAttendance[]> {
+  const { dates, ctx, machinesByUser, logsByMachineByDate, stateByMachineByDate } =
+    await loadRangeContext(users, dateFrom, dateTo)
+
+  const rows: DayAttendance[] = []
+  for (const user of users) {
+    const userId = Number(user.id)
+    const userMachines = machinesByUser.get(userId) ?? []
+    const machineOffsetMinutes = userMachines[0]?.timezone_offset_minutes ?? BOGOTA_OFFSET_MINUTES
+
+    for (const date of dates) {
+      const dayKey = DAY_KEYS[new Date(`${date}T12:00:00`).getDay()]
+      const resolved = resolveEffectiveProgramation(ctx.schedules, ctx.rotations, ctx.programations, userId, dayKey, date)
+      const programation = resolved?.programation ?? DEFAULT_PROGRAMATION
+
+      const stateLogs: StateLog[] = []
+      const appLogs: AppUsageLog[] = []
+      const activeWindows: Array<{ start: number; end: number }> = []
+      for (const m of userMachines) {
+        const logs = stateByMachineByDate.get(date)!.get(Number(m.id)) ?? []
+        stateLogs.push(...logs)
+        activeWindows.push(...buildActiveWindows(logs))
+        appLogs.push(...(logsByMachineByDate.get(date)!.get(Number(m.id)) ?? []))
+      }
+
+      const firstMs = stateLogs
+        .filter(l => (l.code ?? l.state?.code) !== WORK_STATE_CODE.OFFLINE)
+        .reduce((min, l) => Math.min(min, new Date(l.timestamp).getTime()), Infinity)
+
+      if (firstMs === Infinity && !resolved) continue
+
+      const dayNowMs = date === ctx.todayStr ? ctx.nowMs : Infinity
+      const dayEndMs = Math.min(bogotaToMs(date, '23:59:59', machineOffsetMinutes), dayNowMs)
+      const lastEvidenceMs = Math.max(
+        firstMs === Infinity ? 0 : firstMs,
+        ...appLogs.map(iv => new Date(iv.interval_end).getTime()),
+        ...stateLogs.map(sl => new Date(sl.timestamp).getTime()),
+      )
+      const closed = closeTrailingWindows(activeWindows, lastEvidenceMs, dayEndMs)
+      const lastMs = closed.length > 0
+        ? Math.min(Math.max(...closed.map(w => w.end)), dayNowMs)
+        : null
+
+      const hasFirst = firstMs !== Infinity
+      rows.push({
+        user,
+        date,
+        machines: userMachines.map(m => m.nickname?.trim() || m.hostname),
+        scheduledStart: programation.start_day,
+        scheduledEnd: programation.end_day,
+        hasRealSchedule: resolved != null,
+        firstActivity: hasFirst ? fmtLocalHHmm(firstMs, machineOffsetMinutes) : null,
+        lastActivity: hasFirst && lastMs != null && lastMs > firstMs ? fmtLocalHHmm(lastMs, machineOffsetMinutes) : null,
+        spanSeconds: hasFirst && lastMs != null && lastMs > firstMs ? Math.round((lastMs - firstMs) / 1000) : 0,
+        inProgress: date === ctx.todayStr,
+      })
+    }
+  }
+  return rows
+}

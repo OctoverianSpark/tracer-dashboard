@@ -6,6 +6,7 @@ import { getGroups, getGroupVisibility } from '@/app/app/groups/actions'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/_components/_ui/tabs'
 import THScheduleView from '@/components/TH/THScheduleView'
 import LateArrivalsLog from '@/components/TH/LateArrivalsLog'
+import AttendanceLog from '@/components/TH/AttendanceLog'
 import InfinitySpinner from '@/components/InfinitySpinner'
 import { Group } from '@/types/AppUser'
 
@@ -55,6 +56,7 @@ export default function THPage() {
         <TabsList>
           <TabsTrigger value="schedule">Malla Horaria</TabsTrigger>
           <TabsTrigger value="late">Llegadas tarde</TabsTrigger>
+          <TabsTrigger value="attendance">Entradas y salidas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="schedule" className="mt-4">
@@ -66,6 +68,10 @@ export default function THPage() {
 
         <TabsContent value="late" className="mt-4">
           <LateArrivalsLog groups={groups} />
+        </TabsContent>
+
+        <TabsContent value="attendance" className="mt-4">
+          <AttendanceLog groups={groups} />
         </TabsContent>
       </Tabs>
     </div>

@@ -15,7 +15,7 @@ export const setAbsenceStatus = async (userId: number, status: AbsenceStatus): P
 
 import { getSchedules, getProgramations, getAllRotations } from '../time/actions'
 import { resolveEffectiveProgramation } from '@/lib/scheduleResolver'
-import { loadMachinesAndStateLogs } from '@/lib/productivity'
+import { loadMachinesAndStateLogs, computeAttendanceRange, type DayAttendance } from '@/lib/productivity'
 import { bogotaDateOf } from '@/lib/bogotaTime'
 import { AppUser } from '@/types/AppUser'
 import { LunchSkip, Programation } from '@/types/Schedules'
@@ -174,4 +174,13 @@ export const getLateArrivals = async (date: string): Promise<LateArrival[]> => {
       status:        minutesLate > 5 ? ('late' as const) : ('on_time' as const),
     }
   })
+}
+
+// ─── Entradas y salidas ───────────────────────────────────────────────────────
+
+// Hora de inicio y de salida por usuario y día — ver computeAttendanceRange en lib/productivity.ts.
+export const getAttendance = async (dateFrom: string, dateTo: string, groupId?: number): Promise<DayAttendance[]> => {
+  const allUsers = await getappuser()
+  const users = groupId != null ? allUsers.filter(u => Number(u.group_id) === groupId) : allUsers
+  return computeAttendanceRange(users, dateFrom, dateTo)
 }
