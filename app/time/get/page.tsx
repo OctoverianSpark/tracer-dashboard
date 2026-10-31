@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Input } from '@/app/_components/_ui/input'
 import { Label } from '@/app/_components/_ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/_ui/select'
 import { UserSelect } from '@/components/UserSelect'
 import { Card, CardContent } from '@/app/_components/_ui/card'
 import { findAsignedMachines } from '@/app/computers/actions'
@@ -19,6 +18,7 @@ import { AppUser, FlatAppUsageLog, Group } from '@/types/AppUser'
 import { StateLog } from '@/types/StateLog'
 import { Programation } from '@/types/Schedules'
 import { StateCategory, WorkState } from '@/types/States'
+import { bogotaDateOf, BOGOTA_OFFSET_MINUTES } from '@/lib/bogotaTime'
 
 const DAY_KEYS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'] as const
 
@@ -28,13 +28,13 @@ export default function Page() {
   const [groups, setGroups]             = useState<Group[]>([])
   const [computers, setComputers]       = useState<Machine[]>([])
   const [date, setDate]                 = useState<string>('')
-  const [logs, setLogs]                 = useState<StateLog[]>([])
+  // Logs de TODOS los equipos del usuario, cada uno con su equipo — la malla los empalma.
+  const [logs, setLogs]                 = useState<Array<{ log: StateLog; machine: Machine }>>([])
   const [usageLogs, setUsageLogs]       = useState<FlatAppUsageLog[]>([])
   const [states, setStates]             = useState<WorkState[]>([])
   const [categories, setCategories]     = useState<StateCategory[]>([])
 
   const [selectedAppUser, setSelected]  = useState<AppUser | undefined>()
-  const [selectedComputer, setComputer] = useState<Machine | undefined>()
   const [programation, setProgramation] = useState<Programation | null>(null)
   const [ignoredApps, setIgnoredApps]   = useState<Set<string>>(new Set())
 
@@ -54,8 +54,12 @@ export default function Page() {
     ? visibilityFiltered.filter(u => Number(u.id) !== currentUserId)
     : visibilityFiltered
 
+  // Fecha calendario LOCAL del equipo, no el prefijo UTC crudo del timestamp (que corría al día
+  // siguiente cualquier log desde las 19:00 hora Colombia).
   const filteredLogs = useMemo(
-    () => date ? logs.filter(log => log.timestamp.startsWith(date)) : [],
+    () => date
+      ? logs.filter(({ log, machine }) => bogotaDateOf(log.timestamp, machine.timezone_offset_minutes ?? BOGOTA_OFFSET_MINUTES) === date)
+      : [],
     [logs, date]
   )
 
@@ -79,22 +83,30 @@ export default function Page() {
 
   useEffect(() => {
     if (!selectedAppUser) return
-    setComputer(undefined)
-    findAsignedMachines(selectedAppUser.id!).then(machines => {
-      setComputers(machines)
-      if (machines.length === 1) setComputer(machines[0])
-    })
+    findAsignedMachines(selectedAppUser.id!).then(setComputers)
   }, [selectedAppUser])
 
+  // Solo el día pedido (±1 por zona horaria, se recorta arriba con filteredLogs) en vez del
+  // historial completo de cada equipo.
   useEffect(() => {
-    if (!selectedAppUser || !selectedComputer) return
-    getStateLog(selectedAppUser.id!, selectedComputer.id!).then(setLogs)
-  }, [selectedAppUser, selectedComputer])
+    if (!selectedAppUser || !date || computers.length === 0) return
+    let cancelled = false
+    const shift = (d: string, days: number) => new Date(new Date(`${d}T12:00:00Z`).getTime() + days * 86400000).toISOString().slice(0, 10)
+    Promise.all(computers.filter(m => m.id != null).map(machine =>
+      getStateLog(selectedAppUser.id!, Number(machine.id), shift(date, -1), shift(date, 1))
+        .then(raw => (Array.isArray(raw) ? raw as StateLog[] : []).map(log => ({ log, machine })))
+        .catch(() => [])
+    )).then(perMachine => { if (!cancelled) setLogs(perMachine.flat()) })
+    return () => { cancelled = true }
+  }, [selectedAppUser, computers, date])
 
   useEffect(() => {
-    if (!date || !selectedComputer?.id) { setUsageLogs([]); return }
-    getAppUsageLogs(date, selectedComputer.id).then(setUsageLogs)
-  }, [date, selectedComputer])
+    if (!date || computers.length === 0) return
+    let cancelled = false
+    Promise.all(computers.filter(m => m.id != null).map(m => getAppUsageLogs(date, Number(m.id)).catch(() => [])))
+      .then(perMachine => { if (!cancelled) setUsageLogs(perMachine.flat()) })
+    return () => { cancelled = true }
+  }, [date, computers])
 
   useEffect(() => {
     if (!selectedAppUser || !date) { setProgramation(null); return }
@@ -106,7 +118,7 @@ export default function Page() {
     })
   }, [selectedAppUser, date])
 
-  const showData = selectedComputer && date
+  const showData = selectedAppUser && date && computers.length > 0
 
   return (
     <div className="space-y-6">
@@ -118,44 +130,34 @@ export default function Page() {
               users={selectableUsers}
               groups={groups}
               value={selectedAppUser?.id?.toString()}
-              onValueChange={val => setSelected(appuser.find(e => e.id === Number(val)))}
+              onValueChange={val => {
+                setSelected(appuser.find(e => e.id === Number(val)))
+                setComputers([])
+                setLogs([])
+                setUsageLogs([])
+              }}
               placeholder="Seleccione usuario"
             />
-          </div>
-
-          <div className="grid gap-2 w-full sm:min-w-48">
-            <Label>Computador</Label>
-            <Select
-              disabled={!selectedAppUser}
-              onValueChange={val => setComputer(computers.find(e => e.id === Number(val)))}
-              value={selectedComputer?.id?.toString()}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={selectedAppUser ? 'Seleccione equipo' : 'Primero seleccione usuario'} />
-              </SelectTrigger>
-              <SelectContent>
-                {computers.map(computer => (
-                  <SelectItem key={computer.id} value={`${computer.id}`}>
-                    {machineDisplayName(computer)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </div>
 
         <div className="grid gap-2 w-full sm:w-44">
           <Label>Fecha</Label>
-          <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
+          <Input
+            type="date"
+            value={date}
+            onChange={e => { setDate(e.target.value); setLogs([]); setUsageLogs([]) }}
+          />
         </div>
       </div>
 
       {showData && (
         <Timeline
-          logs={filteredLogs.map(log => ({
+          logs={filteredLogs.map(({ log, machine }) => ({
             state:     String(log.code),
             category:  log.category?.key ?? '',
             timestamp: new Date(log.timestamp).toISOString(),
+            machine:   machineDisplayName(machine),
           }))}
           scheduleStart={programation?.start_day}
           scheduleEnd={programation?.end_day}
@@ -175,7 +177,9 @@ export default function Page() {
 
       {!showData && (
         <p className="text-center text-sm text-muted-foreground py-12">
-          Selecciona un usuario, equipo y fecha para ver la actividad.
+          {selectedAppUser && computers.length === 0
+            ? 'Este usuario no tiene equipos asignados.'
+            : 'Selecciona un usuario y una fecha para ver la actividad.'}
         </p>
       )}
     </div>

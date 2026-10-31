@@ -9,6 +9,9 @@ export interface Log {
   category: string
   timestamp: string
   state: string
+  // Equipo del que viene el log — con varios equipos, los bloques se arman por equipo y se
+  // muestran empalmados en la misma barra (ver buildBlocks).
+  machine?: string
 }
 
 // Catálogo de respaldo si /states y /state-categories no responden o vienen vacíos —
@@ -70,6 +73,7 @@ function formatHour(hour: number) {
 interface Block {
   category: string
   state: string
+  machine?: string
   startMins: number
   endMins: number
   durationMins: number
@@ -79,7 +83,22 @@ interface Block {
   endLabel: string
 }
 
+// Cada log marca el inicio de un estado y el siguiente log DEL MISMO EQUIPO marca su fin — con
+// varios equipos se arma cada secuencia por separado (intercalarlas inventaría bloques falsos) y
+// luego se juntan, ordenados por inicio.
 function buildBlocks(logs: Log[], workdayStartMins: number, workdayMins: number): Block[] {
+  const byMachine = new Map<string, Log[]>()
+  for (const log of logs) {
+    const key = log.machine ?? ''
+    if (!byMachine.has(key)) byMachine.set(key, [])
+    byMachine.get(key)!.push(log)
+  }
+  return [...byMachine.values()]
+    .flatMap(machineLogs => buildMachineBlocks(machineLogs, workdayStartMins, workdayMins))
+    .sort((a, b) => a.startMins - b.startMins)
+}
+
+function buildMachineBlocks(logs: Log[], workdayStartMins: number, workdayMins: number): Block[] {
   const sorted = [...logs].sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   )
@@ -102,6 +121,7 @@ function buildBlocks(logs: Log[], workdayStartMins: number, workdayMins: number)
     blocks.push({
       category: cur.category,
       state:    cur.state,
+      machine:  cur.machine,
       startMins,
       endMins,
       durationMins: endMins - startMins,
@@ -113,6 +133,22 @@ function buildBlocks(logs: Log[], workdayStartMins: number, workdayMins: number)
   }
 
   return blocks
+}
+
+// Minutos cubiertos por la UNIÓN de los bloques — dos equipos activos a la vez no cuentan doble.
+function unionMinutes(blocks: Block[]): number {
+  const sorted = [...blocks].sort((a, b) => a.startMins - b.startMins)
+  let total = 0, curStart = -1, curEnd = -1
+  for (const b of sorted) {
+    if (b.startMins > curEnd) {
+      total += curEnd - curStart
+      curStart = b.startMins
+      curEnd = b.endMins
+    } else {
+      curEnd = Math.max(curEnd, b.endMins)
+    }
+  }
+  return total + (curEnd - curStart)
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -171,9 +207,8 @@ export function Timeline({ logs, scheduleStart, scheduleEnd, states, categories,
 
   const blocks = buildBlocks(logs, workdayStartMins, workdayMins)
 
-  const productiveMins = blocks
-    .filter(b => b.category === "active")
-    .reduce((acc, b) => acc + b.durationMins, 0)
+  const productiveMins = unionMinutes(blocks.filter(b => b.category === "active"))
+  const multiMachine = new Set(blocks.map(b => b.machine ?? "")).size > 1
 
   const hours = Array.from(
     { length: workdayEndHour - workdayStartHour + 1 },
@@ -252,6 +287,9 @@ export function Timeline({ logs, scheduleStart, scheduleEnd, states, categories,
                 <p className="text-xs text-muted-foreground">
                   {block.startLabel} → {block.endLabel} · {formatDuration(block.durationMins)}
                 </p>
+                {block.machine && (
+                  <p className="text-xs text-muted-foreground">Equipo: {block.machine}</p>
+                )}
               </TooltipContent>
             </Tooltip>
           ))}
@@ -323,6 +361,9 @@ export function Timeline({ logs, scheduleStart, scheduleEnd, states, categories,
                 {block.startLabel} → {block.endLabel}
               </span>
               <span className="font-medium">{stateLabel(block.state)}</span>
+              {multiMachine && block.machine && (
+                <span className="text-muted-foreground truncate">· {block.machine}</span>
+              )}
               <span className="text-muted-foreground ml-auto tabular-nums">
                 {formatDuration(block.durationMins)}
               </span>
