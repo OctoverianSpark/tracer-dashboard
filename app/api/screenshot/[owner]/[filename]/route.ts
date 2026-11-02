@@ -8,16 +8,16 @@ const SAFE_SEGMENT = /^[a-zA-Z0-9_\-][a-zA-Z0-9_\-.]*$/
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ machine: string; filename: string }> }
+  { params }: { params: Promise<{ owner: string; filename: string }> }
 ) {
-  const { filename, machine } = await params
-  if (!SAFE_SEGMENT.test(machine) || !SAFE_SEGMENT.test(filename)) {
+  const { filename, owner } = await params
+  if (!SAFE_SEGMENT.test(owner) || !SAFE_SEGMENT.test(filename)) {
     return new NextResponse(null, { status: 400 })
   }
 
   const thumb = req.nextUrl.searchParams.get('thumb') === '1'
   const response = await fetch(
-    `${API_URL}/machines/screenshot/${encodeURIComponent(machine)}/${encodeURIComponent(filename)}${thumb ? '?thumb=1' : ''}`,
+    `${API_URL}/machines/screenshot/${encodeURIComponent(owner)}/${encodeURIComponent(filename)}${thumb ? '?thumb=1' : ''}`,
     { cache: 'no-store' }
   )
 

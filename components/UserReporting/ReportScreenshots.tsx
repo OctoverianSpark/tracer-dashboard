@@ -27,17 +27,22 @@ function zipFiles(data: Record<string, Uint8Array>): Promise<Uint8Array> {
   )
 }
 
-interface IntervalPct { start: number; end: number; pct: number }
+// `machine` = hostname del equipo del intervalo; si viene, solo se cruza con capturas de ese equipo.
+export interface IntervalPct { start: number; end: number; pct: number; machine?: string }
 
 interface ScreenshotsListProps {
   screenshots: string[]
-  machineName: string
+  /** Carpeta en el backend: el id del usuario. */
+  folder: string
+  /** Nombre para el ZIP descargado. */
+  label: string
   productivityIntervals?: IntervalPct[] | undefined
 }
 
 const PAGE_SIZE = 24
 
-// Formato de nombre: 2026-06-09T20-42-11-939Z_Monitor1.jpg
+// Formato de nombre: 2026-06-09T20-42-11-939Z_<hostname>_Monitor1.jpg (las anteriores al cambio a
+// carpetas por usuario no traen hostname: 2026-06-09T20-42-11-939Z_Monitor1.jpg)
 const FILE_REGEX = /(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})(?:-(\d{3}))?Z/
 
 function parseDate(fileName: string): string {
@@ -65,6 +70,10 @@ function fileMs(fileName: string): number | null {
   return isNaN(ms) ? null : ms
 }
 
+export function screenshotMachine(fileName: string): string | null {
+  return fileName.match(/^[^_]+_(.+)_Monitor\d+\.jpg$/)?.[1] ?? null
+}
+
 function ProductivityBadge({ pct }: { pct: number | undefined }) {
   if (pct === undefined) return null
   const color = pct >= 70 ? 'bg-green-600' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
@@ -78,7 +87,7 @@ function ProductivityBadge({ pct }: { pct: number | undefined }) {
 
 
 
-export default function ReportScreenshotsList({ screenshots, machineName, productivityIntervals }: ScreenshotsListProps) {
+export default function ReportScreenshotsList({ screenshots, folder, label, productivityIntervals }: ScreenshotsListProps) {
   const [page, setPage] = useState(1)
   const [openIndex, setOpenIndex] = useState<number | null>(null)
 
@@ -86,6 +95,12 @@ export default function ReportScreenshotsList({ screenshots, machineName, produc
 
 const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screenshots, page])
   const remaining = screenshots.length - visible.length
+
+  // Con capturas de un solo equipo no hace falta repetir el nombre en cada tarjeta.
+  const multiMachine = useMemo(
+    () => new Set(screenshots.map(screenshotMachine).filter(Boolean)).size > 1,
+    [screenshots]
+  )
 
   const gridRef = useRef<HTMLDivElement>(null)
   useStaggerChildren(gridRef, { deps: [visible.length] })
@@ -110,14 +125,18 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
     const ms = fileMs(fileName)
 
     if (ms === null) return undefined
+    const machine = screenshotMachine(fileName)
+    const intervals = machine
+      ? productivityIntervals.filter(iv => !iv.machine || iv.machine.toLowerCase() === machine.toLowerCase())
+      : productivityIntervals
 
-    const exact = productivityIntervals.find(iv => ms >= iv.start && ms < iv.end)
+    const exact = intervals.find(iv => ms >= iv.start && ms < iv.end)
     if (exact) return exact.pct
     // Fallback: intervalo más cercano dentro de 15 min
     const MAX_GAP = 15 * 60 * 1000
     let best: IntervalPct | undefined
     let bestDist = Infinity
-    for (const iv of productivityIntervals) {
+    for (const iv of intervals) {
       const dist = ms < iv.start ? iv.start - ms : ms - iv.end
       if (dist < bestDist && dist <= MAX_GAP) { bestDist = dist; best = iv }
     }
@@ -138,7 +157,7 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
       for (let i = 0; i < screenshots.length; i += BATCH) {
         await Promise.all(
           screenshots.slice(i, i + BATCH).map(async f => {
-            const res = await fetch(`/api/screenshot/${machineName}/${f}`)
+            const res = await fetch(`/api/screenshot/${folder}/${f}`)
             fileData[f] = new Uint8Array(await res.arrayBuffer())
           })
         )
@@ -149,7 +168,7 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
       const dateStr = screenshots[0]?.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? 'export'
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
-      a.download = `capturas_${machineName}_${dateStr}.zip`
+      a.download = `capturas_${label}_${dateStr}.zip`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -162,9 +181,10 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
   }
 
   const currentFile = openIndex !== null ? screenshots[openIndex] : null
-  const currentSrc  = currentFile ? `/api/screenshot/${machineName}/${currentFile}` : ''
+  const currentSrc  = currentFile ? `/api/screenshot/${folder}/${currentFile}` : ''
   const currentDate = currentFile ? parseDate(currentFile) : ''
   const currentPct  = currentFile ? getPct(currentFile) : undefined
+  const currentMachine = currentFile ? screenshotMachine(currentFile) : null
 
   // Reinicia estado de carga cada vez que cambia la imagen
   useEffect(() => { setImgLoaded(false) }, [currentSrc])
@@ -192,7 +212,7 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
                 <CardContent className="p-0">
                   <div className="relative">
                     <Image
-                      src={`/api/screenshot/${machineName}/${file}?thumb=1`}
+                      src={`/api/screenshot/${folder}/${file}?thumb=1`}
                       unoptimized
                       loading="lazy"
                       alt={parseDate(file)}
@@ -202,7 +222,7 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
                     />
                     <button
                       className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 hover:bg-black/80 text-white rounded p-1"
-                      onClick={e => { e.stopPropagation(); downloadOne(`/api/screenshot/${machineName}/${file}`, file) }}
+                      onClick={e => { e.stopPropagation(); downloadOne(`/api/screenshot/${folder}/${file}`, file) }}
                       title="Descargar captura"
                     >
                       <Download className="h-3 w-3" />
@@ -227,7 +247,10 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
                     )}
                   </div>
                   <div className="px-2 py-1.5">
-                    <span className="text-xs text-muted-foreground">{parseTime(file)}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {parseTime(file)}
+                      {multiMachine && screenshotMachine(file) && ` · ${screenshotMachine(file)}`}
+                    </span>
                   </div>
                 </CardContent>
                 </Card>
@@ -249,6 +272,7 @@ const visible = useMemo(() => screenshots.slice(0, page * PAGE_SIZE), [screensho
         <DialogContent className="sm:max-w-[92vw] w-[92vw] p-4 gap-3">
           <DialogTitle className="text-center text-sm flex items-center justify-center gap-2">
             {currentDate}
+            {currentMachine && <span className="text-muted-foreground font-normal">· {currentMachine}</span>}
             <ProductivityBadge pct={currentPct} />
           </DialogTitle>
 

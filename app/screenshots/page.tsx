@@ -1,13 +1,13 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { getMachineReport, findAsignedMachines } from '../computers/actions'
+import { getUserScreenshots, findAsignedMachines } from '../computers/actions'
 import { getappuser } from '../app/actions'
 import { getGroups, getGroupVisibility } from '../app/groups/actions'
 import { getRawAppUsageLogs } from '../time/actions'
-import ReportScreenshotsList from '@/components/UserReporting/ReportScreenshots'
+import ReportScreenshotsList, { type IntervalPct } from '@/components/UserReporting/ReportScreenshots'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../_components/_ui/select'
-import { Machine, machineDisplayName } from '@/types/Machine'
+import { Machine } from '@/types/Machine'
 import { AppUser, Group } from '@/types/AppUser'
 import { Input } from '../_components/_ui/input'
 import { UserSelect } from '@/components/UserSelect'
@@ -19,12 +19,11 @@ export default function Page() {
   const [groups, setGroups]               = useState<Group[]>([])
   const [machines, setMachines]           = useState<Machine[]>([])
   const [selectedUser, setSelectedUser]   = useState<AppUser | undefined>()
-  const [machine, setMachine]             = useState<Machine | undefined>()
   const [date, setDate]                   = useState(() => { const d = new Date(); return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-') })
   const [screenshots, setScreenshots]             = useState<string[]>([])
   const [actualMonitor, setActualMonitor]         = useState<number | null>(null)
   const [loading, setLoading]                     = useState(false)
-  const [productivityIntervals, setProductivityIntervals] = useState<{ start: number; end: number; pct: number }[] | undefined>(undefined)
+  const [productivityIntervals, setProductivityIntervals] = useState<IntervalPct[] | undefined>(undefined)
 
   const [visibleGroupIds, setVisibleGroupIds] = useState<number[]>([])
 
@@ -54,47 +53,31 @@ export default function Page() {
     }
   }, [session?.appUser?.group_id])
 
+  // Equipos del usuario: solo para la productividad por intervalo (las capturas ya vienen por usuario).
   useEffect(() => {
     if (!selectedUser) return
-    setMachine(undefined)
-    setScreenshots([])
-    setActualMonitor(null)
-    setProductivityIntervals(undefined)
-    findAsignedMachines(selectedUser.id!).then(machines => {
-      setMachines(machines)
-      if (machines.length === 1) setMachine(machines[0])
-    })
+    findAsignedMachines(selectedUser.id!).then(setMachines)
   }, [selectedUser])
 
-  // Carga de capturas (crítica)
+  // Carga de capturas (crítica) — todas las del usuario, de cualquiera de sus equipos
   useEffect(() => {
-    if (!machine) return
+    if (!selectedUser) return
     setLoading(true)
-    getMachineReport(machine.hostname, date)
+    getUserScreenshots(selectedUser.id!, date)
       .then(data => setScreenshots(data.files ?? []))
       .finally(() => setLoading(false))
-  }, [machine, date])
+  }, [selectedUser, date])
 
-  // Carga de productividad por intervalo (independiente, best-effort)
+  // Carga de productividad por intervalo (independiente, best-effort). Cada intervalo lleva el
+  // hostname de su equipo para cruzarlo solo con las capturas de ese mismo equipo.
   useEffect(() => {
-    if (!machine) return
-    setProductivityIntervals(undefined)
-    getRawAppUsageLogs(date, machine.id).then(rawLogs => {
-      // Diagnóstico
-      const uniqueIds = [...new Set(rawLogs.map(l => l.computer_id))]
-      console.log('[Prod] machine completo:', machine)
-      console.log(`[Prod] machine.id=${machine.id} | computer_ids en respuesta:`, uniqueIds)
+    if (machines.length === 0) return
+    Promise.all(machines.map(async machine => {
+      const rawLogs = await getRawAppUsageLogs(date, machine.id)
+      // Filtro defensivo: descartamos logs de otras máquinas
+      const logs = machine.id != null ? rawLogs.filter(l => l.computer_id === machine.id) : rawLogs
 
-      // Filtro defensivo: si tenemos el ID del equipo, descartamos logs de otras máquinas
-      const logs = machine.id != null
-        ? rawLogs.filter(l => l.computer_id === machine.id)
-        : rawLogs
-
-      console.groupCollapsed(`[GoTracer] Reportes recibidos: ${logs.length} intervalos — ${machine.hostname} ${date}`)
-      console.log('[GoTracer] Raw body completo:', logs)
-
-      const intervals: { start: number; end: number; pct: number }[] = []
-
+      const intervals: IntervalPct[] = []
       for (const log of logs) {
         const startMs = new Date(log.interval_start).getTime()
         const endMs   = new Date(log.interval_end).getTime()
@@ -107,31 +90,15 @@ export default function Page() {
         const TARGET_CLICKS = 10
         const TARGET_KEYS   = 15
 
-        const clicks     = log.mouse_clicks ?? 0
-        const keystrokes = log.keystrokes   ?? 0
-        const clicksPct  = Math.min(100, Math.round((clicks     / TARGET_CLICKS) * 100))
-        const keysPct    = Math.min(100, Math.round((keystrokes / TARGET_KEYS)   * 100))
-        const pct        = Math.round((clicksPct + keysPct) / 2)
-
-        console.log(
-          `%c${new Date(startMs).toLocaleTimeString('es-CO')} – ${new Date(endMs).toLocaleTimeString('es-CO')}` +
-          `  🖱 ${clicks}/${TARGET_CLICKS}→${clicksPct}%  ⌨ ${keystrokes}/${TARGET_KEYS}→${keysPct}%  =  ${pct}%`,
-          pct >= 70 ? 'color:#22c55e' : pct >= 40 ? 'color:#eab308' : 'color:#ef4444'
-        )
-
-
-        intervals.push({ start: startMs, end: endMs, pct })
+        const clicksPct = Math.min(100, Math.round(((log.mouse_clicks ?? 0) / TARGET_CLICKS) * 100))
+        const keysPct   = Math.min(100, Math.round(((log.keystrokes   ?? 0) / TARGET_KEYS)   * 100))
+        intervals.push({ start: startMs, end: endMs, pct: Math.round((clicksPct + keysPct) / 2), machine: machine.hostname })
       }
-
-      const avg = intervals.length
-        ? Math.round(intervals.reduce((s, iv) => s + iv.pct, 0) / intervals.length)
-        : 0
-      console.log(`Promedio: ${avg}%  |  Intervalos procesados: ${intervals.length}`)
-      console.groupEnd()
-
-      setProductivityIntervals(intervals)
-    }).catch(err => console.error('[Prod] Error:', err))
-  }, [machine, date])
+      return intervals
+    }))
+      .then(perMachine => setProductivityIntervals(perMachine.flat()))
+      .catch(err => console.error('[Prod] Error:', err))
+  }, [machines, date])
 
   const monitorCount = useMemo(() => {
     return screenshots.reduce((max, filename) => {
@@ -156,40 +123,23 @@ export default function Page() {
           value={selectedUser?.id?.toString()}
           onValueChange={val => {
             setSelectedUser(appusers.find(u => u.id === Number(val)))
+            setMachines([])
+            setScreenshots([])
             setActualMonitor(null)
+            setProductivityIntervals(undefined)
           }}
           placeholder="Usuario"
           triggerClassName="h-8 text-sm flex-1 min-w-36"
         />
 
-        <Select
-          disabled={!selectedUser}
-          value={machine?.serial_number}
-          onValueChange={val => {
-            setMachine(machines.find(m => m.serial_number === val))
-            setActualMonitor(null)
-          }}
-        >
-          <SelectTrigger className="h-8 text-sm flex-1 min-w-36">
-            <SelectValue placeholder={selectedUser ? 'Equipo' : 'Equipo'} />
-          </SelectTrigger>
-          <SelectContent>
-            {machines.map(m => (
-              <SelectItem key={m.serial_number} value={m.serial_number}>
-                {machineDisplayName(m)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         <Input
           type="date"
           value={date}
-          onChange={e => setDate(e.target.value)}
+          onChange={e => { setDate(e.target.value); setProductivityIntervals(undefined) }}
           className="h-8 text-sm w-auto"
         />
 
-        {machine && (
+        {selectedUser && (
           <Select
             value={actualMonitor === null ? 'all' : `${actualMonitor}`}
             onValueChange={val => setActualMonitor(val === 'all' ? null : parseInt(val))}
@@ -207,7 +157,7 @@ export default function Page() {
         )}
       </div>
 
-      {machine && date && (
+      {selectedUser && date && (
         <div className="space-y-4">
 
           {loading ? (
@@ -216,7 +166,8 @@ export default function Page() {
             </div>
           ) : (
             <ReportScreenshotsList
-              machineName={machine.hostname}
+              folder={String(selectedUser.id)}
+              label={selectedUser.full_name.replace(/\s+/g, '_')}
               screenshots={filteredScreenshots}
               productivityIntervals={productivityIntervals}
             />
@@ -224,9 +175,9 @@ export default function Page() {
         </div>
       )}
 
-      {!machine && (
+      {!selectedUser && (
         <p className="text-center text-sm text-muted-foreground py-12">
-          Selecciona un usuario y equipo para ver las capturas.
+          Selecciona un usuario para ver las capturas.
         </p>
       )}
     </div>

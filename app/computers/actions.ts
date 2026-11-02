@@ -38,8 +38,10 @@ export const deleteComputer = async (serial_number: string) => {
   revalidatePath('/computers/dashboard')
 }
 
-export const getMachineReport = async (computerName: string, date: string) => {
-  const data = await (await fetch(`${API_URL}/machines/get-report?computername=${computerName}&date=${date}`)).json()
+// Las capturas se guardan por usuario (todas sus máquinas juntas); el hostname va en el nombre
+// del archivo, ver screenshotMachine en components/UserReporting/ReportScreenshots.tsx.
+export const getUserScreenshots = async (appuserId: number, date: string) => {
+  const data = await (await fetch(`${API_URL}/machines/get-report?appuser_id=${appuserId}&date=${date}`)).json()
   return data
 }
 
