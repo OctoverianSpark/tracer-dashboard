@@ -31,6 +31,7 @@ import {
   TrendingUp,
   ClipboardCheck,
   Clock,
+  ScrollText,
 } from 'lucide-react'
 import { join } from 'path'
 import UserForm from '../UserManager/UserForm'
@@ -170,6 +171,14 @@ const COMPUTERS: NavSection = {
       icon: FrameIcon,
       url: UriGenerator('computers', Actions.DASHBOARD),
       desc: 'Panel de computadoras',
+      perm: 'manage_computers'
+    },
+    {
+      title: 'Logs del agente',
+      type: NavTypes.LINK,
+      icon: ScrollText,
+      url: '/computers/logs',
+      desc: 'Registro de ejecución que GoTracer envía cada 5 minutos',
       perm: 'manage_computers'
     }
   ]

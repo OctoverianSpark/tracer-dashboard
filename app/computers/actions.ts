@@ -1,6 +1,7 @@
 'use server'
 import { Machine, MachineActionResult, MachineSyncResult } from "@/types/Machine"
 import { Notification } from "@/types/Notification"
+import { AgentLogBatch, AgentLogLevel } from "@/types/AgentLog"
 import { revalidatePath } from "next/cache"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
@@ -124,4 +125,14 @@ export const setNickname = async (serial: string, nickname: string | null) => {
   if (!res.ok) throw new Error(data.error || `Error ${res.status}`)
   revalidatePath('/computers/dashboard')
   return data
+}
+
+// Logs de ejecución que sube el agente cada 5 minutos (ver LogUploadWorker en ActiMetrics).
+// `owner` es el id del usuario (o el hostname de un equipo sin usuario asignado).
+export const getAgentLogs = async (owner: string, date: string, minLevel?: AgentLogLevel): Promise<AgentLogBatch[]> => {
+  const params = new URLSearchParams({ appuser_id: owner, date })
+  if (minLevel) params.set('min_level', minLevel)
+  const res = await fetch(`${API_URL}/tracer/logs?${params}`, { cache: 'no-store' })
+  const data = await parseActionResponse<{ batches: AgentLogBatch[] }>(res, 'logs del agente')
+  return data.batches ?? []
 }
